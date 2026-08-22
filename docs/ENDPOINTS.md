@@ -12,5 +12,12 @@ a build failure (INV-11), so it should never appear here.
 
 | Method | Path | Permission | Request DTO | Controller |
 |---|---|---|---|---|
+| POST | `/api/v1/auth/login` | _public_ | `LoginRequest` | `LoginController` |
+| POST | `/api/v1/auth/logout` | _public_ | — | `LogoutController` |
+| POST | `/api/v1/auth/logout-all` | `account.update` | — | `LogoutAllController` |
+| GET | `/api/v1/auth/me` | `account.read` | — | `MeController` |
+| POST | `/api/v1/auth/refresh` | _public_ | — | `RefreshController` |
+| POST | `/api/v1/auth/register` | _public_ | `RegisterRequest` | `RegisterController` |
+| POST | `/api/v1/auth/verify-email` | _public_ | `TokenRequest` | `VerifyEmailController` |
 | GET | `/health/live` | _public_ | — | `LivenessController` |
 | GET | `/health/ready` | _public_ | — | `ReadinessController` |

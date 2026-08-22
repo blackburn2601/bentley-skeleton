@@ -31,6 +31,16 @@ class Role
      */
     public const string SUPER_ADMIN = 'ROLE_SUPER_ADMIN';
 
+    /**
+     * Held by every registered user, and the reason `/me` works.
+     *
+     * Without a baseline role, a freshly registered account has no grant of any kind and is
+     * refused even the right to read itself — technically correct under a deny-by-default
+     * ACL, and useless. This carries only the permissions a user has over their OWN account;
+     * anything touching another user's data is a separate grant.
+     */
+    public const string DEFAULT_USER = 'ROLE_USER';
+
     #[ORM\Id]
     #[ORM\Column(type: 'uuid', unique: true)]
     private Uuid $id;

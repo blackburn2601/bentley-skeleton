@@ -1,0 +1,14 @@
+{% extends 'email/base.html.twig' %}
+{% block subject %}Someone tried to register your email address{% endblock %}
+{% block content %}
+    <h1 style="font-size: 20px;">Someone tried to register your email address</h1>
+    <p>
+        Somebody attempted to create an account with this address, but you already have one.
+        No new account was created and nothing has changed.
+    </p>
+    <p>If that was you and you have forgotten your password, you can <a href="{{ resetUrl }}">reset it</a>.</p>
+    <p style="font-size: 13px; color: #666;">
+        If it was not you, no action is needed — but it is worth making sure your password here
+        is not one you use anywhere else.
+    </p>
+{% endblock %}

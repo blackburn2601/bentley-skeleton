@@ -35,6 +35,16 @@ services:
     # so the readiness probe cannot autowire it without this alias.
     Doctrine\Migrations\DependencyFactory: '@doctrine.migrations.dependency_factory'
 
+    # --- Stateless domain policies ---------------------------------------------------
+    # INV-04 excludes Domain from the container so that an ENTITY can never be autowired into
+    # a service. A policy object is not an entity: it has no identity, no state and no
+    # dependencies, and it belongs in Domain because it encodes a domain rule that the
+    # registration and password-reset flows must apply identically.
+    #
+    # Registered by name rather than by relaxing the exclusion, so each exception is a
+    # deliberate, reviewable line rather than a widened glob.
+    App\Account\Domain\PasswordPolicy: ~
+
     # --- Ports to adapters ----------------------------------------------------------
     # Only real port boundaries appear here (INV-12): a second implementation exists, or the
     # implementation belongs to a different context or to infrastructure we want to swap in
@@ -44,6 +54,14 @@ services:
     App\Shared\Application\AclVersionProvider: '@App\Account\Infrastructure\UserAclVersionProvider'
 
     App\Account\Domain\UserRepository: '@App\Account\Infrastructure\Repository\DoctrineUserRepository'
+    App\Account\Domain\RefreshTokenRepository: '@App\Account\Infrastructure\Repository\DoctrineRefreshTokenRepository'
+    App\Account\Domain\SingleUseTokenRepository: '@App\Account\Infrastructure\Repository\DoctrineSingleUseTokenRepository'
+    App\Account\Application\PasswordHasher: '@App\Account\Infrastructure\Security\SymfonyPasswordHasher'
+    App\Account\Application\AccessTokenIssuer: '@App\Account\Infrastructure\Security\JwtAccessTokenIssuer'
+    App\Account\Application\BreachedPasswordChecker: '@App\Account\Infrastructure\Http\HibpBreachedPasswordChecker'
+
+    App\Audit\Domain\SecurityEventRepository: '@App\Audit\Infrastructure\Repository\DoctrineSecurityEventRepository'
+    App\Audit\Application\Service\RequestContextProvider: '@App\Audit\Infrastructure\Http\HttpRequestContextProvider'
     App\Acl\Domain\AclEntryRepository: '@App\Acl\Infrastructure\Repository\DoctrineAclEntryRepository'
     App\Acl\Domain\RoleRepository: '@App\Acl\Infrastructure\Repository\DoctrineRoleRepository'
     App\Acl\Domain\PermissionRepository: '@App\Acl\Infrastructure\Repository\DoctrinePermissionRepository'
@@ -55,6 +73,52 @@ services:
         arguments:
             $aclCache: '@cache.acl'
             $ttlSeconds: 300
+
+    # --- Configuration bound to services ---------------------------------------------
+    # Token lifetimes come from env so they can differ per environment without a code
+    # change, and are bound in ONE place: an access-token TTL that disagreed with its
+    # cookie's Max-Age would log people out unpredictably.
+    App\Account\Infrastructure\Security\JwtAccessTokenIssuer:
+        arguments:
+            $ttlSeconds: '%env(int:ACCESS_TOKEN_TTL)%'
+
+    App\Account\Application\Service\StartSessionService:
+        arguments:
+            $ttlSeconds: '%env(int:REFRESH_TOKEN_TTL)%'
+
+    App\Account\Application\Service\RotateRefreshTokenService:
+        arguments:
+            $ttlSeconds: '%env(int:REFRESH_TOKEN_TTL)%'
+
+    App\Account\Application\Service\SignInService:
+        arguments:
+            $refreshTtlSeconds: '%env(int:REFRESH_TOKEN_TTL)%'
+
+    App\Account\Application\Service\RefreshSessionService:
+        arguments:
+            $refreshTtlSeconds: '%env(int:REFRESH_TOKEN_TTL)%'
+
+    App\Account\Infrastructure\Http\HibpBreachedPasswordChecker:
+        arguments:
+            $enabled: '%env(bool:PASSWORD_HIBP_CHECK)%'
+
+    App\Account\Application\Service\SendAccountEmailService:
+        arguments:
+            $senderAddress: '%env(MAILER_FROM_ADDRESS)%'
+            $senderName: '%env(MAILER_FROM_NAME)%'
+            $frontendBaseUrl: '%env(FRONTEND_BASE_URL)%'
+
+    App\Api\Security\AuthCookies:
+        arguments:
+            $sameSite: '%env(COOKIE_SAMESITE)%'
+
+    App\Api\Security\CookieTokenAuthenticator:
+        arguments:
+            # Off by default. With a Bearer header accepted, any endpoint reachable by a
+            # browser becomes reachable by a script holding a token, and the CSRF protection
+            # the cookie scheme provides no longer applies. Turn it on only for machine
+            # clients that genuinely cannot hold cookies.
+            $allowBearerHeader: '%env(bool:AUTH_ALLOW_BEARER_HEADER)%'
 
 when@dev: &dev_services
     services:

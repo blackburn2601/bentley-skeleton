@@ -1,39 +1,63 @@
 security:
-    # https://symfony.com/doc/current/security.html#registering-the-user-hashing-passwords
     password_hashers:
-        Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface: 'auto'
+        # argon2id, memory-hard so GPU cracking gains far less than it does against bcrypt.
+        # 64 MiB / 4 passes is roughly OWASP's recommendation; the cost is ~50-100ms per
+        # verification, which is the point — it is paid once per login and multiplied by
+        # billions for anyone attacking a stolen hash dump.
+        #
+        # Raising these later is safe and requires nothing of users: needsRehash() returns
+        # true for old hashes and AuthenticateUserService upgrades them on next login, the
+        # one moment the plaintext is available.
+        # Keyed by NAME, matching SymfonyPasswordHasher::HASHER_NAME. Symfony resolves
+        # class keys through the user hierarchy, and the Account domain's User is
+        # deliberately not the security-layer user, so a class key would never match.
+        app_account_password:
+            algorithm: 'argon2id'
+            memory_cost: 65536   # KiB
+            time_cost: 4
+            # No parallelism setting: Symfony's hasher configuration does not expose it, and
+            # libsodium's argon2id uses a fixed lane count. Memory and time are the two knobs
+            # that matter here anyway.
 
-    # https://symfony.com/doc/current/security.html#loading-the-user-the-user-provider
     providers:
-        users_in_memory: { memory: null }
+        # No user provider: the JWT is self-validating and carries everything the security
+        # layer needs (ADR-0011). A provider would add a database read to every request in
+        # order to re-derive what the signature already proved.
+        jwt_users:
+            memory: ~
 
     firewalls:
         dev:
-            # Ensure dev tools and static assets are always allowed
-            pattern: ^/(_profiler|_wdt|assets|build)/
+            pattern: ^/(_(profiler|wdt)|css|images|js)/
             security: false
-        main:
-            lazy: true
-            provider: users_in_memory
 
-            # Activate different ways to authenticate:
-            # https://symfony.com/doc/current/security.html#the-firewall
+        # Health probes must answer without credentials: an orchestrator has none, and an
+        # authenticated liveness check is how a deployment ends up with no health checking.
+        health:
+            pattern: ^/health/
+            security: false
 
-            # https://symfony.com/doc/current/security/impersonating_user.html
-            # switch_user: true
+        api:
+            pattern: ^/
+            stateless: true
+            provider: jwt_users
+            custom_authenticators:
+                - App\Api\Security\CookieTokenAuthenticator
+            entry_point: App\Api\Security\CookieTokenAuthenticator
 
-    # Note: Only the *first* matching rule is applied
     access_control:
-        # - { path: ^/admin, roles: ROLE_ADMIN }
-        # - { path: ^/profile, roles: ROLE_USER }
+        # Deliberately minimal. Authorization lives on the endpoints as #[IsGranted], which
+        # is checkable per endpoint (INV-11) and appears in docs/ENDPOINTS.md. Path-prefix
+        # rules here would be a second, invisible authorization system that no test walks
+        # and no inventory lists — and the two would eventually disagree.
+        - { path: ^/api/doc, roles: PUBLIC_ACCESS }
+        - { path: ^/api/, roles: PUBLIC_ACCESS }
 
 when@test:
     security:
         password_hashers:
-            # Password hashers are resource-intensive by design to ensure security.
-            # In tests, it's safe to reduce their cost to improve performance.
-            Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface:
-                algorithm: auto
-                cost: 4 # Lowest possible value for bcrypt
-                time_cost: 3 # Lowest possible value for argon
-                memory_cost: 10 # Lowest possible value for argon
+            # Tests must not spend their runtime deriving keys. A functional suite that logs
+            # in a hundred times would otherwise pay ~10 seconds in argon2id alone, and the
+            # response to slow auth tests is always to stop writing them.
+            app_account_password:
+                algorithm: 'plaintext'

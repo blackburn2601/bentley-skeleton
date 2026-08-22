@@ -17,15 +17,20 @@
 
     <rule ref="rulesets/codesize.xml/CyclomaticComplexity">
         <properties>
-            <!-- A branch in a controller is a business decision in the wrong layer. -->
-            <property name="reportLevel" value="3"/>
+            <!--
+                A branch in a controller is a business decision in the wrong layer. 4 is the
+                REPORT threshold, so a controller may have at most 3 — typically one null
+                check on an incoming cookie plus one loop over response cookies.
+            -->
+            <property name="reportLevel" value="4"/>
         </properties>
     </rule>
     <rule ref="rulesets/codesize.xml/ExcessiveClassLength">
         <properties><property name="minimum" value="60"/></properties>
     </rule>
     <rule ref="rulesets/codesize.xml/ExcessiveMethodLength">
-        <properties><property name="minimum" value="25"/></properties>
+        <!-- Generous on lines, tight on branches: see the note in phpmd.xml. -->
+        <properties><property name="minimum" value="40"/></properties>
     </rule>
     <rule ref="rulesets/codesize.xml/TooManyMethods">
         <properties>

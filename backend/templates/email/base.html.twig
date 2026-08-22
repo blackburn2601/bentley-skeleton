@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>{% block subject %}{% endblock %}</title></head>
+<body style="font-family: system-ui, -apple-system, sans-serif; line-height: 1.6; color: #1a1a1a;">
+    <div style="max-width: 560px; margin: 0 auto; padding: 32px 24px;">
+        {% block content %}{% endblock %}
+        <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 32px 0;">
+        <p style="font-size: 13px; color: #666;">
+            This message was sent to {{ recipient }}.
+            {# Never include the token here: some clients and gateways log full bodies. #}
+        </p>
+    </div>
+</body>
+</html>

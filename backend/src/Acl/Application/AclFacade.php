@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Acl\Application;
 
+use App\Acl\Application\Service\AssignDefaultRoleService;
+use App\Acl\Domain\PermissionCatalog;
 use App\Acl\Domain\PermissionDecision;
 use App\Acl\Domain\Role;
 use App\Acl\Domain\SubjectRepository;
@@ -20,15 +22,30 @@ use Symfony\Component\Uid\Uuid;
  * the codebase that depends on authorization. Without it, that question has no cheap answer,
  * and the first "just this once" import into Acl's internals never gets reviewed.
  *
- * Kept deliberately narrow: reading decisions and reading subject membership. Mutating
- * grants goes through the admin services, which also have to write audit events.
+ * Kept deliberately narrow: reading decisions, reading subject membership, and the one
+ * write below. Granting and revoking permissions goes through the admin services, which also
+ * have to write audit events.
  */
 final readonly class AclFacade
 {
     public function __construct(
         private PermissionResolver $resolver,
         private SubjectRepository $subjects,
+        private AssignDefaultRoleService $assignDefaultRole,
     ) {
+    }
+
+    /**
+     * Give a newly registered user the baseline role.
+     *
+     * The one write on this facade, and it is here because the alternative is worse: either
+     * Account reaches into Acl's tables to assign a role — which is the coupling INV-02
+     * exists to prevent — or a user registers with no grants at all and cannot read their own
+     * profile. Acl decides what "default" means; Account only says "this person is new".
+     */
+    public function assignDefaultRole(Uuid $userId): void
+    {
+        ($this->assignDefaultRole)($userId);
     }
 
     public function isGranted(Uuid $userId, string $permission, ?object $resource = null): bool
@@ -54,6 +71,33 @@ final readonly class AclFacade
     public function roleNamesOf(Uuid $userId): array
     {
         return $this->subjects->subjectSetFor($userId)->roleNames;
+    }
+
+    /**
+     * Class-level permissions this user holds, for the SPA to hide controls with.
+     *
+     * Deliberately CLASS-level only. Object-level grants are not enumerable — "may read this
+     * one document" cannot be expressed as a permission name — and reporting the catalogue
+     * entry for it would tell the UI the user may read every document of that type. The
+     * result is advisory in any case (INV-16); the server re-checks every request.
+     *
+     * Lives here rather than in the caller because enumerating the catalogue means reading
+     * PermissionCatalog, which is Acl's own vocabulary and not something another context may
+     * import (INV-02).
+     *
+     * @return list<string>
+     */
+    public function classLevelPermissionsOf(Uuid $userId): array
+    {
+        $granted = [];
+
+        foreach (PermissionCatalog::all() as $permission) {
+            if ($this->resolver->isGranted($userId, $permission)) {
+                $granted[] = $permission;
+            }
+        }
+
+        return $granted;
     }
 
     /** @return list<Role> */

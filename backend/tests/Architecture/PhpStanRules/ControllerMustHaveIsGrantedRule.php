@@ -55,7 +55,7 @@ final class ControllerMustHaveIsGrantedRule implements Rule
         }
         $invoke = array_find($original->getMethods(), static fn ($method): bool => '__invoke' === $method->name->toLowerString());
 
-        if (null === $invoke) {
+        if (null === $invoke || !$this->isEndpoint($class->getName(), $original, $invoke)) {
             return [];
         }
 
@@ -71,6 +71,38 @@ final class ControllerMustHaveIsGrantedRule implements Rule
                 $class->getName(),
             ))->identifier('bentley.controllerMustHaveIsGranted')->build(),
         ];
+    }
+
+    /**
+     * Is this an HTTP endpoint, rather than something else invokable that lives in src/Api?
+     *
+     * "Has __invoke and sits in the Api layer" is too broad: event listeners, middleware and
+     * small callables share that shape, and demanding a permission from an exception listener
+     * is meaningless. What makes a class an endpoint is that the router can reach it — so
+     * either it carries a #[Route], or it is named *Controller and simply forgot one. The
+     * second half matters: a controller with NEITHER attribute is the exact case this rule
+     * exists to catch, and testing only for #[Route] would let it through.
+     */
+    private function isEndpoint(string $className, Class_ $class, ClassMethod $invoke): bool
+    {
+        return str_ends_with($className, 'Controller')
+            || $this->hasAttribute($class, 'Route')
+            || $this->hasAttribute($invoke, 'Route');
+    }
+
+    private function hasAttribute(Class_|ClassMethod $node, string $shortName): bool
+    {
+        foreach ($node->attrGroups as $group) {
+            foreach ($group->attrs as $attribute) {
+                $name = ltrim($attribute->name->toString(), '\\');
+
+                if ($shortName === $name || str_ends_with($name, '\\'.$shortName)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private function hasIsGranted(Class_|ClassMethod $node): bool

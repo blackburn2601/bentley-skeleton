@@ -1,0 +1,8 @@
+{% extends 'email/base.html.twig' %}
+{% block subject %}Confirm your email address{% endblock %}
+{% block content %}
+    <h1 style="font-size: 20px;">Confirm your email address</h1>
+    <p>Follow this link to finish setting up your account. It expires in 24 hours.</p>
+    <p><a href="{{ url }}" style="display:inline-block;padding:10px 18px;background:#1a1a1a;color:#fff;text-decoration:none;border-radius:6px;">Confirm email address</a></p>
+    <p style="font-size: 13px; color: #666;">If you did not create an account, ignore this message and nothing will happen.</p>
+{% endblock %}

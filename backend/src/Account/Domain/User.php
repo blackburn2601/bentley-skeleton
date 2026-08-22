@@ -114,6 +114,11 @@ class User
         return $this->passwordChangedAt;
     }
 
+    public function isEmailVerified(): bool
+    {
+        return null !== $this->emailVerifiedAt;
+    }
+
     public function hasMfaEnabled(): bool
     {
         return null !== $this->totpSecretEncrypted;

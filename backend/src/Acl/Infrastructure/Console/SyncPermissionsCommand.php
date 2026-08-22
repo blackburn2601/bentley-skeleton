@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Acl\Infrastructure\Console;
 
+use App\Acl\Application\Service\EnsureBaselineRolesService;
 use App\Acl\Application\Service\SyncPermissionsService;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -13,12 +14,14 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
     name: 'app:acl:sync-permissions',
-    description: 'Insert permission rows for anything declared in PermissionCatalog',
+    description: 'Sync permissions from PermissionCatalog and ensure the baseline roles exist',
 )]
 final class SyncPermissionsCommand extends Command
 {
-    public function __construct(private readonly SyncPermissionsService $sync)
-    {
+    public function __construct(
+        private readonly SyncPermissionsService $sync,
+        private readonly EnsureBaselineRolesService $baselineRoles,
+    ) {
         parent::__construct();
     }
 
@@ -32,6 +35,18 @@ final class SyncPermissionsCommand extends Command
         } else {
             $io->success(\sprintf('Added %d permission(s):', \count($result['added'])));
             $io->listing($result['added']);
+        }
+
+        // Roles after permissions: the baseline role grants permissions that must exist first.
+        $roles = ($this->baselineRoles)();
+
+        if ([] !== $roles['created']) {
+            $io->success('Created baseline role(s):');
+            $io->listing($roles['created']);
+        }
+
+        if ([] !== $roles['granted']) {
+            $io->writeln(\sprintf('Granted %d permission(s) to the baseline user role.', \count($roles['granted'])));
         }
 
         if ([] !== $result['orphaned']) {
