@@ -22,6 +22,11 @@ else
   RUN_BACKEND = cd backend &&
 endif
 
+# Some targets must run on the HOST even when the stack is up, because they write to the
+# repository working tree. The container only has backend/ mounted at /app — it cannot see
+# docs/ — and CI runs these the same way, on the runner rather than in the image.
+HOST_BACKEND := cd backend &&
+
 .PHONY: help up down restart sh logs ps migrate migrate-down fixtures db-reset \
         test test-unit test-integration test-functional coverage \
         lint fix stan arch proof docs e2e front-lint front-test front-build \
@@ -36,7 +41,11 @@ help: ## Show this help
 ## ---------------------------------------------------------------- stack
 
 up: ## Build if needed and start the dev stack
-	$(COMPOSE) up -d --build --wait
+	# --renew-anon-volumes matters after an image rebuild: /app/vendor is an anonymous
+	# volume, and Docker keeps the OLD one when recreating a container. Without this you
+	# silently run yesterday's dependencies against today's code, and the failure looks
+	# like a missing class rather than a stale volume.
+	$(COMPOSE) up -d --build --wait --renew-anon-volumes
 	@echo "API      http://localhost:8080"
 	@echo "SPA      http://localhost:5173"
 	@echo "Mailpit  http://localhost:8025"
@@ -110,8 +119,7 @@ arch: ## Enforce the architecture contract (deptrac + phpat + PHPMD + arch tests
 	@echo "--> bounded-context contract"
 	$(RUN_BACKEND) $(PHP) vendor/bin/deptrac analyse --config-file=deptrac-context.yaml
 	@echo "--> size and complexity limits"
-	$(RUN_BACKEND) $(PHPMD) src ansi phpmd.xml --exclude 'src/Maker/skeleton'
-	$(RUN_BACKEND) $(PHPMD) src/Api ansi phpmd-api.xml
+	./bin/phpmd-check
 	@echo "--> architecture tests"
 	$(RUN_BACKEND) $(PHP) vendor/bin/phpunit --testsuite=architecture
 
@@ -119,7 +127,7 @@ proof: ## Prove the architecture rules actually fail on deliberate violations
 	./bin/strictness-proof
 
 docs: ## Regenerate the generated inventories and fail if they drifted
-	$(RUN_BACKEND) $(PHP) bin/console app:docs:generate
+	$(HOST_BACKEND) $(PHP) bin/console app:docs:generate
 	@git diff --exit-code -- docs/ \
 	  || { echo ""; echo "ERROR: generated docs are stale. Commit the regenerated files above."; exit 1; }
 

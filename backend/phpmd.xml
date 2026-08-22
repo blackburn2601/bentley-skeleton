@@ -7,6 +7,12 @@
     <description>
         Size and complexity limits for the whole codebase. Controllers get much tighter
         limits from phpmd-api.xml — see that file for why.
+
+        src/Maker is excluded on the command line: those classes implement MakerBundle's
+        interface, so PHPMD reports every interface-mandated parameter the implementation does
+        not happen to use, and it cannot know they are not ours to remove. They are dev-time
+        generators, outside the layering contract and excluded from coverage for the same
+        reason.
     </description>
 
     <rule ref="rulesets/codesize.xml/CyclomaticComplexity">
@@ -44,20 +50,22 @@
 
     <rule ref="rulesets/cleancode.xml/BooleanArgumentFlag"/>
     <rule ref="rulesets/cleancode.xml/ErrorControlOperator"/>
-    <rule ref="rulesets/cleancode.xml/StaticAccess">
-        <properties>
-            <!-- Value objects and enums are legitimately constructed statically; the rule
-                 exists to stop services reaching for global state, not to ban named ctors. -->
-            <property name="exceptions" value="
-                Symfony\Component\Uid\Uuid,
-                Symfony\Component\Uid\UuidV7,
-                DateTimeImmutable"/>
-        </properties>
-    </rule>
+    <!--
+        StaticAccess is deliberately NOT enabled.
+
+        The risk it targets — code reaching for global state — is already covered here by the
+        layering rules and by ergebnis's noParameterWithContainerTypeDeclaration, which stops a
+        service being handed the container. What PHPMD's rule actually flags in this codebase is
+        named constructors on final readonly value objects (`ReadinessResponse::from()`,
+        `HealthProbeResult::up()`), which are idiomatic and which our own maker templates
+        generate. Its `exceptions` property takes an exact class list, so keeping it on would
+        mean an ever-growing list edited by whoever hits it next — enforcement by attrition.
+    -->
 
     <rule ref="rulesets/naming.xml/ConstantNamingConventions"/>
     <rule ref="rulesets/naming.xml/ConstructorWithNameAsEnclosingClass"/>
     <rule ref="rulesets/naming.xml/ShortMethodName">
-        <properties><property name="minimum" value="3"/></properties>
+        <!-- 2, not 3: `up()`, `of()` and `is()` are perfectly clear as named constructors. -->
+        <properties><property name="minimum" value="2"/></properties>
     </rule>
 </ruleset>

@@ -10,4 +10,8 @@ Every Application service, grouped by bounded context.
 **Before writing a new service, look for the topic here.** If a service already owns
 it, extend that one. If none does, `make service` generates a conforming skeleton.
 
-_No Application services yet._
+## Platform
+
+| Service | Responsibility |
+|---|---|
+| `CheckReadinessService` | Reports whether every dependency this application needs is reachable. |

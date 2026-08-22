@@ -1,0 +1,27 @@
+# Build context hygiene. Without this, the local vendor/ and node_modules/ are uploaded to
+# the daemon and copied into the image, only to be overwritten by the stage that builds them
+# properly for the container's own platform — slow, and a source of architecture mismatches
+# that surface as inexplicable PHP or native-module errors.
+
+**/vendor/
+**/node_modules/
+**/var/
+**/.git/
+**/dist/
+
+backend/.env.local
+backend/.env.*.local
+backend/config/jwt/*.pem
+backend/.phpunit.cache/
+backend/.php-cs-fixer.cache
+backend/.deptrac.cache
+
+docker/secrets/*
+!docker/secrets/.gitkeep
+
+.github/
+docs/
+PLAN.md
+*.md
+.idea/
+.DS_Store

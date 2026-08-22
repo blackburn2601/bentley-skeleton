@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace App\Platform\Infrastructure\Docs;
 
-use App\Platform\Application\DocumentGenerator;
+use App\Shared\Application\Docs\DocumentGenerator;
+use App\Shared\Application\Docs\GeneratedFileHeader;
 use ReflectionClass;
 
 /**
@@ -14,9 +15,9 @@ use ReflectionClass;
  * something already own this topic?", greps this file, and finds the answer — instead of
  * writing a second service that does half of what the first one does.
  */
-final class ServiceInventoryGenerator implements DocumentGenerator
+final readonly class ServiceInventoryGenerator implements DocumentGenerator
 {
-    public function __construct(private readonly string $projectDir)
+    public function __construct(private string $projectDir)
     {
     }
 
@@ -90,7 +91,7 @@ final class ServiceInventoryGenerator implements DocumentGenerator
     /** @param class-string $fqcn */
     private function responsibilityOf(string $fqcn): string
     {
-        $doc = new ReflectionClass($fqcn)->getDocComment();
+        $doc = (new ReflectionClass($fqcn))->getDocComment();
 
         if (false === $doc || 1 !== preg_match('/@responsibility\s+(.+?)(?:\n\s*\*\s*@|\n\s*\*\/)/s', $doc, $m)) {
             // PHPStan rejects a service without one, so reaching this means the file was

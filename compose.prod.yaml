@@ -1,0 +1,163 @@
+# Production overlay:  docker compose -f compose.yaml -f compose.prod.yaml up -d
+#
+# Everything here exists to reduce what a compromised container can do. See
+# docs/OPERATIONS.md for rollout, rollback and the restore drill.
+
+name: bentley
+
+services:
+  app:
+    # Pinned by digest, not by tag. A tag is mutable: `:1.4.2` can point at different bytes
+    # tomorrow, so a "rollback" to a tag is not guaranteed to be a rollback at all.
+    image: ${APP_IMAGE:?set APP_IMAGE to a digest-pinned reference}
+    build: !reset null
+    environment:
+      APP_ENV: prod
+      APP_DEBUG: 0
+      XDEBUG_MODE: off
+      DATABASE_URL: postgresql://${DB_USER:-bentley_app}@db:5432/${DB_NAME:-bentley}?serverVersion=18&charset=utf8
+      REDIS_URL: redis://redis:6379
+    secrets:
+      - db_password
+      - jwt_passphrase
+      - app_secret
+    volumes: !reset []
+    ports: !reset []
+    # Terminate TLS at an ingress in front of this and publish only that.
+    expose:
+      - "80"
+
+    read_only: true
+    tmpfs:
+      # The only writable paths. Everything else in the image is immutable at runtime, which
+      # is why the cache is warmed at build time.
+      - /app/var:uid=1000,gid=1000,mode=1700
+      - /tmp:uid=1000,gid=1000,mode=1700
+      - /data:uid=1000,gid=1000,mode=1700
+      - /config:uid=1000,gid=1000,mode=1700
+    cap_drop: [ALL]
+    cap_add:
+      # Required only because FrankenPHP binds :80 inside the container as a non-root user.
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits: {cpus: "2", memory: 512M}
+        reservations: {cpus: "0.25", memory: 256M}
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "5"}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # One-shot, gated before app starts. Runs as the schema OWNER, not as the application
+  # user: the application role deliberately cannot alter the schema, and holds INSERT-only
+  # on security_event (ADR-0012).
+  migrate:
+    image: ${APP_IMAGE:?set APP_IMAGE to a digest-pinned reference}
+    build: !reset null
+    command: ["php", "bin/console", "doctrine:migrations:migrate", "--no-interaction", "--allow-no-migration"]
+    environment:
+      APP_ENV: prod
+      DATABASE_URL: postgresql://${DB_OWNER:-bentley_owner}@db:5432/${DB_NAME:-bentley}?serverVersion=18&charset=utf8
+    secrets:
+      - db_owner_password
+    restart: "no"
+    read_only: true
+    tmpfs:
+      - /app/var:uid=1000,gid=1000,mode=1700
+      - /tmp:uid=1000,gid=1000,mode=1700
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: ${DB_NAME:-bentley}
+      POSTGRES_USER: ${DB_OWNER:-bentley_owner}
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_owner_password
+      POSTGRES_INITDB_ARGS: "--locale-provider=icu --icu-locale=und-x-icu"
+    secrets:
+      - db_owner_password
+    ports: !reset []
+    volumes:
+      # Postgres 18+ expects the mount at /var/lib/postgresql, NOT at .../data:
+      # the image now keeps its data in a major-version subdirectory so that
+      # `pg_upgrade --link` does not have to cross a mount boundary. Mounting the
+      # old path makes the container exit on startup.
+      - db_data:/var/lib/postgresql
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits: {cpus: "2", memory: 1G}
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "5"}
+
+  redis:
+    image: redis:8-alpine
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    ports: !reset []
+    volumes:
+      - redis_data:/data
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits: {cpus: "1", memory: 320M}
+    restart: unless-stopped
+
+  # Not started by default. `docker compose --profile backup run --rm pg-backup`, or on a
+  # host timer. Verify restores; an untested backup is a hope, not a backup.
+  pg-backup:
+    profiles: ["backup"]
+    image: postgres:18-alpine
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      'pg_dump --format=custom --compress=9
+       --file=/backups/bentley-$$(date +%Y%m%dT%H%M%SZ).dump
+       "postgresql://${DB_OWNER:-bentley_owner}@db:5432/${DB_NAME:-bentley}"'
+    environment:
+      PGPASSFILE: /run/secrets/db_owner_password
+    secrets:
+      - db_owner_password
+    volumes:
+      - ${BACKUP_DIR:-./backups}:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Development-only services must not exist in production.
+  mailpit:
+    profiles: ["never"]
+  node:
+    profiles: ["never"]
+
+secrets:
+  db_password:
+    file: ./docker/secrets/db_password
+  db_owner_password:
+    file: ./docker/secrets/db_owner_password
+  jwt_passphrase:
+    file: ./docker/secrets/jwt_passphrase
+  app_secret:
+    file: ./docker/secrets/app_secret
+
+volumes:
+  db_data:
+  redis_data:

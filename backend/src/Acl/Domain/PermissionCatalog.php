@@ -73,7 +73,7 @@ final class PermissionCatalog
     public static function all(): array
     {
         /** @var list<string> $values */
-        $values = array_values(new ReflectionClass(self::class)->getConstants());
+        $values = array_values((new ReflectionClass(self::class))->getConstants());
 
         sort($values);
 

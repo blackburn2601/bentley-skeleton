@@ -2,9 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Platform\Infrastructure\Docs;
+namespace App\Acl\Infrastructure\Docs;
 
-use App\Platform\Application\DocumentGenerator;
+use App\Acl\Domain\PermissionCatalog;
+use App\Shared\Application\Docs\DocumentGenerator;
+use App\Shared\Application\Docs\GeneratedFileHeader;
 use ReflectionClass;
 
 /**
@@ -20,7 +22,7 @@ final class PermissionInventoryGenerator implements DocumentGenerator
      * Referenced by name rather than by `::class`: the Acl context declares it, and this
      * generator must still run (reporting "not yet declared") before that context exists.
      */
-    private const CATALOG = 'App\\Acl\\Domain\\PermissionCatalog';
+    private const string CATALOG = PermissionCatalog::class;
 
     public function key(): string
     {
@@ -34,36 +36,15 @@ final class PermissionInventoryGenerator implements DocumentGenerator
 
     public function generate(): string
     {
-        $md = GeneratedFileHeader::for('Permissions', 'the constants on '.self::CATALOG);
+        $md = $this->preamble();
 
-        $md .= "\nEvery permission this application knows about, grouped by resource.\n\n"
-            ."Declared in code, synced into the database with `bin/console app:acl:sync-permissions`.\n"
-            ."**Never insert a permission row by hand** — it would exist in one environment and not\n"
-            ."another, with nothing to tell you. See [cookbook/add-permission.md](cookbook/add-permission.md).\n";
-
-        $catalog = self::CATALOG;
-        if (!class_exists($catalog)) {
-            return $md."\n_The permission catalog does not exist yet._\n";
-        }
-
-        $grouped = [];
-        foreach (new ReflectionClass($catalog)->getConstants() as $name => $value) {
-            if (!\is_string($value)) {
-                continue;
-            }
-
-            $resource = str_contains($value, '.') ? strstr($value, '.', true) : 'general';
-            $grouped[(string) $resource][$value] = $name;
-        }
+        $grouped = $this->groupByResource(self::CATALOG);
 
         if ([] === $grouped) {
             return $md."\n_No permissions declared yet._\n";
         }
 
-        ksort($grouped);
-
         foreach ($grouped as $resource => $permissions) {
-            ksort($permissions);
             $md .= \sprintf("\n## %s\n\n| Permission | Constant |\n|---|---|\n", $resource);
 
             foreach ($permissions as $value => $name) {
@@ -72,5 +53,40 @@ final class PermissionInventoryGenerator implements DocumentGenerator
         }
 
         return $md;
+    }
+
+    private function preamble(): string
+    {
+        return GeneratedFileHeader::for('Permissions', 'the constants on '.self::CATALOG)
+            ."\nEvery permission this application knows about, grouped by resource.\n\n"
+            ."Declared in code, synced into the database with `bin/console app:acl:sync-permissions`.\n"
+            ."**Never insert a permission row by hand** — it would exist in one environment and not\n"
+            ."another, with nothing to tell you. See [cookbook/add-permission.md](cookbook/add-permission.md).\n";
+    }
+
+    /**
+     * @param class-string $catalog
+     *
+     * @return array<string, array<string, string>>
+     */
+    private function groupByResource(string $catalog): array
+    {
+        $grouped = [];
+
+        foreach ((new ReflectionClass($catalog))->getConstants() as $name => $value) {
+            if (!\is_string($value)) {
+                continue;
+            }
+
+            $resource = str_contains($value, '.') ? strstr($value, '.', true) : 'general';
+            $grouped[(string) $resource][$value] = $name;
+        }
+
+        ksort($grouped);
+        foreach ($grouped as &$permissions) {
+            ksort($permissions);
+        }
+
+        return $grouped;
     }
 }

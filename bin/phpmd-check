@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# Run PHPMD and fail on violations *or* parse errors.
+#
+# PHPMD exits 0 when it cannot parse a file. It prints an error and moves on, so a file it
+# could not read is simply not checked — and the build still reports success. That is the
+# exact failure this repository is built to prevent: enforcement that has quietly stopped
+# applying while the pipeline stays green.
+#
+# It bites in practice. PHPMD 2.15 is the newest stable release and its parser predates
+# PHP 8.4, so `new Foo()->bar()` — which both Rector and php-cs-fixer will produce by default
+# on this PHP version — makes it skip the file. Both tools are configured to keep the
+# parentheses; this script is the backstop for whatever the next such construct turns out
+# to be.
+#
+# Deprecations from PHPMD's own code are silenced: they are not about our code, and they
+# bury the output that is.
+set -uo pipefail
+
+cd "$(git rev-parse --show-toplevel)/backend" || exit 1
+
+run() {  # run <paths> <ruleset> [extra args...]
+    local paths="$1" ruleset="$2"; shift 2
+    local output status
+
+    output="$(php -d error_reporting="E_ALL & ~E_DEPRECATED" \
+        vendor/bin/phpmd "$paths" text "$ruleset" "$@" 2>&1)"
+    status=$?
+
+    if grep -q "Unexpected token\|ParserException\|could not be parsed" <<< "$output"; then
+        printf '\033[31mPHPMD could not parse one or more files, so it did not check them:\033[0m\n'
+        grep -E "Unexpected token|ParserException" <<< "$output" | head -5
+        printf '\033[31mA file PHPMD cannot read is a file with no size or complexity limits.\033[0m\n'
+        return 1
+    fi
+
+    [ -n "$output" ] && printf '%s\n' "$output"
+    return $status
+}
+
+failed=0
+run src            phpmd.xml     --exclude 'src/Maker' || failed=1
+run src/Api        phpmd-api.xml                        || failed=1
+
+if [ "$failed" -ne 0 ]; then
+    printf '\n\033[31mPHPMD found problems.\033[0m\n'
+    exit 1
+fi
+
+printf '\033[32mPHPMD clean (general + controller limits).\033[0m\n'

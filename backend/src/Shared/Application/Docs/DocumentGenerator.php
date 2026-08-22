@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Platform\Application;
+namespace App\Shared\Application\Docs;
 
 use Symfony\Component\DependencyInjection\Attribute\AutoconfigureTag;
 

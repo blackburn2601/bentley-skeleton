@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace App\Platform\Infrastructure\Docs;
 
-use App\Platform\Application\DocumentGenerator;
+use App\Shared\Application\Docs\DocumentGenerator;
+use App\Shared\Application\Docs\GeneratedFileHeader;
 
 /**
  * docs/adr/README.md — the decision index.
@@ -13,9 +14,9 @@ use App\Platform\Application\DocumentGenerator;
  * that does not follow the template shows up here as broken rather than being quietly
  * skipped.
  */
-final class AdrIndexGenerator implements DocumentGenerator
+final readonly class AdrIndexGenerator implements DocumentGenerator
 {
-    public function __construct(private readonly string $projectDir)
+    public function __construct(private string $projectDir)
     {
     }
 

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Rector\Config\RectorConfig;
+use Rector\Php84\Rector\MethodCall\NewMethodCallWithoutParenthesesRector;
 
 /*
  * Rector runs in --dry-run mode in CI: it reports what it would change and fails the build
@@ -26,6 +27,14 @@ return RectorConfig::configure()
         // Migrations are a historical record. Rewriting an applied migration changes what
         // the schema did on a database that has already run it.
         __DIR__.'/migrations',
+
+        // `new Foo()->bar()` is valid PHP 8.4+, but pdepend — which PHPMD is built on, and
+        // whose newest stable release predates 8.4 — cannot parse it. PHPMD then reports a
+        // parse error and SKIPS the file, silently dropping size and complexity enforcement
+        // on exactly the files Rector most recently touched. A build that checks less than it
+        // claims is the failure mode this repo exists to prevent, so the parentheses stay
+        // until PHPMD 3 ships.
+        NewMethodCallWithoutParenthesesRector::class,
     ])
     ->withPhpSets()
     ->withPreparedSets(

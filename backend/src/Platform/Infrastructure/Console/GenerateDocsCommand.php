@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Platform\Infrastructure\Console;
 
-use App\Platform\Application\DocumentGenerator;
+use App\Shared\Application\Docs\DocumentGenerator;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -26,6 +26,11 @@ use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
 )]
 final class GenerateDocsCommand extends Command
 {
+    private const string UNCHANGED = 'unchanged';
+    private const string WRITTEN = 'written';
+    private const string STALE = 'stale';
+    private const string FAILED = 'failed';
+
     /**
      * @param iterable<DocumentGenerator> $generators
      */
@@ -50,50 +55,42 @@ final class GenerateDocsCommand extends Command
 
         $only = $input->getOption('only');
         $only = \is_string($only) ? $only : null;
-        $check = true === $input->getOption('check');
 
-        $repoRoot = \dirname($this->projectDir);
+        $selected = $this->select($only);
+
+        if ([] === $selected) {
+            $io->error(\sprintf('No generator named "%s".', (string) $only));
+
+            return Command::FAILURE;
+        }
+
+        return $this->generateAll($io, $selected, true === $input->getOption('check'));
+    }
+
+    /**
+     * @param list<DocumentGenerator> $generators
+     */
+    private function generateAll(SymfonyStyle $io, array $generators, bool $check): int
+    {
         $written = 0;
         $stale = [];
-        $matched = false;
 
-        foreach ($this->generators as $generator) {
-            if (null !== $only && $generator->key() !== $only) {
-                continue;
-            }
+        foreach ($generators as $generator) {
+            $outcome = $this->reconcile($generator, $check);
 
-            $matched = true;
-            $path = $repoRoot.'/'.$generator->path();
-            $content = $generator->generate();
-
-            $current = is_readable($path) ? file_get_contents($path) : null;
-
-            if ($current === $content) {
-                $io->writeln(\sprintf('  <fg=gray>unchanged</>  %s', $generator->path()));
-
-                continue;
-            }
-
-            if ($check) {
-                $stale[] = $generator->path();
-
-                continue;
-            }
-
-            if (false === file_put_contents($path, $content)) {
+            if (self::FAILED === $outcome) {
                 $io->error(\sprintf('Could not write %s', $generator->path()));
 
                 return Command::FAILURE;
             }
 
-            ++$written;
-            $io->writeln(\sprintf('  <info>written</>    %s', $generator->path()));
-        }
+            $this->report($io, $generator, $outcome);
 
-        if (null !== $only && !$matched) {
-            $io->error(\sprintf('No generator named "%s".', $only));
+            $written += self::WRITTEN === $outcome ? 1 : 0;
 
-            return Command::FAILURE;
+            if (self::STALE === $outcome) {
+                $stale[] = $generator->path();
+            }
         }
 
         if ([] !== $stale) {
@@ -103,8 +100,57 @@ final class GenerateDocsCommand extends Command
             return Command::FAILURE;
         }
 
-        $io->success(0 === $written ? 'Documentation already up to date.' : \sprintf('%d document(s) regenerated.', $written));
+        $io->success(0 === $written
+            ? 'Documentation already up to date.'
+            : \sprintf('%d document(s) regenerated.', $written));
 
         return Command::SUCCESS;
+    }
+
+    private function report(SymfonyStyle $io, DocumentGenerator $generator, string $outcome): void
+    {
+        match ($outcome) {
+            self::UNCHANGED => $io->writeln(\sprintf('  <fg=gray>unchanged</>  %s', $generator->path())),
+            self::WRITTEN => $io->writeln(\sprintf('  <info>written</>    %s', $generator->path())),
+            default => null,
+        };
+    }
+
+    /**
+     * @return list<DocumentGenerator>
+     */
+    private function select(?string $only): array
+    {
+        $selected = [];
+
+        foreach ($this->generators as $generator) {
+            if (null === $only || $generator->key() === $only) {
+                $selected[] = $generator;
+            }
+        }
+
+        return $selected;
+    }
+
+    /**
+     * Bring one document in line with the code, or report that it is not.
+     *
+     * @return self::UNCHANGED|self::WRITTEN|self::STALE|self::FAILED
+     */
+    private function reconcile(DocumentGenerator $generator, bool $check): string
+    {
+        $path = \dirname($this->projectDir).'/'.$generator->path();
+        $content = $generator->generate();
+        $current = is_readable($path) ? file_get_contents($path) : null;
+
+        if ($current === $content) {
+            return self::UNCHANGED;
+        }
+
+        if ($check) {
+            return self::STALE;
+        }
+
+        return false === file_put_contents($path, $content) ? self::FAILED : self::WRITTEN;
     }
 }

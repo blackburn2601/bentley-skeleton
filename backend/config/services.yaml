@@ -31,6 +31,10 @@ services:
             # to instantiate a class whose parent does not exist there.
             - '../src/Maker/'
 
+    # DoctrineMigrationsBundle registers its factory under a service id, not the class name,
+    # so the readiness probe cannot autowire it without this alias.
+    Doctrine\Migrations\DependencyFactory: '@doctrine.migrations.dependency_factory'
+
 when@dev: &dev_services
     services:
         _defaults:

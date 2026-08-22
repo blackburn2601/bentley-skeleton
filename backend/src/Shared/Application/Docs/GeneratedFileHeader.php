@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Platform\Infrastructure\Docs;
+namespace App\Shared\Application\Docs;
 
 /**
  * The banner every generated document carries.

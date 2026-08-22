@@ -1,0 +1,43 @@
+{
+	# Logs go to stdout as JSON so the container is the log; nothing is written to disk.
+	# This is what makes a read-only root filesystem possible in production.
+	log {
+		output stdout
+		format json
+	}
+
+	frankenphp
+
+	# Certificates are terminated upstream in production; inside the container we speak
+	# plain HTTP on the port compose maps.
+	auto_https off
+}
+
+{$SERVER_NAME:80} {
+	log {
+		output stdout
+		format json
+	}
+
+	root /app/public
+
+	encode zstd gzip
+
+	# The SPA is a static bundle with hashed filenames — safe to cache hard. index.html is
+	# not, or clients pin themselves to an old build.
+	@immutable path /assets/*
+	header @immutable Cache-Control "public, max-age=31536000, immutable"
+
+	@html path / /index.html
+	header @html Cache-Control "no-cache"
+
+	# Never serve dotfiles, whatever ends up in public/.
+	@dotfiles path /.*
+	respond @dotfiles 404
+
+	php_server {
+		# SPA routing: a path that is not a real file and not an API route falls through to
+		# index.html so the Vue router can handle it.
+		try_files {path} /index.php /index.html
+	}
+}

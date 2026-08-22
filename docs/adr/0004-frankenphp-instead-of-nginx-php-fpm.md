@@ -11,15 +11,24 @@ usually as two containers with a shared volume.
 
 ## Decision
 
-A single FrankenPHP container (Caddy + the PHP runtime), same image in development and
-production, with the built SPA served from `public/`.
+A single FrankenPHP container (Caddy + the PHP runtime), with the built SPA served from
+`public/`.
+
+Development uses a `dev` stage that **extends** the production `runtime` stage rather than
+diverging from it: same base image, same extensions, same web server, same non-root user.
+What dev adds is the `require-dev` packages, Xdebug, and an opcache configuration that
+notices edits. This is a deliberate narrowing of the original "one identical image"
+intention, forced by reality: `config/bundles.php` enables dev-only bundles, and those are
+absent after `composer install --no-dev`, so a production image running with `APP_ENV=dev`
+cannot boot its kernel at all. Extending the production stage keeps the property that
+matters — the runtime is identical — without pretending the dependency sets are.
 
 ## Consequences
 
 ### Positive
 
-- One process, one image, one set of logs. Development and production differ in
-  configuration, not in topology, so "works locally" means more.
+- One process, one set of logs, one topology. Development and production differ in
+  configuration and dependency set, not in shape, so "works locally" means more.
 - Automatic HTTPS and HTTP/2 / HTTP/3 from Caddy without extra configuration.
 - Worker mode is available when throughput matters, without changing the deployment shape.
 

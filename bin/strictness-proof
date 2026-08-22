@@ -199,13 +199,19 @@ if grep -q "__proof" <<< "$pos_phpstan"; then
 else
   printf '  \033[32m✓\033[0m conforming controller and service pass every static rule\n'; pass=$((pass+1))
 fi
+deptrac_clean=1
 for out in "$pos_layer" "$pos_context"; do
   if grep -q "DependsOnDisallowedLayer" <<< "$out"; then
-    printf '  \033[31m✗ a correctly written slice violates a deptrac ruleset\033[0m\n'
-    fail=$((fail+1))
+    deptrac_clean=0
   fi
 done
-printf '  \033[32m✓\033[0m conforming slice satisfies both deptrac rulesets\n'; pass=$((pass+1))
+if [ "$deptrac_clean" -eq 1 ]; then
+  printf '  \033[32m✓\033[0m conforming slice satisfies both deptrac rulesets\n'; pass=$((pass+1))
+else
+  printf '  \033[31m✗ a correctly written slice violates a deptrac ruleset\033[0m\n'
+  grep -A2 "DependsOnDisallowedLayer" <<< "$pos_layer$pos_context" | head -6
+  fail=$((fail+1))
+fi
 
 echo
 if [ "$fail" -gt 0 ]; then

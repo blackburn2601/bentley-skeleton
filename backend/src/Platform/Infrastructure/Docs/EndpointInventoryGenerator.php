@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Platform\Infrastructure\Docs;
 
-use App\Platform\Application\DocumentGenerator;
+use App\Shared\Application\Docs\DocumentGenerator;
+use App\Shared\Application\Docs\GeneratedFileHeader;
 use ReflectionClass;
 use ReflectionNamedType;
 use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
+use Symfony\Component\Routing\Route;
 use Symfony\Component\Routing\RouterInterface;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
@@ -18,9 +20,9 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * actually reachable. An endpoint whose permission column reads MISSING is publicly
  * reachable — which is why that cell is loud.
  */
-final class EndpointInventoryGenerator implements DocumentGenerator
+final readonly class EndpointInventoryGenerator implements DocumentGenerator
 {
-    public function __construct(private readonly RouterInterface $router)
+    public function __construct(private RouterInterface $router)
     {
     }
 
@@ -69,19 +71,12 @@ final class EndpointInventoryGenerator implements DocumentGenerator
         $rows = [];
 
         foreach ($this->router->getRouteCollection() as $route) {
-            $controller = $route->getDefault('_controller');
+            $reflection = $this->controllerOf($route);
 
-            // Only our own one-action controllers; framework and bundle routes are noise here.
-            if (!\is_string($controller) || !str_starts_with($controller, 'App\\Api\\')) {
+            if (!$reflection instanceof ReflectionClass) {
                 continue;
             }
 
-            $class = str_contains($controller, '::') ? strstr($controller, '::', true) : $controller;
-            if (!\is_string($class) || !class_exists($class)) {
-                continue;
-            }
-
-            $reflection = new ReflectionClass($class);
             $methods = $route->getMethods();
 
             $rows[] = [
@@ -89,13 +84,38 @@ final class EndpointInventoryGenerator implements DocumentGenerator
                 'path' => $route->getPath(),
                 'permission' => $this->permissionOf($reflection),
                 'request' => $this->requestDtoOf($reflection),
-                'controller' => $this->shortName($class),
+                'controller' => $this->shortName($reflection->getName()),
             ];
         }
 
         usort($rows, static fn (array $a, array $b): int => [$a['path'], $a['methods']] <=> [$b['path'], $b['methods']]);
 
         return $rows;
+    }
+
+    /**
+     * The controller class behind a route, or null if the route is not one of ours.
+     *
+     * Framework and bundle routes are noise in this inventory: it exists to answer "what does
+     * this application expose, and who may reach it?".
+     *
+     * @return ReflectionClass<object>|null
+     */
+    private function controllerOf(Route $route): ?ReflectionClass
+    {
+        $controller = $route->getDefault('_controller');
+
+        if (!\is_string($controller) || !str_starts_with($controller, 'App\\Api\\')) {
+            return null;
+        }
+
+        $class = str_contains($controller, '::') ? strstr($controller, '::', true) : $controller;
+
+        if (!\is_string($class) || !class_exists($class)) {
+            return null;
+        }
+
+        return new ReflectionClass($class);
     }
 
     /** @param ReflectionClass<object> $reflection */

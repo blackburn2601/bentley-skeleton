@@ -108,6 +108,14 @@ service injected, cyclomatic complexity ≤ 3, ≤ 60 lines.
 **Why:** logic behind an HTTP boundary can only be tested by making requests. It also tends
 to grow a second copy of an authorization decision that the ACL already owns.
 
+The one exemption is `#[NoServiceDelegation(reason: '...')]`, for endpoints that genuinely
+have nothing to delegate — the liveness probe answers "this process can execute PHP", and
+inventing a service to say so would be the ceremony INV-12 rejects. The reason is mandatory,
+and `grep -r NoServiceDelegation backend/src/` lists every exemption in the codebase. It
+exists for the same reason `PUBLIC_ACCESS` does: an implicit exemption is indistinguishable
+from an oversight. If that list ever grows past a couple of entries, the rule is not the
+problem.
+
 **Enforced by:** `NoDoctrineInControllerRule`, `ControllerMustDelegateToServiceRule`,
 phpat's `ApiShapeRules`, `phpmd-api.xml` · `make stan` and `make arch`
 **Failure looks like:** `Controller X imports Doctrine\ORM\EntityManagerInterface. The Api

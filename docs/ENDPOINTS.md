@@ -12,4 +12,5 @@ a build failure (INV-11), so it should never appear here.
 
 | Method | Path | Permission | Request DTO | Controller |
 |---|---|---|---|---|
-| — | _No application endpoints yet._ | — | — | — |
+| GET | `/health/live` | _public_ | — | `LivenessController` |
+| GET | `/health/ready` | _public_ | — | `ReadinessController` |

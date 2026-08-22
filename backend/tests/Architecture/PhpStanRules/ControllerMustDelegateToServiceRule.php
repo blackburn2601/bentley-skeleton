@@ -4,7 +4,14 @@ declare(strict_types=1);
 
 namespace App\Tests\Architecture\PhpStanRules;
 
+use App\Api\Attribute\NoServiceDelegation;
 use PhpParser\Node;
+use PhpParser\Node\Identifier;
+use PhpParser\Node\IntersectionType;
+use PhpParser\Node\Name;
+use PhpParser\Node\NullableType;
+use PhpParser\Node\Stmt\Class_;
+use PhpParser\Node\UnionType;
 use PHPStan\Analyser\Scope;
 use PHPStan\Node\InClassNode;
 use PHPStan\Rules\Rule;
@@ -25,6 +32,8 @@ use PHPStan\Rules\RuleErrorBuilder;
  */
 final class ControllerMustDelegateToServiceRule implements Rule
 {
+    private const string EXEMPTION = NoServiceDelegation::class;
+
     public function getNodeType(): string
     {
         return InClassNode::class;
@@ -42,7 +51,12 @@ final class ControllerMustDelegateToServiceRule implements Rule
         }
 
         $original = $node->getOriginalNode();
-        if (!$original instanceof Node\Stmt\Class_ || !str_ends_with($class->getName(), 'Controller')) {
+        if (!$original instanceof Class_ || !str_ends_with($class->getName(), 'Controller')) {
+            return [];
+        }
+
+        // An explicit, reasoned exemption. See App\Api\Attribute\NoServiceDelegation.
+        if ($this->isExempt($original)) {
             return [];
         }
 
@@ -70,23 +84,32 @@ final class ControllerMustDelegateToServiceRule implements Rule
         ];
     }
 
-    private static function isApplicationType(?Node $type): bool
+    private function isExempt(Class_ $class): bool
     {
-        if ($type instanceof Node\NullableType) {
-            return self::isApplicationType($type->type);
-        }
+        foreach ($class->attrGroups as $group) {
+            foreach ($group->attrs as $attribute) {
+                $name = ltrim($attribute->name->toString(), '\\');
 
-        if ($type instanceof Node\UnionType || $type instanceof Node\IntersectionType) {
-            foreach ($type->types as $inner) {
-                if (self::isApplicationType($inner)) {
+                if ('NoServiceDelegation' === $name || self::EXEMPTION === $name) {
                     return true;
                 }
             }
-
-            return false;
         }
 
-        if (!$type instanceof Node\Name) {
+        return false;
+    }
+
+    private static function isApplicationType(?Node $type): bool
+    {
+        if ($type instanceof NullableType) {
+            return self::isApplicationType($type->type);
+        }
+
+        if ($type instanceof UnionType || $type instanceof IntersectionType) {
+            return array_any($type->types, static fn (Identifier|Name|IntersectionType $inner): bool => self::isApplicationType($inner));
+        }
+
+        if (!$type instanceof Name) {
             return false;
         }
 

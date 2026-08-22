@@ -11,6 +11,7 @@ use PHPStan\Analyser\Scope;
 use PHPStan\Node\InClassNode;
 use PHPStan\Rules\Rule;
 use PHPStan\Rules\RuleErrorBuilder;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
  * INV-11: every endpoint declares its authorization requirement in code.
@@ -30,7 +31,7 @@ use PHPStan\Rules\RuleErrorBuilder;
  */
 final class ControllerMustHaveIsGrantedRule implements Rule
 {
-    private const string ATTRIBUTE = 'Symfony\\Component\\Security\\Http\\Attribute\\IsGranted';
+    private const string ATTRIBUTE = IsGranted::class;
 
     public function getNodeType(): string
     {
