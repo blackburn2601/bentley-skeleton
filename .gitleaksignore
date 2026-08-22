@@ -1,0 +1,12 @@
+# One line per finding that has been reviewed and is not a credential. The fingerprint pins
+# it to a single commit, file, rule and line — unlike a commit- or path-wide allowlist, which
+# would also hide a real secret added there later.
+#
+# The dev APP_SECRET symfony/flex generated when the backend was scaffolded. It lived in
+# backend/.env.dev, which shadowed the value in .env, so `make new-project` rotated .env and
+# the derived project kept running dev on this one. That file is gone and new-project now
+# rotates every env file defining APP_SECRET, but the string remains in the first commit.
+# Purging it means rewriting every commit SHA; this repository has never been pushed, so that
+# is the owner's call rather than a build step's. `git filter-repo --replace-text` does it,
+# and this line then goes stale harmlessly.
+fa6361f35b2f73f92081cba293f7d4d49a3878be:backend/.env.dev:generic-api-key:3

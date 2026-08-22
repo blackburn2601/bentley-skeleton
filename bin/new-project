@@ -39,7 +39,14 @@ rm -f PLAN.md
 
 echo "==> regenerating APP_SECRET"
 NEW_SECRET="$(openssl rand -hex 16)"
-perl -pi -e "s/^APP_SECRET=.*/APP_SECRET=$NEW_SECRET/" backend/.env
+# Every env file that defines it, not just .env: Symfony loads .env.<environment> after
+# .env, so a stale APP_SECRET in .env.dev silently overrides the fresh one and the new
+# project runs on the template's shared secret. .env.test is deliberately left alone — its
+# value is a visible non-secret literal and tests should stay reproducible.
+for env_file in backend/.env backend/.env.dev backend/.env.local; do
+  [ -f "$env_file" ] || continue
+  perl -pi -e "s/^APP_SECRET=.*/APP_SECRET=$NEW_SECRET/" "$env_file"
+done
 
 echo "==> regenerating the JWT keypair"
 NEW_PASSPHRASE="$(openssl rand -hex 32)"

@@ -1,0 +1,22 @@
+# gitleaks configuration.
+#
+# Extends the default ruleset — never replaces it. An allowlist here is a claim that a
+# specific string is not a credential, and each one carries the reason. Anything broader
+# (a whole directory, a rule disabled outright) would silently cover future real secrets.
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+[rules.allowlist]
+regexTarget = "match"
+regexes = [
+  # Functional tests post a password to the real login endpoint, so the literal has to
+  # exist somewhere. These are fixture values for accounts that only ever exist inside a
+  # rolled-back transaction in a throwaway test database.
+  '''a-perfectly-fine-passphrase-42''',
+  '''functional-test-password-9x''',
+]
+paths = [
+  '''backend/tests/.*''',
+]
