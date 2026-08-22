@@ -7,6 +7,14 @@ doctrine:
         types:
             # UUIDv7 primary keys everywhere (ADR-0013).
             uuid: Symfony\Bridge\Doctrine\Types\UuidType
+            # Case-insensitive email, enforced by the database rather than by remembering
+            # to lowercase in every query.
+            citext: App\Shared\Infrastructure\Doctrine\CitextType
+
+        # DBAL does not know citext, and without this mapping it reports a schema difference
+        # on every diff for a column that has not changed.
+        mapping_types:
+            citext: citext
 
     orm:
         validate_xml_mapping: true

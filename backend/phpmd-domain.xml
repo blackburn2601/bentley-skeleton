@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<ruleset name="bentley-skeleton-domain"
+         xmlns="http://pmd.sf.net/ruleset/1.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sf.net/ruleset/1.0.0 http://pmd.sf.net/ruleset_xml_schema.xsd">
+
+    <description>
+        Domain entities and value objects (src/*/Domain).
+
+        Entities are a different shape from services: WIDE but SIMPLE. A User has twenty small
+        accessors, and an AclEntry constructor takes nine arguments because nine columns
+        identify an entry. Neither is complexity, and neither is a reason to split the class.
+        Applying the service limits here would push people towards artificial sub-objects or a
+        setter-bag, both of which are worse than a wide constructor.
+
+        So the count-based rules (TooManyMethods, ExcessivePublicCount, ExcessiveParameterList)
+        do not apply. The complexity and length rules do, and they are the ones that matter: a
+        branching entity method is business logic that belongs in an Application service.
+    </description>
+
+    <rule ref="rulesets/codesize.xml/CyclomaticComplexity">
+        <properties><property name="reportLevel" value="5"/></properties>
+    </rule>
+    <rule ref="rulesets/codesize.xml/NPathComplexity"/>
+    <rule ref="rulesets/codesize.xml/ExcessiveMethodLength">
+        <properties><property name="minimum" value="25"/></properties>
+    </rule>
+
+    <rule ref="rulesets/design.xml/EvalExpression"/>
+    <rule ref="rulesets/design.xml/ExitExpression"/>
+    <rule ref="rulesets/design.xml/GotoStatement"/>
+
+    <rule ref="rulesets/cleancode.xml/BooleanArgumentFlag"/>
+    <rule ref="rulesets/cleancode.xml/ErrorControlOperator"/>
+
+    <rule ref="rulesets/naming.xml/ConstantNamingConventions"/>
+    <rule ref="rulesets/naming.xml/ConstructorWithNameAsEnclosingClass"/>
+</ruleset>

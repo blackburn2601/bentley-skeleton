@@ -37,13 +37,21 @@ run() {  # run <paths> <ruleset> [extra args...]
     return $status
 }
 
+# Three rulesets, because three kinds of class have three different right answers:
+#   general  services and infrastructure — the default limits
+#   api      controllers — much tighter; a branch there is logic in the wrong layer
+#   domain   entities — wide but simple; count limits off, complexity limits on
 failed=0
-run src            phpmd.xml     --exclude 'src/Maker' || failed=1
-run src/Api        phpmd-api.xml                        || failed=1
+run src            phpmd.xml        --exclude 'src/Maker,src/Account/Domain,src/Acl/Domain,src/Audit/Domain,src/Platform/Domain,src/Shared/Domain' || failed=1
+run src/Api        phpmd-api.xml    || failed=1
+for domain in src/*/Domain; do
+    [ -d "$domain" ] || continue
+    run "$domain"  phpmd-domain.xml || failed=1
+done
 
 if [ "$failed" -ne 0 ]; then
     printf '\n\033[31mPHPMD found problems.\033[0m\n'
     exit 1
 fi
 
-printf '\033[32mPHPMD clean (general + controller limits).\033[0m\n'
+printf '\033[32mPHPMD clean (general, controller and domain limits).\033[0m\n'

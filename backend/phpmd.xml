@@ -8,6 +8,9 @@
         Size and complexity limits for the whole codebase. Controllers get much tighter
         limits from phpmd-api.xml — see that file for why.
 
+        src/*/Domain is checked separately by phpmd-domain.xml: entities are wide but simple,
+        and the count-based limits here are tuned for services.
+
         src/Maker is excluded on the command line: those classes implement MakerBundle's
         interface, so PHPMD reports every interface-mandated parameter the implementation does
         not happen to use, and it cannot know they are not ours to remove. They are dev-time
@@ -46,7 +49,18 @@
         <properties><property name="maximum" value="15"/></properties>
     </rule>
 
-    <rule ref="rulesets/unusedcode.xml"/>
+    <!--
+        UnusedFormalParameter is deliberately NOT enabled.
+
+        This codebase implements a lot of framework interfaces — Doctrine Type, MakerBundle's
+        AbstractMaker, event listeners — whose signatures are not ours to change. PHPMD reports
+        every parameter such an implementation does not happen to use, and cannot tell that
+        removing it would break the contract. The rule would therefore be satisfied only by an
+        ever-growing suppression list, which is enforcement by attrition.
+    -->
+    <rule ref="rulesets/unusedcode.xml/UnusedPrivateField"/>
+    <rule ref="rulesets/unusedcode.xml/UnusedLocalVariable"/>
+    <rule ref="rulesets/unusedcode.xml/UnusedPrivateMethod"/>
 
     <rule ref="rulesets/cleancode.xml/BooleanArgumentFlag"/>
     <rule ref="rulesets/cleancode.xml/ErrorControlOperator"/>
