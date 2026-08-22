@@ -1,0 +1,65 @@
+framework:
+    rate_limiter:
+        # Named policies, one per risk profile (ADR-0008). Named rather than inline because an
+        # unnamed limit is invisible to everyone who did not write it — these appear in
+        # docs/ENDPOINTS.md and are referenced by #[RateLimit] on the endpoints.
+        #
+        # All Redis-backed: the production stack runs more than one app container, and a
+        # per-process limiter silently multiplies every limit by the replica count.
+
+        # Credential stuffing. Sliding window so a burst at the boundary cannot double the
+        # allowance. Keyed on IP *and* email by the subscriber: IP alone lets an attacker
+        # rotate addresses, email alone lets them spray many accounts from one host.
+        login:
+            policy: 'sliding_window'
+            limit: 5
+            interval: '15 minutes'
+
+        # Email-sending endpoints are rate-limited to protect the RECIPIENT, not just us:
+        # an unlimited reset endpoint is a way to flood someone else's inbox.
+        password_reset:
+            policy: 'sliding_window'
+            limit: 3
+            interval: '1 hour'
+
+        verify_resend:
+            policy: 'sliding_window'
+            limit: 3
+            interval: '1 hour'
+
+        register:
+            policy: 'sliding_window'
+            limit: 10
+            interval: '1 hour'
+
+        refresh:
+            policy: 'sliding_window'
+            limit: 30
+            interval: '1 hour'
+
+        # Ordinary authenticated traffic. Token bucket, not sliding window: real clients are
+        # bursty — a page load fires a dozen requests at once — and a window would reject that
+        # while allowing a steady drip that is far more expensive overall.
+        api_user:
+            policy: 'token_bucket'
+            limit: 60
+            rate: { interval: '1 minute', amount: 120 }
+
+        # Anonymous traffic is keyed on IP, which NAT makes coarse, so this is deliberately
+        # generous. It exists to stop scraping, not to police individuals.
+        api_anon:
+            policy: 'sliding_window'
+            limit: 30
+            interval: '1 minute'
+
+        admin_write:
+            policy: 'sliding_window'
+            limit: 60
+            interval: '1 minute'
+
+when@test:
+    framework:
+        rate_limiter:
+            # Tests assert limits explicitly; they must not inherit state between cases, and
+            # must not need Redis. The storage is swapped, not the policies.
+            login: { policy: 'sliding_window', limit: 5, interval: '15 minutes' }

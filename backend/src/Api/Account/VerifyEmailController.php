@@ -6,6 +6,7 @@ namespace App\Api\Account;
 
 use App\Account\Application\Service\VerifyEmailService;
 use App\Api\Account\Request\TokenRequest;
+use App\Api\Attribute\RateLimit;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Component\Routing\Attribute\Route;
@@ -20,6 +21,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  */
 #[Route('/api/v1/auth/verify-email', name: 'auth_verify_email', methods: ['POST'])]
 #[IsGranted('PUBLIC_ACCESS')]
+#[RateLimit('verify_resend')]
 final class VerifyEmailController
 {
     public function __construct(private readonly VerifyEmailService $verify)

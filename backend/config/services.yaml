@@ -112,6 +112,47 @@ services:
         arguments:
             $sameSite: '%env(COOKIE_SAMESITE)%'
 
+    App\Api\Listener\SecurityHeadersSubscriber:
+        arguments:
+            # Off in dev: there is no TLS on http://localhost, and a browser that receives
+            # HSTS there pins the whole domain to https and remembers it long after you have
+            # stopped wanting it.
+            $hstsEnabled: '%env(bool:SECURITY_HSTS_ENABLED)%'
+
+    App\Api\Listener\CsrfDoubleSubmitSubscriber:
+        arguments:
+            $enabled: '%env(bool:SECURITY_CSRF_ENABLED)%'
+
+    App\Api\Listener\RateLimitSubscriber:
+        arguments:
+            $enabled: '%env(bool:RATE_LIMIT_ENABLED)%'
+
+
+    # Every outbound HTTP call goes through the SSRF guard, by decorating the default client
+    # rather than by asking callers to opt in. A guard you have to remember to use is a guard
+    # that will be forgotten exactly once.
+    App\Platform\Infrastructure\Http\SsrfGuardedHttpClient:
+        decorates: 'http_client'
+        arguments:
+            $inner: '@.inner'
+            $allowedHosts: '%env(csv:HTTP_EGRESS_ALLOWLIST)%'
+
+    # Every rate-limit policy, by name. The limiter factories are registered under service
+    # ids rather than class names, so they cannot be autowired by type. Listing them here
+    # makes the set greppable — "what limits exist?" is answered by this block plus
+    # rate_limiter.yaml, without reading a subscriber.
+    App\Api\Security\RateLimiterRegistry:
+        arguments:
+            $factories:
+                login: '@limiter.login'
+                password_reset: '@limiter.password_reset'
+                verify_resend: '@limiter.verify_resend'
+                register: '@limiter.register'
+                refresh: '@limiter.refresh'
+                api_user: '@limiter.api_user'
+                api_anon: '@limiter.api_anon'
+                admin_write: '@limiter.admin_write'
+
     App\Api\Security\CookieTokenAuthenticator:
         arguments:
             # Off by default. With a Bearer header accepted, any endpoint reachable by a
