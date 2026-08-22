@@ -237,4 +237,6 @@ when@test:
         App\Shared\Infrastructure\SystemClock: { public: true }
         App\Acl\Application\Service\EnsureBaselineRolesService: { public: true }
         App\Acl\Application\Service\SyncPermissionsService: { public: true }
+        App\Shared\Application\AclVersionProvider: '@App\Account\Infrastructure\UserAclVersionProvider'
+        App\Account\Infrastructure\UserAclVersionProvider: { public: true }
         Symfony\Component\PasswordHasher\Hasher\PasswordHasherFactoryInterface: '@security.password_hasher_factory'

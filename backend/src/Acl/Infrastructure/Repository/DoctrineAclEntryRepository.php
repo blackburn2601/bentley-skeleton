@@ -49,6 +49,30 @@ final readonly class DoctrineAclEntryRepository implements AclEntryRepository
         return $result;
     }
 
+    public function findClassLevelResourceClasses(SubjectSet $subjects, string $permissionName): array
+    {
+        $qb = $this->em->createQueryBuilder()
+            ->select('DISTINCT e.resourceClass')
+            ->from(AclEntry::class, 'e')
+            ->join('e.permission', 'p')
+            ->where('p.name = :permission')
+            ->andWhere('e.resourceId IS NULL')
+            ->setParameter('permission', $permissionName);
+
+        $this->constrainToSubjects($qb, $subjects);
+
+        /** @var list<array{resourceClass: string}> $rows */
+        $rows = $qb->getQuery()->getArrayResult();
+
+        /** @var list<class-string> $classes */
+        $classes = array_values(array_filter(
+            array_column($rows, 'resourceClass'),
+            static fn (string $class): bool => class_exists($class),
+        ));
+
+        return $classes;
+    }
+
     public function save(AclEntry $entry): void
     {
         $this->em->persist($entry);

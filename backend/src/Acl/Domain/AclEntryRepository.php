@@ -36,6 +36,17 @@ interface AclEntryRepository
         string $permissionName,
     ): array;
 
+    /**
+     * Resource classes for which this subject has ANY class-level entry for this permission.
+     *
+     * Used to build the advisory permission list the SPA hides controls with: without it,
+     * "what may this user do in general?" has no answer, because a class-level grant is
+     * meaningless until you know which class it is on.
+     *
+     * @return list<class-string>
+     */
+    public function findClassLevelResourceClasses(SubjectSet $subjects, string $permissionName): array;
+
     public function save(AclEntry $entry): void;
 
     public function remove(AclEntry $entry): void;

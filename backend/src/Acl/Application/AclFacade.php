@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Acl\Application;
 
 use App\Acl\Application\Service\AssignDefaultRoleService;
+use App\Acl\Domain\AclEntryRepository;
 use App\Acl\Domain\PermissionCatalog;
 use App\Acl\Domain\PermissionDecision;
 use App\Acl\Domain\Role;
 use App\Acl\Domain\SubjectRepository;
+use App\Acl\Domain\SubjectSet;
 use App\Acl\Domain\UserGroup;
 use Symfony\Component\Uid\Uuid;
 
@@ -31,6 +33,7 @@ final readonly class AclFacade
     public function __construct(
         private PermissionResolver $resolver,
         private SubjectRepository $subjects,
+        private AclEntryRepository $entries,
         private AssignDefaultRoleService $assignDefaultRole,
     ) {
     }
@@ -96,10 +99,11 @@ final readonly class AclFacade
      */
     public function classLevelPermissionsOf(Uuid $userId): array
     {
+        $subjects = $this->subjects->subjectSetFor($userId);
         $granted = [];
 
         foreach (PermissionCatalog::all() as $permission) {
-            if ($this->resolver->isGranted($userId, $permission)) {
+            if ($this->holdsAtClassLevel($userId, $subjects, $permission)) {
                 $granted[] = $permission;
             }
         }
@@ -117,5 +121,31 @@ final readonly class AclFacade
     public function groupsOf(Uuid $userId): array
     {
         return $this->subjects->groupsOf($userId);
+    }
+
+    /**
+     * Does this user hold the permission in general — by role, or by a class-level entry?
+     *
+     * Both halves are needed. Asking the resolver with a null resource answers only the role
+     * question, because with no resource there is no class to look entries up by. A user
+     * granted `audit.read` on every SecurityEvent would then be told they hold nothing, and
+     * the UI would hide a control the server would happily allow.
+     *
+     * Each candidate class is resolved through the normal tier logic rather than treated as an
+     * automatic yes, so a class-level DENY still refuses.
+     */
+    private function holdsAtClassLevel(Uuid $userId, SubjectSet $subjects, string $permission): bool
+    {
+        if ($this->resolver->isGranted($userId, $permission)) {
+            return true;
+        }
+
+        foreach ($this->entries->findClassLevelResourceClasses($subjects, $permission) as $resourceClass) {
+            if ($this->resolver->isGranted($userId, $permission, $resourceClass)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

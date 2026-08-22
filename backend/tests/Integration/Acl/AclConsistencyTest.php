@@ -92,7 +92,19 @@ final class AclConsistencyTest extends KernelTestCase
         $this->grant($caller->id(), null, AclEffect::Allow);
         $this->em->flush();
 
-        self::assertCount(4, $this->filtered($caller), 'The caller is a User record too.');
+        $allowed = $this->filtered($caller);
+
+        // Asserted by membership, not by an absolute count. A count couples this test to how
+        // many User rows happen to exist, which makes it fail for reasons that have nothing to
+        // do with the ACL — and the failure message tells you nothing about which.
+        foreach ([...$records, $caller] as $record) {
+            self::assertContains(
+                $record->id()->toRfc4122(),
+                $allowed,
+                'A class-level grant covers every instance, including the caller\'s own row.',
+            );
+        }
+
         self::assertConsistent($caller, $records, $this->resolver, $this->criteria, $this->em);
     }
 

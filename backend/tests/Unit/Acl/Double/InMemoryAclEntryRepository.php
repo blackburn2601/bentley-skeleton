@@ -53,6 +53,31 @@ final class InMemoryAclEntryRepository implements AclEntryRepository
         }));
     }
 
+    public function findClassLevelResourceClasses(SubjectSet $subjects, string $permissionName): array
+    {
+        $wanted = [];
+        foreach ($subjects->pairs() as [$type, $id]) {
+            $wanted[$type->value.':'.$id->toRfc4122()] = true;
+        }
+
+        $classes = [];
+
+        foreach ($this->entries as $entry) {
+            if (!$entry->isClassLevel() || $entry->permission()->name() !== $permissionName) {
+                continue;
+            }
+
+            if (isset($wanted[$entry->subjectType()->value.':'.$entry->subjectId()->toRfc4122()])) {
+                $classes[$entry->resourceClass()] = true;
+            }
+        }
+
+        /** @var list<class-string> $result */
+        $result = array_keys($classes);
+
+        return $result;
+    }
+
     public function save(AclEntry $entry): void
     {
         $this->add($entry);
