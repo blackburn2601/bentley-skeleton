@@ -2,7 +2,7 @@
 
 ## Context
 
-`/Users/sebbo/Applications/Github/temp` is empty. The goal is **`bentley-skeleton`**: a reusable,
+This repo (`/Users/sebbo/Applications/Github/bentley-skeleton`) holds **`bentley-skeleton`**: a reusable,
 security-hardened GitHub template repo that every upcoming project starts from — a headless
 PHP/Symfony API on PostgreSQL, a Vue.js SPA, Docker Compose deployment, and GitHub Actions for tests
 and source-code security.
@@ -41,8 +41,11 @@ scaffolding uses `composer create-project`).
 2. **A consistent error contract is included** (RFC 9457 `application/problem+json`) plus the
    `/api/v1` prefix — a headless API needs one error shape. The rest of the "API hardening" group
    stays out.
-3. **Symfony 7.4 LTS on PHP 8.5** (bugfixes to Nov 2028, security to Nov 2029). Symfony 8.1.4 is
-   current and every bundle below supports `^8.0`, so switching is a constraint bump (ADR-0005).
+3. **Symfony 7.4 LTS on PHP 8.5** (bugfixes to Nov 2028, security to Nov 2029), chosen over the
+   current Symfony 8.1.5 because 8.1 is a standard release (~14 months of support) and a skeleton
+   that seeds every future project should not need a major upgrade within the year. The cost is
+   real and is recorded in ADR-0005: some bundles now ship `^8.0`-only majors, and
+   `damienharper/auditor-bundle ^7.x` is one of them — see assumption 8.
 4. **FrankenPHP** runtime (Caddy-based, HTTP/3, worker mode) instead of nginx + php-fpm: one
    container, same image dev and prod (ADR-0004).
 5. **No multi-tenancy** (per-object ACL without tenancy). The resolver is written so a tenant scope
@@ -51,6 +54,14 @@ scaffolding uses `composer create-project`).
    users, groups, roles, permissions and ACEs.
 7. `symfony/acl-bundle` is **not** used: legacy (MaskBuilder, caps at Symfony `^7.0`, no collection
    filtering). The ACL is a purpose-built domain (~600 LOC) — ADR-0003.
+8. **Entity-change auditing uses the `damienharper/auditor` core library, not `auditor-bundle`**
+   (ADR-0017). Every `auditor-bundle ^7.x` release requires `symfony/framework-bundle ^8.0`, so it
+   cannot install on 7.4 at all; the newest bundle that can is `^6.3`, and that one drags
+   `symfony/twig-bundle`, `twig/extra-bundle`, `twig/intl-extra`, `symfony/asset` and
+   `symfony/translation` into a headless API purely for an HTML audit viewer nothing renders. The
+   core library carries none of that. The DI wiring the bundle would have done —
+   `AuditConfiguration`, `DoctrineProvider`, storage/auditing services, Doctrine subscribers — is
+   written by hand in `src/Audit/Infrastructure/` (one provider class plus service config).
 
 ---
 
@@ -58,7 +69,7 @@ scaffolding uses `composer create-project`).
 
 **Backend** — PHP 8.5 · Symfony 7.4 LTS · Doctrine ORM 3 + Migrations · PostgreSQL 18 · Redis 8
 · `lexik/jwt-authentication-bundle ^3.2` · `nelmio/cors-bundle ^2.6` · `nelmio/api-doc-bundle ^5.11`
-· `symfony/rate-limiter` · `symfony/monolog-bundle ^4` · `damienharper/auditor-bundle ^7.2`
+· `symfony/rate-limiter` · `symfony/monolog-bundle ^4` · `damienharper/auditor ^3.4` (ADR-0017)
 · `stof/doctrine-extensions-bundle` · `predis/predis ^3` · `sentry/sentry-symfony ^5.12`
 · `open-telemetry/opentelemetry-auto-symfony ^1.4`
 · dev: `phpunit/phpunit ^13` · `phpstan/phpstan ^2.2` (+ symfony/doctrine/strict extensions)
@@ -67,7 +78,7 @@ scaffolding uses `composer create-project`).
 · `rector/rector ^2.6` · `zenstruck/foundry ^2.12` · `dama/doctrine-test-bundle ^8.6`
 · `roave/security-advisories:dev-latest`
 
-**Frontend** — Vue 3.5 · Vite 8 · TypeScript 7 · vue-router 5 · Pinia 4 · ESLint 9 + Prettier
+**Frontend** — Vue 3.5 · Vite 8 · TypeScript 7 · vue-router 5 · Pinia 4 · ESLint 10 + Prettier
 · Vitest 4 · Playwright 1.62 · a fetch wrapper (no axios).
 
 ---
@@ -163,6 +174,13 @@ Adding a cross-context edge requires an ADR (CI reminds).
 
 ## Phase 2 — Documentation & ADR system (built for a context-free AI session)
 
+**Build order:** this phase is split in two. The *static* contract docs — `CLAUDE.md`/`AGENTS.md`,
+`ARCHITECTURE.md`, `INVARIANTS.md`, the ADR log and the cookbook — are written straight after Phase 1
+and **before** any feature code, because they are the contract the rest of the build follows. The
+*generated* inventories and their CI freshness gate land after Phase 9, since a generator has nothing
+to read until the services, endpoints and permissions exist. Phase 3 (Docker) is brought forward
+ahead of both so Phases 4–7 have a live Postgres and Redis to test against.
+
 **`CLAUDE.md` (+ identical `AGENTS.md`)** — short and imperative, the only file an agent must read
 first. Contains: what this repo is; the read-in-this-order list (`CLAUDE.md` → `docs/ARCHITECTURE.md`
 → `docs/INVARIANTS.md` → the relevant `docs/cookbook/*.md` → `docs/adr/README.md`); the `make`
@@ -187,7 +205,7 @@ Written as part of this build, not later:
 | 0002 | JWT access + rotating opaque refresh token in `__Host-` cookies |
 | 0003 | Per-object ACL table instead of RBAC-only or `symfony/acl-bundle` |
 | 0004 | FrankenPHP instead of nginx + php-fpm |
-| 0005 | Symfony 7.4 LTS on PHP 8.5 |
+| 0005 | Symfony 7.4 LTS on PHP 8.5 rather than 8.1 — LTS lifetime vs. `^8.0`-only bundle majors |
 | 0006 | Layered architecture, thin controllers, single-topic services |
 | 0007 | RFC 9457 problem+json as the single error contract |
 | 0008 | Rate-limit policy set and storage (Redis) |
@@ -199,6 +217,7 @@ Written as part of this build, not later:
 | 0014 | No multi-tenancy yet, and how to add it |
 | 0015 | Keep `App\` namespace; project identity via package/compose/image names |
 | 0016 | Documentation-as-code: generated inventories + CI freshness gate |
+| 0017 | `damienharper/auditor` core library instead of `auditor-bundle` (Symfony 7.4 support, no Twig in a headless API) |
 
 **Cookbook** — `docs/cookbook/*.md`, each a numbered, copy-pasteable recipe: which maker to run,
 which files appear, what to add to them in order, which tests to write, which CI checks will catch a
@@ -226,8 +245,11 @@ or `compose*.yaml` must add/modify an ADR or carry the `no-adr-needed` label.
 
 **`docker/frankenphp/Dockerfile`** — multi-stage: (1) composer deps with cache mount,
 (2) `npm ci && npm run build` → SPA into `public/`, (3) runtime `dunglas/frankenphp:php8.5` with
-opcache preload + JIT, `pdo_pgsql`/`redis`/`intl`, non-root user, `HEALTHCHECK /health/ready`,
-read-only-rootfs friendly (tmpfs cache, logs to stdout).
+opcache preload + JIT, `pdo_pgsql`/`redis`/`intl`/`opentelemetry`, non-root user,
+`HEALTHCHECK /health/ready`, read-only-rootfs friendly (tmpfs cache, logs to stdout).
+`ext-opentelemetry` comes from `pecl install` behind a `WITH_OTEL` build arg:
+`opentelemetry-auto-symfony` hard-requires the extension, so it must be present at
+composer-install time no matter what the runtime env flag says.
 
 **`compose.prod.yaml`** — no bind mounts, pinned image digests, `read_only: true`, `cap_drop: [ALL]`,
 `no-new-privileges`, resource limits, Docker secrets (DB password, JWT passphrase), a one-shot
@@ -333,7 +355,8 @@ catalog is code-declared (`PermissionCatalog` constants) and synced by
 - `SecurityEvent` append-only log (DB grant: INSERT only) for login success/failure, lockout, token
   reuse, permission/role/ACE change, MFA change, admin data access, GDPR actions — with actor, IP,
   UA, request id, JSONB payload; retention command.
-- `damienharper/auditor-bundle` for Doctrine entity change history; SoftDeleteable + Timestampable.
+- `damienharper/auditor` (core library, wired by hand in `src/Audit/Infrastructure/` — ADR-0017) for
+  Doctrine entity change history; SoftDeleteable + Timestampable.
 - GDPR: `POST /api/v1/me/export`, `DELETE /api/v1/me` (erase/anonymize with a documented retention
   exception list), `app:gdpr:purge`, data-inventory table in `docs/SECURITY.md`.
 - Observability: Monolog JSON to stdout, `RequestIdSubscriber` (`X-Request-Id` in/out, propagated to
@@ -351,7 +374,7 @@ catalog is code-declared (`PermissionCatalog` constants) and synced by
   an invariant).
 - Views: login (+MFA), register, verify-email, forgot/reset password, profile, active sessions/devices,
   admin screens for users/groups/roles/permissions and the ACE editor with the "explain" panel.
-- ESLint 9 + Prettier + `vue-tsc`, Vitest, Playwright. Frontend mirrors the strictness rule: views
+- ESLint 10 + Prettier + `vue-tsc`, Vitest, Playwright. Frontend mirrors the strictness rule: views
   contain no business logic, API calls live in `src/api/*`, one module per topic.
 
 ## Phase 9 — Tests
