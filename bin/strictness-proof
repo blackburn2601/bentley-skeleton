@@ -1,0 +1,215 @@
+#!/usr/bin/env bash
+# PLAN.md §Verification 7 — prove the architecture rules actually work.
+#
+# A green pipeline only means something if we know it can go red. This runs two controls:
+#
+#   NEGATIVE  one deliberate violation of each rule, asserting each fires by identifier.
+#             Catches enforcement that has silently stopped working — a renamed directory
+#             or a mistyped collector turns a check into a no-op that still reports success.
+#
+#   POSITIVE  a fully conforming vertical slice, asserting it produces NO errors at all.
+#             Catches the opposite failure: a rule so strict that correct code cannot
+#             satisfy it, which is how teams end up disabling the whole ruleset.
+#
+# Both run in CI (architecture.yml). Probe files are removed on every exit path.
+set -uo pipefail
+
+cd "$(git rev-parse --show-toplevel)/backend" || exit 1
+
+PROBE_DIRS=(
+  src/Api/__proof
+  src/Acl/Application/Service/__proof
+  src/Acl/Domain/__proof
+  src/Account/Domain/__proof
+)
+cleanup() { rm -rf "${PROBE_DIRS[@]}"; }
+trap cleanup EXIT INT TERM
+cleanup
+mkdir -p "${PROBE_DIRS[@]}"
+
+phpstan()  { php vendor/bin/phpstan analyse --no-progress --memory-limit=1G --error-format=raw 2>&1; }
+guard_severe() {
+  if grep -q "Internal error\|Result is incomplete" <<< "$1"; then
+    printf '\033[31mPHPStan could not complete its analysis, so the rules never ran:\033[0m\n'
+    grep -m3 "Internal error" <<< "$1"
+    exit 1
+  fi
+}
+
+pass=0; fail=0
+check() {
+  local label="$1" haystack="$2" needle="$3"
+  if grep -qF -- "$needle" <<< "$haystack"; then
+    printf '  \033[32m✓\033[0m %s\n' "$label"; pass=$((pass+1))
+  else
+    printf '  \033[31m✗ %s\033[0m — expected: %s\n' "$label" "$needle"; fail=$((fail+1))
+  fi
+}
+
+# ============================================================ NEGATIVE CONTROL
+
+# Controller: touches persistence, no #[IsGranted], no service, not final, two public methods.
+cat > src/Api/__proof/ProofController.php <<'EOF'
+<?php
+declare(strict_types=1);
+namespace App\Api\__proof;
+use Doctrine\ORM\EntityManagerInterface;
+class ProofController
+{
+    public function __construct(private readonly EntityManagerInterface $em) {}
+    public function __invoke(): void { $this->em->flush(); }
+    public function helper(): void {}
+}
+EOF
+
+# Service: not final readonly, no @responsibility, knows about HTTP.
+cat > src/Acl/Application/Service/__proof/ProofLooseService.php <<'EOF'
+<?php
+declare(strict_types=1);
+namespace App\Acl\Application\Service\__proof;
+use Symfony\Component\HttpFoundation\Request;
+class ProofLooseService
+{
+    public function handle(Request $request): string { return $request->getPathInfo(); }
+}
+EOF
+
+# Service doing two things at once.
+cat > src/Acl/Application/Service/__proof/ProofTwoTopicService.php <<'EOF'
+<?php
+declare(strict_types=1);
+namespace App\Acl\Application\Service\__proof;
+
+/**
+ * @responsibility Renders PDF invoices and normalizes customer address strings.
+ */
+final readonly class ProofTwoTopicService
+{
+    public function run(): void {}
+}
+EOF
+
+# Domain reaching up into Application (layer violation).
+cat > src/Acl/Domain/__proof/ProofUpwardDependency.php <<'EOF'
+<?php
+declare(strict_types=1);
+namespace App\Acl\Domain\__proof;
+use App\Acl\Application\Service\__proof\ProofTwoTopicService;
+final class ProofUpwardDependency
+{
+    public function __construct(public ProofTwoTopicService $svc) {}
+}
+EOF
+
+# Cross-context call bypassing the facade (context violation). The target is a probe class
+# of our own: PHPStan treats an unresolvable class as a SEVERE error and aborts the whole
+# analysis, which would make every rule below look like it had stopped working.
+cat > src/Account/Domain/__proof/ProofForeignEntity.php <<'EOF'
+<?php
+declare(strict_types=1);
+namespace App\Account\Domain\__proof;
+final class ProofForeignEntity {}
+EOF
+cat > src/Acl/Application/Service/__proof/ProofCrossContextService.php <<'EOF'
+<?php
+declare(strict_types=1);
+namespace App\Acl\Application\Service\__proof;
+
+use App\Account\Domain\__proof\ProofForeignEntity;
+
+/**
+ * @responsibility Reaches into another context on purpose.
+ */
+final readonly class ProofCrossContextService
+{
+    public function __construct(private ProofForeignEntity $foreign) {}
+
+    public function name(): string { return $this->foreign::class; }
+}
+EOF
+
+neg_phpstan="$(phpstan)"
+guard_severe "$neg_phpstan"
+neg_layer="$(php vendor/bin/deptrac analyse --config-file=deptrac.yaml --no-progress 2>&1)"
+neg_context="$(php vendor/bin/deptrac analyse --config-file=deptrac-context.yaml --no-progress 2>&1)"
+
+echo "Negative control — every rule must fire:"
+check "controller may not touch persistence"     "$neg_phpstan" "bentley.noDoctrineInController"
+check "endpoint must declare #[IsGranted]"       "$neg_phpstan" "bentley.controllerMustHaveIsGranted"
+check "controller must delegate to a service"    "$neg_phpstan" "bentley.controllerMustDelegateToService"
+check "service must be final readonly"           "$neg_phpstan" "bentley.serviceMustBeFinalReadonly"
+check "service must declare @responsibility"     "$neg_phpstan" "bentley.serviceMustDeclareResponsibility"
+check "service must own exactly one topic"       "$neg_phpstan" "bentley.serviceHasTwoTopics"
+check "Application layer may not know HTTP"      "$neg_phpstan" "bentley.noHttpInApplicationLayer"
+check "controller must be final"                 "$neg_phpstan" "phpat.testControllersAreFinal"
+check "controller must be one action"            "$neg_phpstan" "phpat.testControllersAreSingleAction"
+check "Domain may not depend on Application"     "$neg_layer"   "DependsOnDisallowedLayer"
+check "context may not bypass another's facade"  "$neg_context" "DependsOnDisallowedLayer"
+
+# ============================================================ POSITIVE CONTROL
+
+cleanup
+mkdir -p "${PROBE_DIRS[@]}"
+
+cat > src/Acl/Application/Service/__proof/ProofConformingService.php <<'EOF'
+<?php
+declare(strict_types=1);
+namespace App\Acl\Application\Service\__proof;
+
+/**
+ * @responsibility Answers whether the proof slice is wired correctly.
+ */
+final readonly class ProofConformingService
+{
+    public function isWired(): bool { return true; }
+}
+EOF
+
+cat > src/Api/__proof/ProofConformingController.php <<'EOF'
+<?php
+declare(strict_types=1);
+namespace App\Api\__proof;
+
+use App\Acl\Application\Service\__proof\ProofConformingService;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
+
+#[IsGranted('PUBLIC_ACCESS')]
+final class ProofConformingController
+{
+    public function __construct(private readonly ProofConformingService $service) {}
+
+    public function __invoke(): bool
+    {
+        return $this->service->isWired();
+    }
+}
+EOF
+
+pos_phpstan="$(phpstan)"
+guard_severe "$pos_phpstan"
+pos_layer="$(php vendor/bin/deptrac analyse --config-file=deptrac.yaml --no-progress 2>&1)"
+pos_context="$(php vendor/bin/deptrac analyse --config-file=deptrac-context.yaml --no-progress 2>&1)"
+
+echo
+echo "Positive control — a conforming slice must produce nothing:"
+if grep -q "__proof" <<< "$pos_phpstan"; then
+  printf '  \033[31m✗ a correctly written slice still fails a rule\033[0m\n'
+  grep "__proof" <<< "$pos_phpstan" | sed 's|.*/backend/|    |'
+  fail=$((fail+1))
+else
+  printf '  \033[32m✓\033[0m conforming controller and service pass every static rule\n'; pass=$((pass+1))
+fi
+for out in "$pos_layer" "$pos_context"; do
+  if grep -q "DependsOnDisallowedLayer" <<< "$out"; then
+    printf '  \033[31m✗ a correctly written slice violates a deptrac ruleset\033[0m\n'
+    fail=$((fail+1))
+  fi
+done
+printf '  \033[32m✓\033[0m conforming slice satisfies both deptrac rulesets\n'; pass=$((pass+1))
+
+echo
+if [ "$fail" -gt 0 ]; then
+  printf '\033[31mFAILED: %d of %d checks.\033[0m\n' "$fail" "$((pass+fail))"
+  exit 1
+fi
+printf '\033[32mAll %d checks passed: the rules fire on bad code and stay silent on good code.\033[0m\n' "$pass"

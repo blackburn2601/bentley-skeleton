@@ -15,11 +15,34 @@
         <ini name="error_reporting" value="-1" />
         <server name="APP_ENV" value="test" force="true" />
         <server name="SHELL_VERBOSITY" value="-1" />
+        <!-- Offline and deterministic: no test may depend on a third-party API being up. -->
+        <env name="PASSWORD_HIBP_CHECK" value="0" />
     </php>
 
+    <!--
+        Four suites, deliberately separated so a failure says WHAT kind of failure it is.
+        CI runs them as distinct jobs: a layering violation reports as an architecture
+        failure, not as "some test broke".
+
+          architecture  no I/O at all — asserts the codebase obeys docs/INVARIANTS.md
+          unit          no I/O — pure logic (ACL decision matrix, token rotation, policies)
+          integration   needs Postgres + Redis — repositories, resolver/criteria cross-check
+          functional    boots the HTTP kernel — full auth flows, IDOR suite, problem+json
+    -->
     <testsuites>
-        <testsuite name="Project Test Suite">
-            <directory>tests</directory>
+        <testsuite name="architecture">
+            <directory>tests/Architecture</directory>
+            <exclude>tests/Architecture/PhpStanRules</exclude>
+            <exclude>tests/Architecture/PhpatRules</exclude>
+        </testsuite>
+        <testsuite name="unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="integration">
+            <directory>tests/Integration</directory>
+        </testsuite>
+        <testsuite name="functional">
+            <directory>tests/Functional</directory>
         </testsuite>
     </testsuites>
 
@@ -31,6 +54,10 @@
         <include>
             <directory>src</directory>
         </include>
+        <exclude>
+            <!-- Dev-time code generators; they are exercised by running them, not by unit tests. -->
+            <directory>src/Maker</directory>
+        </exclude>
 
         <deprecationTrigger>
             <method>Doctrine\Deprecations\Deprecation::trigger</method>

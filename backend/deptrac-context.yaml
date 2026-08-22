@@ -1,0 +1,89 @@
+# Bounded-context contract (ADR-0006), kept separate from deptrac.yaml so a context
+# violation and a layer violation produce two distinguishable CI failures.
+#
+# The rule: a context may use another context ONLY through that context's declared
+# facade, `src/<Context>/Application/<Context>Facade.php`. Reaching into another
+# context's services, entities or repositories directly is what turns four contexts
+# into one tangled module, and it happens one "just this once" at a time.
+#
+# src/Api is exempt: controllers are the HTTP composition root and are expected to
+# call the context service that serves their endpoint. Shared is depended upon by
+# everyone and depends on nothing.
+#
+# Adding a cross-context edge requires an ADR — the pre-commit hook reminds you and
+# docs.yml enforces it.
+deptrac:
+  paths:
+    - ./src
+
+  layers:
+    # ---- facades: the only legal cross-context entry points ------------------
+    - name: AccountFacade
+      collectors: [{ type: classNameRegex, value: '#^App\\Account\\Application\\AccountFacade$#' }]
+    - name: AclFacade
+      collectors: [{ type: classNameRegex, value: '#^App\\Acl\\Application\\AclFacade$#' }]
+    - name: AuditFacade
+      collectors: [{ type: classNameRegex, value: '#^App\\Audit\\Application\\AuditFacade$#' }]
+    - name: PlatformFacade
+      collectors: [{ type: classNameRegex, value: '#^App\\Platform\\Application\\PlatformFacade$#' }]
+
+    # ---- context internals: everything in the context EXCEPT its facade ------
+    - name: Account
+      collectors:
+        - type: bool
+          must:
+            - { type: directory, value: src/Account/.* }
+          must_not:
+            - { type: layer, value: AccountFacade }
+    - name: Acl
+      collectors:
+        - type: bool
+          must:
+            - { type: directory, value: src/Acl/.* }
+          must_not:
+            - { type: layer, value: AclFacade }
+    - name: Audit
+      collectors:
+        - type: bool
+          must:
+            - { type: directory, value: src/Audit/.* }
+          must_not:
+            - { type: layer, value: AuditFacade }
+    - name: Platform
+      collectors:
+        - type: bool
+          must:
+            - { type: directory, value: src/Platform/.* }
+          must_not:
+            - { type: layer, value: PlatformFacade }
+
+    - name: Shared
+      collectors: [{ type: directory, value: src/Shared/.* }]
+    - name: Api
+      collectors: [{ type: directory, value: src/Api/.* }]
+    - name: Maker
+      collectors: [{ type: directory, value: src/Maker/.* }]
+    - name: Kernel
+      collectors: [{ type: classNameRegex, value: '#^App\\Kernel$#' }]
+
+  ruleset:
+    # Each context sees Shared and the other contexts' facades — never their internals.
+    Account: [Shared, AccountFacade, AclFacade, AuditFacade, PlatformFacade]
+    Acl:     [Shared, AclFacade, AccountFacade, AuditFacade, PlatformFacade]
+    Audit:   [Shared, AuditFacade, AccountFacade, AclFacade, PlatformFacade]
+    Platform: [Shared, PlatformFacade, AccountFacade, AclFacade, AuditFacade]
+
+    # A facade is the context's own front door: it may use its own internals.
+    AccountFacade:  [Account, Shared]
+    AclFacade:      [Acl, Shared]
+    AuditFacade:    [Audit, Shared]
+    PlatformFacade: [Platform, Shared]
+
+    # Controllers are the HTTP composition root and may address any context.
+    Api: [Account, Acl, Audit, Platform, Shared,
+          AccountFacade, AclFacade, AuditFacade, PlatformFacade]
+
+    Shared: ~
+    Maker: [Api, Account, Acl, Audit, Platform, Shared,
+            AccountFacade, AclFacade, AuditFacade, PlatformFacade]
+    Kernel: ~

@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<ruleset name="bentley-skeleton-api"
+         xmlns="http://pmd.sf.net/ruleset/1.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sf.net/ruleset/1.0.0 http://pmd.sf.net/ruleset_xml_schema.xsd">
+
+    <description>
+        Controllers only (src/Api). A controller is: a DTO in, one #[IsGranted], one service
+        call, one response view out. That shape fits well inside these limits, and anything
+        that does not fit is business logic that belongs in an Application service — where
+        it can be unit-tested without an HTTP kernel. INV-07.
+    </description>
+
+    <rule ref="rulesets/codesize.xml/CyclomaticComplexity">
+        <properties>
+            <!-- A branch in a controller is a business decision in the wrong layer. -->
+            <property name="reportLevel" value="3"/>
+        </properties>
+    </rule>
+    <rule ref="rulesets/codesize.xml/ExcessiveClassLength">
+        <properties><property name="minimum" value="60"/></properties>
+    </rule>
+    <rule ref="rulesets/codesize.xml/ExcessiveMethodLength">
+        <properties><property name="minimum" value="25"/></properties>
+    </rule>
+    <rule ref="rulesets/codesize.xml/TooManyMethods">
+        <properties>
+            <!-- __invoke plus a constructor. One action per class. -->
+            <property name="maxmethods" value="3"/>
+        </properties>
+    </rule>
+</ruleset>

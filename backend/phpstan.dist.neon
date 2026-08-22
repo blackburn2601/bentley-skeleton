@@ -1,8 +1,112 @@
+# Static analysis contract. `make stan` runs this; ci-backend.yml runs the same file.
+#
+# Level 10 (max) is not negotiable in this skeleton. Every `@phpstan-ignore` needs a
+# reason on the same line, and a baseline file is deliberately absent: a baseline lets
+# debt accumulate invisibly, which is precisely what this repo is built to prevent.
+
+includes:
+    - vendor/phpstan/phpstan-symfony/extension.neon
+    - vendor/phpstan/phpstan-symfony/rules.neon
+    - vendor/phpstan/phpstan-doctrine/extension.neon
+    - vendor/phpstan/phpstan-doctrine/rules.neon
+    - vendor/phpstan/phpstan-strict-rules/rules.neon
+    - vendor/phpstan/phpstan-phpunit/extension.neon
+    - vendor/phpstan/phpstan-phpunit/rules.neon
+    - vendor/ergebnis/phpstan-rules/rules.neon
+    - vendor/phpat/phpat/extension.neon
+
 parameters:
-    level: 6
+    level: max
+    phpVersion: 80500
+
     paths:
-        - bin/
-        - config/
-        - public/
-        - src/
-        - tests/
+        - src
+        - tests
+        - fixtures
+        - config
+        - public
+
+    # Generated or vendor-shaped code we do not own.
+    excludePaths:
+        analyseAndScan:
+            - var/*
+            - vendor/*
+            # Auto-generated config reference shipped by flex; it says so in its own header.
+            - config/reference.php
+
+    # Force every ignore to be justified and to actually match something.
+    treatPhpDocTypesAsCertain: false
+    reportUnmatchedIgnoredErrors: true
+    checkMissingCallableSignature: true
+    checkUninitializedProperties: true
+    checkBenevolentUnionTypes: true
+    checkImplicitMixed: true
+
+    symfony:
+        containerXmlPath: var/cache/dev/App_KernelDevDebugContainer.xml
+        consoleApplicationLoader: tests/console-application.php
+
+    doctrine:
+        objectManagerLoader: tests/object-manager.php
+
+    # Opt in explicitly rather than `allRules: true` minus exceptions — a reader can see
+    # exactly which opinions this project holds, and adding one is a deliberate act.
+    ergebnis:
+        allRules: false
+
+        # Enforced.
+        declareStrictTypes: { enabled: true }
+        final: { enabled: true, allowAbstractClasses: true }
+        finalInAbstractClass: { enabled: true }
+        privateInFinalClass: { enabled: true }
+        noAssignByReference: { enabled: true }
+        noParameterPassedByReference: { enabled: true }
+        noReturnByReference: { enabled: true }
+        noCompact: { enabled: true }
+        noErrorSuppression: { enabled: true }
+        noEval: { enabled: true }
+        noSwitch: { enabled: true }
+        testCaseWithSuffix: { enabled: true }
+        # The single most valuable one here: it stops a service taking the container and
+        # pulling arbitrary dependencies out of it, which would defeat every layering rule.
+        noParameterWithContainerTypeDeclaration: { enabled: true }
+
+        # Not enforced, each for a reason.
+        noExtends: { enabled: false }                        # Migrations, Fixtures, TestCase, Symfony bases
+        noNamedArgument: { enabled: false }                  # named args make ACL calls readable
+        noIsset: { enabled: false }
+        noNullableReturnTypeDeclaration: { enabled: false }  # findOneBy(): ?Entity is honest
+        noParameterWithNullableTypeDeclaration: { enabled: false }
+        noParameterWithNullDefaultValue: { enabled: false }
+        noConstructorParameterWithDefaultValue: { enabled: false }
+        noPhpstanIgnore: { enabled: false }                  # rare, and must carry a reason
+        invokeParentHookMethod: { enabled: false }
+
+services:
+    # ---- phpat shape rules (evaluated by PHPStan, not PHPUnit) ---------------
+    -
+        class: App\Tests\Architecture\PhpatRules\ApiShapeRules
+        tags: [phpat.test]
+    -
+        class: App\Tests\Architecture\PhpatRules\ApplicationShapeRules
+        tags: [phpat.test]
+
+    # ---- the architecture rules (docs/INVARIANTS.md) -------------------------
+    -
+        class: App\Tests\Architecture\PhpStanRules\NoDoctrineInControllerRule
+        tags: [phpstan.rules.rule]
+    -
+        class: App\Tests\Architecture\PhpStanRules\NoHttpInApplicationLayerRule
+        tags: [phpstan.rules.rule]
+    -
+        class: App\Tests\Architecture\PhpStanRules\ServiceMustBeFinalReadonlyRule
+        tags: [phpstan.rules.rule]
+    -
+        class: App\Tests\Architecture\PhpStanRules\ServiceMustDeclareResponsibilityRule
+        tags: [phpstan.rules.rule]
+    -
+        class: App\Tests\Architecture\PhpStanRules\ControllerMustHaveIsGrantedRule
+        tags: [phpstan.rules.rule]
+    -
+        class: App\Tests\Architecture\PhpStanRules\ControllerMustDelegateToServiceRule
+        tags: [phpstan.rules.rule]

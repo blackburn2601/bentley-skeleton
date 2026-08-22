@@ -1,30 +1,70 @@
+# Technical layering contract (ADR-0006). Enforced by `make arch`, and in CI by
+# .github/workflows/architecture.yml so a violation reports as a layering failure
+# rather than being buried in a generic test run.
+#
+# Allowed direction of dependency, and nothing else:
+#
+#   Api ──────────────> Application ──────> Domain
+#    │                       ▲                 ▲
+#    └───────────────────────┼─────────────────┘
+#                            │
+#                     Infrastructure
+#
+# Domain depends on nothing but itself. If you need a layer edge that is not here,
+# that is an architecture change: write an ADR, do not widen this file quietly.
+#
+# The bounded-context contract is a SEPARATE ruleset (deptrac-context.yaml) so the
+# two kinds of violation produce two distinguishable failures.
 deptrac:
-    paths:
-        - ./src
-    exclude_files:
-        - '#.*test.*#'
-    layers:
-        -
-            name: Controller
-            collectors:
-                -
-                    type: classLike
-                    value: .*Controller.*
-        -
-            name: Repository
-            collectors:
-                -
-                    type: classLike
-                    value: .*Repository.*
-        -
-            name: Service
-            collectors:
-                -
-                    type: classLike
-                    value: .*Service.*
-    ruleset:
-        Controller:
-            - Service
-        Service:
-            - Repository
-        Repository:
+  paths:
+    - ./src
+
+  layers:
+    - name: Api
+      collectors:
+        - type: directory
+          value: src/Api/.*
+
+    - name: Application
+      collectors:
+        - type: directory
+          value: src/[A-Za-z]+/Application/.*
+
+    - name: Domain
+      collectors:
+        - type: directory
+          value: src/[A-Za-z]+/Domain/.*
+
+    - name: Infrastructure
+      collectors:
+        - type: directory
+          value: src/[A-Za-z]+/Infrastructure/.*
+
+    # Dev-time code generators. They emit files rather than participate in the
+    # runtime graph, so they sit outside the layering contract by design.
+    - name: Maker
+      collectors:
+        - type: directory
+          value: src/Maker/.*
+
+    - name: Kernel
+      collectors:
+        - type: classNameRegex
+          value: '#^App\\Kernel$#'
+
+  ruleset:
+    Api:
+      - Application
+      - Domain          # response views may name domain enums/VOs; never entities (INV-05)
+    Application:
+      - Domain
+    Domain: ~           # deliberately empty: the Domain layer depends on nothing
+    Infrastructure:
+      - Domain
+      - Application     # ports (interfaces) declared in Application, implemented here
+    Maker:
+      - Api
+      - Application
+      - Domain
+      - Infrastructure
+    Kernel: ~

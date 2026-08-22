@@ -8,6 +8,10 @@ APP            := $(COMPOSE) exec -T app
 APP_TTY        := $(COMPOSE) exec app
 PHP            := php
 COMPOSER       := composer
+# PHPMD 2.15 is the newest stable release and is not PHP 8.5 clean — it emits hundreds of
+# deprecations from its own code and pdepend's. Silencing them here keeps `make arch`
+# readable; it does not affect what PHPMD reports about OUR code. Revisit when phpmd 3 ships.
+PHPMD          := $(PHP) -d error_reporting="E_ALL & ~E_DEPRECATED" vendor/bin/phpmd
 
 # Run backend tooling in the container when the stack is up, on the host otherwise.
 # This is what lets `make stan` work both in CI and on a laptop with no stack running.
@@ -20,7 +24,7 @@ endif
 
 .PHONY: help up down restart sh logs ps migrate migrate-down fixtures db-reset \
         test test-unit test-integration test-functional coverage \
-        lint fix stan arch docs e2e front-lint front-test front-build \
+        lint fix stan arch proof docs e2e front-lint front-test front-build \
         check ci new-project keys hooks
 
 help: ## Show this help
@@ -100,9 +104,18 @@ stan: ## PHPStan at max level, including the custom architecture rules
 	$(RUN_BACKEND) $(PHP) vendor/bin/phpstan analyse --memory-limit=1G
 
 arch: ## Enforce the architecture contract (deptrac + phpat + PHPMD + arch tests)
-	$(RUN_BACKEND) $(PHP) vendor/bin/deptrac analyse --config-file=deptrac.yaml --report-uncovered
-	$(RUN_BACKEND) $(PHP) vendor/bin/phpmd src ansi phpmd.xml
+	@echo "--> layering contract"
+	$(RUN_BACKEND) $(PHP) vendor/bin/deptrac analyse --config-file=deptrac.yaml
+	@echo "--> bounded-context contract"
+	$(RUN_BACKEND) $(PHP) vendor/bin/deptrac analyse --config-file=deptrac-context.yaml
+	@echo "--> size and complexity limits"
+	$(RUN_BACKEND) $(PHPMD) src ansi phpmd.xml
+	$(RUN_BACKEND) $(PHPMD) src/Api ansi phpmd-api.xml
+	@echo "--> architecture tests"
 	$(RUN_BACKEND) $(PHP) vendor/bin/phpunit --testsuite=architecture
+
+proof: ## Prove the architecture rules actually fail on deliberate violations
+	./bin/strictness-proof
 
 docs: ## Regenerate the generated inventories and fail if they drifted
 	$(RUN_BACKEND) $(PHP) bin/console app:docs:generate
