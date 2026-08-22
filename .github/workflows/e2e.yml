@@ -27,6 +27,15 @@ jobs:
 
       # The real stack, built from the real Dockerfile. An e2e suite against a mocked backend
       # tests the mock.
+      # The container runs as uid 1000 and the checkout belongs to the runner's own user, so
+      # the app cannot write into the bind-mounted source — lexik:jwt:generate-keypair failed
+      # with "Failed to create /app/config/jwt: Permission denied". Local Docker Desktop hides
+      # this by mapping ownership; a Linux host whose user is not uid 1000 hits it too.
+      - name: Let the container write to the mounted source
+        run: |
+          mkdir -p backend/config/jwt backend/var
+          sudo chown -R 1000:1000 backend/config backend/var
+
       - name: Start the stack
         run: |
           cp docker/secrets/.gitkeep /dev/null 2>/dev/null || true

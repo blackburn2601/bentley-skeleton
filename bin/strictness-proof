@@ -27,7 +27,12 @@ trap cleanup EXIT INT TERM
 cleanup
 mkdir -p "${PROBE_DIRS[@]}"
 
-phpstan()  { php vendor/bin/phpstan analyse --no-progress --memory-limit=1G --error-format=raw 2>&1; }
+# JSON, not raw. The raw formatter appends "[identifier=bentley.x]" on this machine and omits
+# it on a GitHub runner — same PHPStan, same lockfile, same cold cache. Every check below
+# matches on the identifier, so on CI they all missed and the proof reported eleven rules as
+# broken while the messages proving they had fired sat in the same output. JSON carries the
+# identifier as a documented field rather than a display detail.
+phpstan()  { php vendor/bin/phpstan analyse --no-progress --memory-limit=1G --error-format=json 2>&1; }
 
 # A broken analyser and a broken rule look identical from here: both produce output with no
 # rule identifier in it. The difference matters enormously — one means "fix this rule", the
@@ -47,7 +52,7 @@ guard_severe() {
 # The negative control plants a violation of every rule, so PHPStan must report SOMETHING.
 # Output with no identifier at all means it never analysed the probes.
 guard_analysed() {
-  if ! grep -q "bentley\.\|phpat\." <<< "$1"; then
+  if ! grep -q '"identifier"' <<< "$1"; then
     printf '\033[31mPHPStan produced no rule output at all, so nothing was checked:\033[0m\n'
     printf '%s\n' "$1" | head -15 | sed 's/^/  /'
     exit 1

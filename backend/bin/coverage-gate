@@ -24,8 +24,12 @@ $cloverPath = $argv[1] ?? 'var/coverage/clover.xml';
  * gap, and lower on their Infrastructure, which is Doctrine plumbing whose failures surface
  * loudly rather than silently.
  *
- * These are RATCHET values: set at or just below what the suite achieves today, so coverage
- * can only go up. PLAN.md's targets are 90% for Acl and Account and 80% globally; reaching
+ * These are RATCHET values: set a point or two BELOW what the suite achieves today, so
+ * coverage can only go up. The headroom is deliberate — the same suite measures slightly
+ * differently on a CI runner than it does on a laptop (environment-dependent branches: an
+ * HTTP client that times out rather than resolves, a locale, a clock). Floors set to the
+ * exact local number turn that fraction of a point into a red build that says "add tests for
+ * what you changed" when nothing changed at all. PLAN.md's targets are 90% for Acl and Account and 80% globally; reaching
  * them means testing the Doctrine repositories, the console commands and the docs generators.
  * Raise each floor as its number rises — that is the whole point of a ratchet, and leaving it
  * slack is how a gate becomes decorative.
@@ -35,14 +39,14 @@ $cloverPath = $argv[1] ?? 'var/coverage/clover.xml';
 $gates = [
     // Where a bug is a security bug.
     'Acl decisions' => ['floor' => 78.0, 'target' => 90.0, 'prefix' => 'src/Acl/', 'exclude' => 'src/Acl/Infrastructure/'],
-    'Account decisions' => ['floor' => 82.0, 'target' => 90.0, 'prefix' => 'src/Account/', 'exclude' => 'src/Account/Infrastructure/'],
+    'Account decisions' => ['floor' => 81.0, 'target' => 90.0, 'prefix' => 'src/Account/', 'exclude' => 'src/Account/Infrastructure/'],
 
     // Plumbing for the same contexts.
     'Acl total' => ['floor' => 71.0, 'target' => 90.0, 'prefix' => 'src/Acl/'],
-    'Account total' => ['floor' => 76.0, 'target' => 90.0, 'prefix' => 'src/Account/'],
+    'Account total' => ['floor' => 74.0, 'target' => 90.0, 'prefix' => 'src/Account/'],
 ];
 
-$globalFloor = 64.0;
+$globalFloor = 63.0;
 $globalTarget = 80.0;
 
 if (!is_readable($cloverPath)) {

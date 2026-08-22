@@ -28,6 +28,11 @@ jobs:
       contents: read
       # Required to upload results to the Security tab.
       security-events: write
+      # Required by the `actions` language: it reads workflow-run metadata to attach findings
+      # to the run, and without this it analyses everything and then fails on upload with
+      # "Resource not accessible by integration". A job-level permissions block REPLACES the
+      # workflow-level one, so setting it at the top of the file has no effect here.
+      actions: read
 
     strategy:
       fail-fast: false
