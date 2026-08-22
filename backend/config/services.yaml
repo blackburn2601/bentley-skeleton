@@ -176,4 +176,33 @@ when@dev: &dev_services
             resource: '../src/Maker/'
             exclude: '../src/Maker/skeleton/'
 
-when@test: *dev_services
+when@test:
+    services:
+        _defaults:
+            autowire: true
+            autoconfigure: true
+            bind:
+                string $projectDir: '%kernel.project_dir%'
+
+        App\Fixtures\:
+            resource: '../fixtures/'
+
+        App\Maker\:
+            resource: '../src/Maker/'
+            exclude: '../src/Maker/skeleton/'
+
+        # Services the integration tests resolve from the container directly.
+        #
+        # Symfony REMOVES a private service that nothing injects, so a class with no consumers
+        # yet — AclCriteriaBuilder, until the first collection endpoint uses it — is simply not
+        # there to fetch. Making them public in the test environment only is the narrow fix;
+        # the alternative is writing a fake consumer, which is worse.
+        App\Acl\Infrastructure\AclCriteriaBuilder: { public: true }
+        App\Acl\Application\PermissionResolver: { public: true }
+        App\Acl\Application\AclFacade: { public: true }
+        App\Account\Application\AccountFacade: { public: true }
+        App\Shared\Domain\Clock: '@App\Shared\Infrastructure\SystemClock'
+        App\Shared\Infrastructure\SystemClock: { public: true }
+        App\Acl\Application\Service\EnsureBaselineRolesService: { public: true }
+        App\Acl\Application\Service\SyncPermissionsService: { public: true }
+        Symfony\Component\PasswordHasher\Hasher\PasswordHasherFactoryInterface: '@security.password_hasher_factory'

@@ -43,7 +43,7 @@ final class AclCache
     /**
      * @param callable(): bool $compute
      */
-    public function remember(Uuid $userId, string $permission, ?object $resource, callable $compute): bool
+    public function remember(Uuid $userId, string $permission, object|string|null $resource, callable $compute): bool
     {
         $key = $this->key($userId, $permission, $resource);
 
@@ -72,14 +72,23 @@ final class AclCache
         $this->memo = [];
     }
 
-    private function key(Uuid $userId, string $permission, ?object $resource): string
+    private function objectKey(object $resource): string
     {
-        $resourcePart = 'class';
+        $id = method_exists($resource, 'id') ? $resource->id() : null;
 
-        if (null !== $resource) {
-            $id = method_exists($resource, 'id') ? $resource->id() : null;
-            $resourcePart = $resource::class.':'.($id instanceof Uuid ? $id->toRfc4122() : 'unknown');
-        }
+        return $resource::class.':'.($id instanceof Uuid ? $id->toRfc4122() : 'unknown');
+    }
+
+    private function key(Uuid $userId, string $permission, object|string|null $resource): string
+    {
+        // Three distinct shapes, three distinct keys. A class-level answer must never be
+        // served for an object-level question, or a grant on one record would appear to cover
+        // every record of that type.
+        $resourcePart = match (true) {
+            null === $resource => 'any',
+            \is_string($resource) => 'class:'.$resource,
+            default => $this->objectKey($resource),
+        };
 
         // The version sits in the key rather than being used to purge entries.
         return \sprintf(

@@ -54,9 +54,12 @@ final readonly class PermissionResolver
     }
 
     /**
-     * @param object|null $resource null asks the class-level question: "may they do this at all?"
+     * @param object|class-string|null $resource an object walks every tier; a CLASS NAME asks
+     *                                           the class-level question ("may they read Users
+     *                                           in general?"); null asks only whether a role
+     *                                           carries the permission at all
      */
-    public function isGranted(Uuid $userId, string $permission, ?object $resource = null): bool
+    public function isGranted(Uuid $userId, string $permission, object|string|null $resource = null): bool
     {
         return $this->cache->remember(
             $userId,
@@ -73,12 +76,12 @@ final readonly class PermissionResolver
      * would answer for whenever the cache was filled, which is precisely the confusion this
      * method exists to resolve.
      */
-    public function explain(Uuid $userId, string $permission, ?object $resource = null): PermissionDecision
+    public function explain(Uuid $userId, string $permission, object|string|null $resource = null): PermissionDecision
     {
         return $this->decide($userId, $permission, $resource);
     }
 
-    private function decide(Uuid $userId, string $permission, ?object $resource): PermissionDecision
+    private function decide(Uuid $userId, string $permission, object|string|null $resource): PermissionDecision
     {
         $subjects = $this->subjects->subjectSetFor($userId);
 
@@ -86,8 +89,17 @@ final readonly class PermissionResolver
             return PermissionDecision::granted(AclTier::SuperAdmin, null, 'ROLE_SUPER_ADMIN bypasses all checks');
         }
 
-        $resourceClass = null === $resource ? null : $this->classOf($resource);
-        $chain = null === $resource ? [] : $this->parentChain($resource);
+        // A class name means "the class-level question": consult entries with resource_id
+        // NULL for that class, then fall back to roles. Passing null instead would skip the
+        // entry tiers entirely, because there would be no class to look them up by — which is
+        // precisely the bug the resolver/criteria cross-check test caught.
+        $resourceClass = match (true) {
+            null === $resource => null,
+            \is_string($resource) => $resource,
+            default => $this->classOf($resource),
+        };
+
+        $chain = \is_object($resource) ? $this->parentChain($resource) : [];
 
         if (null !== $resourceClass) {
             $decision = $this->decideFromEntries($subjects, $resourceClass, $chain, $permission);

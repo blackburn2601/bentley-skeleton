@@ -48,13 +48,20 @@ final readonly class AclFacade
         ($this->assignDefaultRole)($userId);
     }
 
-    public function isGranted(Uuid $userId, string $permission, ?object $resource = null): bool
+    /**
+     * @param object|class-string|null $resource see PermissionResolver::isGranted()
+     */
+    public function isGranted(Uuid $userId, string $permission, object|string|null $resource = null): bool
     {
         return $this->resolver->isGranted($userId, $permission, $resource);
     }
 
-    /** Why a decision came out the way it did — for the admin explain endpoint. */
-    public function explain(Uuid $userId, string $permission, ?object $resource = null): PermissionDecision
+    /**
+     * Why a decision came out the way it did — for the admin explain endpoint.
+     *
+     * @param object|class-string|null $resource see PermissionResolver::isGranted()
+     */
+    public function explain(Uuid $userId, string $permission, object|string|null $resource = null): PermissionDecision
     {
         return $this->resolver->explain($userId, $permission, $resource);
     }

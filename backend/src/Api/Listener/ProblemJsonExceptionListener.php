@@ -58,8 +58,14 @@ final readonly class ProblemJsonExceptionListener
 
     private function toResponse(Throwable $throwable, ?string $requestId, string $instance): JsonResponse
     {
+        // #[MapRequestPayload] does not throw ValidationFailedException directly — it wraps it
+        // in an HttpException. Unwrapping first means a validation failure produces the 422
+        // with an errors[] array rather than a generic 422 with no detail, which is the whole
+        // reason a client can show which field was wrong.
+        $validation = $this->validationFailure($throwable);
+
         $problem = match (true) {
-            $throwable instanceof ValidationFailedException => $this->fromValidation($throwable),
+            null !== $validation => $this->fromValidation($validation),
             $throwable instanceof DomainProblem => $this->fromDomain($throwable),
             $throwable instanceof AccessDeniedException => [
                 'status' => Response::HTTP_FORBIDDEN,
@@ -104,6 +110,24 @@ final readonly class ProblemJsonExceptionListener
         }
 
         return $response;
+    }
+
+    /**
+     * Find a ValidationFailedException, however deeply it has been wrapped.
+     */
+    private function validationFailure(Throwable $throwable): ?ValidationFailedException
+    {
+        $candidate = $throwable;
+
+        while ($candidate instanceof Throwable) {
+            if ($candidate instanceof ValidationFailedException) {
+                return $candidate;
+            }
+
+            $candidate = $candidate->getPrevious();
+        }
+
+        return null;
     }
 
     /**

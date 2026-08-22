@@ -79,7 +79,7 @@ final readonly class AclCriteriaBuilder
             return;
         }
 
-        $fallbackGrants = $this->fallbackGrants($subjects, $permission);
+        $fallbackGrants = $this->fallbackGrants($subjects, $entityClass, $permission);
 
         $qb->setParameter('aclNow', $this->clock->now());
         $qb->setParameter('aclClass', $entityClass);
@@ -108,9 +108,16 @@ final readonly class AclCriteriaBuilder
      * deliberate — two implementations of "what does the class tier say?" is precisely how
      * the list and the item check drift apart.
      */
-    private function fallbackGrants(SubjectSet $subjects, string $permission): bool
+    /**
+     * @param class-string $entityClass
+     */
+    private function fallbackGrants(SubjectSet $subjects, string $entityClass, string $permission): bool
     {
-        $classLevel = $this->resolver->explain($subjects->userId, $permission);
+        // The CLASS, not null. Asking with null skips the class-level entries entirely —
+        // there would be no class to look them up by — so a caller holding a class-level
+        // grant would get an empty list while a direct check granted every row. Exactly
+        // the disagreement this builder exists to avoid, and what the cross-check caught.
+        $classLevel = $this->resolver->explain($subjects->userId, $permission, $entityClass);
 
         // A class-level DENY is decisive only against the fallback; an object-level allow can
         // still override it, which the SQL above preserves.
@@ -162,6 +169,9 @@ final readonly class AclCriteriaBuilder
         }
     }
 
+    /**
+     * @return class-string
+     */
     private function rootEntityClass(QueryBuilder $qb, string $alias): string
     {
         foreach ($qb->getRootAliases() as $index => $rootAlias) {
