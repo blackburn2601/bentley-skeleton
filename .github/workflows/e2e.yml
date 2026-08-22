@@ -25,6 +25,21 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
+      # Before the stack, deliberately.
+      #
+      # compose mounts a named volume at /spa/node_modules inside the bind-mounted ./frontend.
+      # If that directory does not exist yet, Docker creates it on the host as root, and the
+      # runner can no longer `npm ci` into it. Deleting it afterwards is worse: it is the live
+      # mountpoint for the running container, so removing it from the host strands Vite
+      # without its dependencies and the SPA serves a blank page — which is what the three
+      # browser tests were actually reporting. Creating it first, owned by the runner, means
+      # Docker has nothing to create.
+      - name: Install Playwright
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
       # The real stack, built from the real Dockerfile. An e2e suite against a mocked backend
       # tests the mock.
       # The container runs as uid 1000 and the checkout belongs to the runner's own user, so
@@ -64,16 +79,6 @@ jobs:
           docker compose logs --tail=50 app
           exit 1
 
-      - name: Install Playwright
-        working-directory: frontend
-        run: |
-          # compose mounts a named volume at /spa/node_modules inside the bind-mounted
-          # ./frontend, and Docker creates that mountpoint on the host as root. The runner
-          # then cannot write into frontend/node_modules and `npm ci` dies with EACCES.
-          # Docker Desktop remaps ownership, so this only appears on Linux.
-          sudo rm -rf node_modules
-          npm ci
-          npx playwright install --with-deps chromium
 
       - name: Run the suite
         working-directory: frontend
