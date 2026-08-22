@@ -9,3 +9,23 @@
 #   # why it is accepted, and what would change that
 #
 # (empty — nothing accepted yet)
+
+# ---------------------------------------------------------------------------------------
+# Vendored Go modules inside the FrankenPHP binary itself (usr/local/bin/frankenphp).
+#
+# These cannot be fixed from this repository: they are compiled into the upstream binary, and
+# the only fix is a FrankenPHP release built against newer modules. The Debian packages this
+# image inherits ARE fixed, at build time, by the apt-get upgrade in docker/frankenphp/
+# Dockerfile — these four are the remainder that no amount of patching here can reach.
+#
+# kin-openapi and grpc are used by Caddy's admin and config-validation paths. This image does
+# not expose the Caddy admin endpoint, so they are not reachable from the request path — but
+# "not reachable today" is a property of the current config, which is exactly why these expire
+# rather than being accepted permanently.
+#
+# On expiry: check whether a newer dunglas/frankenphp:php8.5 has shipped, and drop whichever
+# of these it fixes.
+GHSA-r277-6w6q-xmqw exp:2026-11-22
+CVE-2026-76905 exp:2026-11-22
+CVE-2026-77354 exp:2026-11-22
+GHSA-hrxh-6v49-42gf exp:2026-11-22

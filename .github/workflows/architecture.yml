@@ -40,6 +40,16 @@ jobs:
         working-directory: backend
         run: composer install --no-interaction --no-progress --no-scripts
 
+
+      # PHPStan's Symfony extension resolves service ids against the compiled dev container.
+      # Nothing else in this job builds it, and without it PHPStan aborts before analysing a
+      # single file. Warming needs no database — it only compiles the container.
+      - name: Warm the dev container
+        working-directory: backend
+        run: php bin/console cache:warmup --env=dev
+        env:
+          APP_ENV: dev
+
       - name: Layering contract
         working-directory: backend
         run: php vendor/bin/deptrac analyse --config-file=deptrac.yaml --no-progress

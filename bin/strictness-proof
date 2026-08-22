@@ -28,10 +28,28 @@ cleanup
 mkdir -p "${PROBE_DIRS[@]}"
 
 phpstan()  { php vendor/bin/phpstan analyse --no-progress --memory-limit=1G --error-format=raw 2>&1; }
+
+# A broken analyser and a broken rule look identical from here: both produce output with no
+# rule identifier in it. The difference matters enormously — one means "fix this rule", the
+# other means "nothing was checked at all" — so they are reported separately.
+#
+# This exists because they were once conflated. On a fresh CI runner PHPStan aborted with
+# "Container App_KernelDevDebugContainer.xml does not exist", and the proof dutifully reported
+# eleven rules as failing to fire. Eleven rules had not regressed; none of them had run.
 guard_severe() {
-  if grep -q "Internal error\|Result is incomplete" <<< "$1"; then
+  if grep -q "Internal error\|Result is incomplete\|does not exist\|Fatal error\|PHP Parse error" <<< "$1"; then
     printf '\033[31mPHPStan could not complete its analysis, so the rules never ran:\033[0m\n'
-    grep -m3 "Internal error" <<< "$1"
+    grep -m3 "Internal error\|does not exist\|Fatal error\|PHP Parse error" <<< "$1" | sed 's/^/  /'
+    exit 1
+  fi
+}
+
+# The negative control plants a violation of every rule, so PHPStan must report SOMETHING.
+# Output with no identifier at all means it never analysed the probes.
+guard_analysed() {
+  if ! grep -q "bentley\.\|phpat\." <<< "$1"; then
+    printf '\033[31mPHPStan produced no rule output at all, so nothing was checked:\033[0m\n'
+    printf '%s\n' "$1" | head -15 | sed 's/^/  /'
     exit 1
   fi
 }
@@ -130,6 +148,7 @@ EOF
 
 neg_phpstan="$(phpstan)"
 guard_severe "$neg_phpstan"
+guard_analysed "$neg_phpstan"
 neg_layer="$(php vendor/bin/deptrac analyse --config-file=deptrac.yaml --no-progress 2>&1)"
 neg_context="$(php vendor/bin/deptrac analyse --config-file=deptrac-context.yaml --no-progress 2>&1)"
 

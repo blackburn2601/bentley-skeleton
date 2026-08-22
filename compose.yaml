@@ -44,7 +44,15 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "php", "-r", "exit(@file_get_contents('http://127.0.0.1:80/health/ready') === false ? 1 : 0);"]
+      # /health/live, not /health/ready. Readiness includes a migrations probe, so on a fresh
+      # database the container can never become healthy until migrations run — and `docker
+      # compose up --wait` blocks until it is healthy, so the step that would run them never
+      # starts. That deadlock is invisible locally, where the database volume already has
+      # them, and it is what CI hit on the first clean run.
+      #
+      # Liveness is the right question for a container healthcheck anyway: "is this process
+      # serving?". Readiness is a deployment gate — `make migrate` then `curl /health/ready`.
+      test: ["CMD", "php", "-r", "exit(@file_get_contents('http://127.0.0.1:80/health/live') === false ? 1 : 0);"]
       interval: 10s
       timeout: 5s
       retries: 12

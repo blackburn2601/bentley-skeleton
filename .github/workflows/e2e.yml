@@ -42,6 +42,19 @@ jobs:
           docker compose exec -T app php bin/console app:acl:sync-permissions
           docker compose exec -T app php bin/console doctrine:fixtures:load --no-interaction
 
+      # Now that migrations are applied, readiness must actually pass. The container
+      # healthcheck only proves the process is serving; this is the assertion that every
+      # dependency it needs is reachable.
+      - name: Wait for readiness
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS localhost:8080/health/ready; then echo; exit 0; fi
+            sleep 2
+          done
+          echo "::error::/health/ready never came up"
+          docker compose logs --tail=50 app
+          exit 1
+
       - name: Install Playwright
         working-directory: frontend
         run: |

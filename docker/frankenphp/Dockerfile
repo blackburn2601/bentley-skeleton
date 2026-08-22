@@ -52,6 +52,22 @@ FROM dunglas/frankenphp:php8.5 AS runtime
 # that decides whether it actually traces (ADR-0017).
 ARG WITH_OTEL=0
 
+# Patch the base image's OS packages before anything else.
+#
+# Everything Trivy flags on this image comes from the base — 56 HIGH findings on the first
+# clean CI run, every one of them a Debian package with a published fix that the upstream
+# image simply had not rebuilt against. Upgrading here fixes all of them at build time
+# instead of accepting them, which is the difference between a scan that means something and
+# a list of things somebody stopped reading.
+#
+# It does cost reproducibility: two builds of the same Dockerfile can pull different package
+# versions. That is the right trade for a security baseline — pin the base image by digest if
+# you need bit-identical rebuilds.
+RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN install-php-extensions \
         pdo_pgsql \
         redis \

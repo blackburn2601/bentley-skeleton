@@ -30,7 +30,7 @@ endif
 HOST_BACKEND := cd backend &&
 
 .PHONY: help up down restart sh logs ps migrate migrate-down fixtures db-reset \
-        test test-unit test-integration test-functional coverage \
+        test test-db test-unit test-integration test-functional coverage \
         lint fix stan arch proof docs docs-check e2e front-lint front-test front-build \
         adr endpoint service \
         check ci new-project keys hooks
@@ -84,22 +84,32 @@ db-reset: ## Drop, recreate and migrate the database, then load fixtures
 
 ## ---------------------------------------------------------------- tests
 
-test: ## Run the whole backend test suite
+# Idempotent, and a dependency of every target that runs tests.
+#
+# CI created the test database and the Makefile did not, so `make test` worked only on a
+# volume that already had one. After `make down` (which removes volumes) or on a fresh clone,
+# the whole suite failed with 31 connection errors naming a database nobody had been told to
+# create.
+test-db: ## Create and migrate the test database (idempotent)
+	$(RUN_BACKEND) $(PHP) bin/console doctrine:database:create --if-not-exists --env=test
+	$(RUN_BACKEND) $(PHP) bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration --env=test
+
+test: test-db ## Run the whole backend test suite
 	$(RUN_BACKEND) $(PHP) vendor/bin/phpunit
 
-test-unit: ## Unit tests only
+test-unit: test-db ## Unit tests only
 	$(RUN_BACKEND) $(PHP) vendor/bin/phpunit --testsuite=unit
 
-test-integration: ## Integration tests only (needs Postgres + Redis)
+test-integration: test-db ## Integration tests only (needs Postgres + Redis)
 	$(RUN_BACKEND) $(PHP) vendor/bin/phpunit --testsuite=integration
 
-test-functional: ## Functional tests only
+test-functional: test-db ## Functional tests only
 	$(RUN_BACKEND) $(PHP) vendor/bin/phpunit --testsuite=functional
 
 # XDEBUG_MODE goes through the runner, not in front of the command: `docker compose exec`
 # execs the binary directly with no shell, so a leading VAR=value is read as the program name
 # and fails with "executable file not found".
-coverage: ## Run tests with coverage and enforce the floors in bin/coverage-gate
+coverage: test-db ## Run tests with coverage and enforce the floors in bin/coverage-gate
 	$(RUN_BACKEND_COVERAGE) vendor/bin/phpunit --coverage-text --coverage-clover=var/coverage/clover.xml
 	$(RUN_BACKEND) $(PHP) bin/coverage-gate var/coverage/clover.xml
 
