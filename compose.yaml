@@ -31,6 +31,11 @@ services:
       - ./backend:/app:cached
       - /app/vendor
       - /app/var
+      # The generated inventories live outside backend/, and the generators resolve them as
+      # dirname(kernel.project_dir)/docs — which is /docs when the project dir is /app. Mounted
+      # so the tests that check a generator against the files it describes can run in the
+      # container with everything else. `make docs` still writes from the host.
+      - ./docs:/docs:cached
     ports:
       - "${APP_PORT:-8080}:80"
     depends_on:

@@ -18,8 +18,10 @@ PHPMD          := $(PHP) -d error_reporting="E_ALL & ~E_DEPRECATED" vendor/bin/p
 IN_APP := $(shell $(COMPOSE) ps --status=running --services 2>/dev/null | grep -qx app && echo yes || echo no)
 ifeq ($(IN_APP),yes)
   RUN_BACKEND = $(APP)
+  RUN_BACKEND_COVERAGE = $(COMPOSE) exec -T -e XDEBUG_MODE=coverage app $(PHP)
 else
   RUN_BACKEND = cd backend &&
+  RUN_BACKEND_COVERAGE = cd backend && XDEBUG_MODE=coverage $(PHP)
 endif
 
 # Some targets must run on the HOST even when the stack is up, because they write to the
@@ -29,7 +31,7 @@ HOST_BACKEND := cd backend &&
 
 .PHONY: help up down restart sh logs ps migrate migrate-down fixtures db-reset \
         test test-unit test-integration test-functional coverage \
-        lint fix stan arch proof docs e2e front-lint front-test front-build \
+        lint fix stan arch proof docs docs-check e2e front-lint front-test front-build \
         adr endpoint service \
         check ci new-project keys hooks
 
@@ -94,8 +96,12 @@ test-integration: ## Integration tests only (needs Postgres + Redis)
 test-functional: ## Functional tests only
 	$(RUN_BACKEND) $(PHP) vendor/bin/phpunit --testsuite=functional
 
-coverage: ## Run tests with the coverage gate (Acl+Account >= 90%, global >= 80%)
-	$(RUN_BACKEND) XDEBUG_MODE=coverage $(PHP) vendor/bin/phpunit --coverage-text --coverage-clover=var/coverage/clover.xml
+# XDEBUG_MODE goes through the runner, not in front of the command: `docker compose exec`
+# execs the binary directly with no shell, so a leading VAR=value is read as the program name
+# and fails with "executable file not found".
+coverage: ## Run tests with coverage and enforce the floors in bin/coverage-gate
+	$(RUN_BACKEND_COVERAGE) vendor/bin/phpunit --coverage-text --coverage-clover=var/coverage/clover.xml
+	$(RUN_BACKEND) $(PHP) bin/coverage-gate var/coverage/clover.xml
 
 ## ---------------------------------------------------------------- quality
 
@@ -103,7 +109,9 @@ lint: ## Check formatting and config validity without changing anything
 	$(RUN_BACKEND) $(COMPOSER) validate --strict
 	$(RUN_BACKEND) $(PHP) vendor/bin/php-cs-fixer check --diff
 	$(RUN_BACKEND) $(PHP) vendor/bin/rector process --dry-run
-	$(RUN_BACKEND) $(PHP) bin/console lint:yaml config
+	@# --parse-tags: config/services.yaml uses !tagged_iterator, and without this the
+	@# linter reports the container's own DSL as a syntax error.
+	$(RUN_BACKEND) $(PHP) bin/console lint:yaml config --parse-tags
 	$(RUN_BACKEND) $(PHP) bin/console lint:container
 	$(RUN_BACKEND) $(PHP) bin/console doctrine:schema:validate --skip-sync
 
@@ -171,7 +179,7 @@ e2e: ## Playwright end-to-end suite against the running stack
 
 check: lint stan arch test front-lint front-test ## Everything CI runs, except e2e
 
-ci: check docs-check e2e ## Literally everything
+ci: check docs-check coverage e2e ## Literally everything
 
 ## ---------------------------------------------------------------- project setup
 

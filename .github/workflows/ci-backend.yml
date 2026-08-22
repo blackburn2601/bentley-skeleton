@@ -64,7 +64,7 @@ jobs:
       - name: Lint configuration
         working-directory: backend
         run: |
-          php bin/console lint:yaml config
+          php bin/console lint:yaml config --parse-tags
           php bin/console lint:container
         env:
           APP_ENV: dev

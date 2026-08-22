@@ -34,15 +34,15 @@ $cloverPath = $argv[1] ?? 'var/coverage/clover.xml';
 /** @var array<string, array{floor: float, target: float, prefix: string, exclude?: string}> */
 $gates = [
     // Where a bug is a security bug.
-    'Acl decisions' => ['floor' => 75.0, 'target' => 90.0, 'prefix' => 'src/Acl/', 'exclude' => 'src/Acl/Infrastructure/'],
-    'Account decisions' => ['floor' => 80.0, 'target' => 90.0, 'prefix' => 'src/Account/', 'exclude' => 'src/Account/Infrastructure/'],
+    'Acl decisions' => ['floor' => 78.0, 'target' => 90.0, 'prefix' => 'src/Acl/', 'exclude' => 'src/Acl/Infrastructure/'],
+    'Account decisions' => ['floor' => 82.0, 'target' => 90.0, 'prefix' => 'src/Account/', 'exclude' => 'src/Account/Infrastructure/'],
 
     // Plumbing for the same contexts.
-    'Acl total' => ['floor' => 65.0, 'target' => 90.0, 'prefix' => 'src/Acl/'],
-    'Account total' => ['floor' => 75.0, 'target' => 90.0, 'prefix' => 'src/Account/'],
+    'Acl total' => ['floor' => 71.0, 'target' => 90.0, 'prefix' => 'src/Acl/'],
+    'Account total' => ['floor' => 76.0, 'target' => 90.0, 'prefix' => 'src/Account/'],
 ];
 
-$globalFloor = 55.0;
+$globalFloor = 64.0;
 $globalTarget = 80.0;
 
 if (!is_readable($cloverPath)) {

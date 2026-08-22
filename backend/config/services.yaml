@@ -208,6 +208,15 @@ when@dev: &dev_services
             resource: '../src/Maker/'
             exclude: '../src/Maker/skeleton/'
 
+        # Test scaffolding, registered in dev as well purely so static analysis can see it:
+        # PHPStan resolves container lookups against the DEV container dump, and a service
+        # defined only under when@test reads to it as a typo. tests/ is autoloaded in dev but
+        # not under `composer install --no-dev`, so this never reaches a production container.
+        App\Tests\Support\DocumentGenerators:
+            public: true
+            arguments:
+                - !tagged_iterator App\Shared\Application\Docs\DocumentGenerator
+
 when@test:
     services:
         _defaults:
@@ -240,3 +249,17 @@ when@test:
         App\Shared\Application\AclVersionProvider: '@App\Account\Infrastructure\UserAclVersionProvider'
         App\Account\Infrastructure\UserAclVersionProvider: { public: true }
         Symfony\Component\PasswordHasher\Hasher\PasswordHasherFactoryInterface: '@security.password_hasher_factory'
+
+        # The same tagged iterator app:docs:generate receives. Fetching the generators
+        # individually would test four classes; fetching the collection also tests that each
+        # one is actually tagged — an untagged generator never runs, and its document rots
+        # while every gate stays green.
+        App\Account\Application\Service\IssueSingleUseTokenService: { public: true }
+        App\Account\Domain\SingleUseTokenRepository: '@App\Account\Infrastructure\Repository\DoctrineSingleUseTokenRepository'
+        App\Account\Infrastructure\Repository\DoctrineSingleUseTokenRepository: { public: true }
+
+        App\Tests\Support\DocumentGenerators:
+            public: true
+            arguments:
+                - !tagged_iterator App\Shared\Application\Docs\DocumentGenerator
+
