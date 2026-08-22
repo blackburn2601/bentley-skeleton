@@ -59,7 +59,35 @@ guard_analysed() {
   fi
 }
 
+# Deptrac's violation COUNT, from its JSON report.
+#
+# The table formatter wraps to the terminal width, and at the 60-odd columns a GitHub runner
+# reports, "DependsOnDisallowedLayer" is broken across lines and matches nothing. Both
+# controls used to grep for exactly that string, so on CI the layer and context rules looked
+# like they had stopped firing. The count is what the checks actually mean anyway.
+deptrac_violations() {
+  local report
+  report="$(php vendor/bin/deptrac analyse --config-file="$1" --no-progress --formatter=json 2>&1)"
+
+  if ! grep -q '"Violations"' <<< "$report"; then
+    printf '\033[31mdeptrac did not produce a report for %s:\033[0m\n' "$1" >&2
+    printf '%s\n' "$report" | head -10 >&2
+    exit 1
+  fi
+
+  sed -n 's/.*"Violations": *\([0-9]*\).*/\1/p' <<< "$report" | head -1
+}
+
 pass=0; fail=0
+check_violations() {
+  local label="$1" count="$2"
+  if [ -n "$count" ] && [ "$count" -gt 0 ] 2>/dev/null; then
+    printf '  \033[32m✓\033[0m %s\n' "$label"; pass=$((pass+1))
+  else
+    printf '  \033[31m✗ %s\033[0m — deptrac reported %s violations, expected at least one\n' "$label" "${count:-no}"; fail=$((fail+1))
+  fi
+}
+
 check() {
   local label="$1" haystack="$2" needle="$3"
   if grep -qF -- "$needle" <<< "$haystack"; then
@@ -154,8 +182,8 @@ EOF
 neg_phpstan="$(phpstan)"
 guard_severe "$neg_phpstan"
 guard_analysed "$neg_phpstan"
-neg_layer="$(php vendor/bin/deptrac analyse --config-file=deptrac.yaml --no-progress 2>&1)"
-neg_context="$(php vendor/bin/deptrac analyse --config-file=deptrac-context.yaml --no-progress 2>&1)"
+neg_layer="$(deptrac_violations deptrac.yaml)"
+neg_context="$(deptrac_violations deptrac-context.yaml)"
 
 echo "Negative control — every rule must fire:"
 check "controller may not touch persistence"     "$neg_phpstan" "bentley.noDoctrineInController"
@@ -167,8 +195,8 @@ check "service must own exactly one topic"       "$neg_phpstan" "bentley.service
 check "Application layer may not know HTTP"      "$neg_phpstan" "bentley.noHttpInApplicationLayer"
 check "controller must be final"                 "$neg_phpstan" "phpat.testControllersAreFinal"
 check "controller must be one action"            "$neg_phpstan" "phpat.testControllersAreSingleAction"
-check "Domain may not depend on Application"     "$neg_layer"   "DependsOnDisallowedLayer"
-check "context may not bypass another's facade"  "$neg_context" "DependsOnDisallowedLayer"
+check_violations "Domain may not depend on Application"    "$neg_layer"
+check_violations "context may not bypass another's facade" "$neg_context"
 
 # ============================================================ POSITIVE CONTROL
 
@@ -211,8 +239,8 @@ EOF
 
 pos_phpstan="$(phpstan)"
 guard_severe "$pos_phpstan"
-pos_layer="$(php vendor/bin/deptrac analyse --config-file=deptrac.yaml --no-progress 2>&1)"
-pos_context="$(php vendor/bin/deptrac analyse --config-file=deptrac-context.yaml --no-progress 2>&1)"
+pos_layer="$(deptrac_violations deptrac.yaml)"
+pos_context="$(deptrac_violations deptrac-context.yaml)"
 
 echo
 echo "Positive control — a conforming slice must produce nothing:"
@@ -225,7 +253,7 @@ else
 fi
 deptrac_clean=1
 for out in "$pos_layer" "$pos_context"; do
-  if grep -q "DependsOnDisallowedLayer" <<< "$out"; then
+  if [ "$out" != "0" ]; then
     deptrac_clean=0
   fi
 done
@@ -233,7 +261,8 @@ if [ "$deptrac_clean" -eq 1 ]; then
   printf '  \033[32m✓\033[0m conforming slice satisfies both deptrac rulesets\n'; pass=$((pass+1))
 else
   printf '  \033[31m✗ a correctly written slice violates a deptrac ruleset\033[0m\n'
-  grep -A2 "DependsOnDisallowedLayer" <<< "$pos_layer$pos_context" | head -6
+  printf '    layers: %s violation(s), contexts: %s violation(s)\n' "$pos_layer" "$pos_context"
+  php vendor/bin/deptrac analyse --config-file=deptrac.yaml --no-progress 2>&1 | tail -20
   fail=$((fail+1))
 fi
 

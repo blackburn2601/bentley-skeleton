@@ -67,6 +67,11 @@ jobs:
       - name: Install Playwright
         working-directory: frontend
         run: |
+          # compose mounts a named volume at /spa/node_modules inside the bind-mounted
+          # ./frontend, and Docker creates that mountpoint on the host as root. The runner
+          # then cannot write into frontend/node_modules and `npm ci` dies with EACCES.
+          # Docker Desktop remaps ownership, so this only appears on Linux.
+          sudo rm -rf node_modules
           npm ci
           npx playwright install --with-deps chromium
 
