@@ -21,11 +21,11 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  */
 #[Route('/api/v1/me', name: 'me_erase', methods: ['DELETE'])]
 #[IsGranted('account.delete')]
-final class EraseMyAccountController
+final readonly class EraseMyAccountController
 {
     public function __construct(
-        private readonly ErasePersonalDataService $erase,
-        private readonly AuthCookies $cookies,
+        private ErasePersonalDataService $erase,
+        private AuthCookies $cookies,
     ) {
     }
 

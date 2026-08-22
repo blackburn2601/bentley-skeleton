@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Acl\Double;
 
 use App\Acl\Domain\AclParentAware;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Component\Uid\UuidV7;
 
 final readonly class Folder implements AclParentAware
 {
@@ -16,7 +17,7 @@ final readonly class Folder implements AclParentAware
         $this->id = Uuid::v7();
     }
 
-    public function id(): Uuid
+    public function id(): UuidV7
     {
         return $this->id;
     }

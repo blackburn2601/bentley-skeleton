@@ -115,7 +115,7 @@ final class RoutesDeclarePermissionsTest extends KernelTestCase
     private function applicationRoutes(): array
     {
         self::bootKernel();
-        $router = static::getContainer()->get(RouterInterface::class);
+        $router = self::getContainer()->get(RouterInterface::class);
 
         $routes = [];
 

@@ -140,12 +140,6 @@ final readonly class AclFacade
             return true;
         }
 
-        foreach ($this->entries->findClassLevelResourceClasses($subjects, $permission) as $resourceClass) {
-            if ($this->resolver->isGranted($userId, $permission, $resourceClass)) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any($this->entries->findClassLevelResourceClasses($subjects, $permission), fn (string $resourceClass): bool => $this->resolver->isGranted($userId, $permission, $resourceClass));
     }
 }

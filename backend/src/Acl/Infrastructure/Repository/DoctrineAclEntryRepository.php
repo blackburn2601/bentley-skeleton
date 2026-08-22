@@ -67,7 +67,7 @@ final readonly class DoctrineAclEntryRepository implements AclEntryRepository
         /** @var list<class-string> $classes */
         $classes = array_values(array_filter(
             array_column($rows, 'resourceClass'),
-            static fn (string $class): bool => class_exists($class),
+            class_exists(...),
         ));
 
         return $classes;

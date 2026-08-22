@@ -14,6 +14,7 @@ use App\Acl\Domain\PermissionCatalog;
 use App\Audit\Domain\SecurityEvent;
 use App\Shared\Application\AclVersionProvider;
 use App\Shared\Domain\Clock;
+use App\Shared\Domain\SecurityEventType;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
@@ -40,7 +41,7 @@ final class GrantTakesEffectImmediatelyTest extends KernelTestCase
     protected function setUp(): void
     {
         self::bootKernel();
-        $container = static::getContainer();
+        $container = self::getContainer();
 
         $this->em = $container->get(EntityManagerInterface::class);
         $this->acl = $container->get(AclFacade::class);
@@ -71,7 +72,7 @@ final class GrantTakesEffectImmediatelyTest extends KernelTestCase
     public function testTheDecisionItselfChangesImmediately(): void
     {
         $user = $this->user();
-        $event = new SecurityEvent(\App\Shared\Domain\SecurityEventType::LoginSucceeded, $this->clock->now());
+        $event = new SecurityEvent(SecurityEventType::LoginSucceeded, $this->clock->now());
 
         self::assertFalse($this->acl->isGranted($user->id(), PermissionCatalog::AUDIT_READ, $event));
 

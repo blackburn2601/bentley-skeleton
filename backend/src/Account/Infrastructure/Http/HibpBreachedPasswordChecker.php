@@ -62,12 +62,6 @@ final readonly class HibpBreachedPasswordChecker implements BreachedPasswordChec
             return false;
         }
 
-        foreach (explode("\n", $body) as $line) {
-            if (str_starts_with($line, $suffix.':')) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any(explode("\n", $body), static fn ($line): bool => str_starts_with($line, $suffix.':'));
     }
 }

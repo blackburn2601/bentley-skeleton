@@ -11,7 +11,7 @@ use Symfony\Component\PasswordHasher\PasswordHasherInterface;
 /**
  * argon2id, configured in config/packages/security.yaml.
  */
-final class SymfonyPasswordHasher implements PasswordHasher
+final readonly class SymfonyPasswordHasher implements PasswordHasher
 {
     /**
      * The name this hasher is configured under in security.yaml.

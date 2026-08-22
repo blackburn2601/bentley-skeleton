@@ -19,9 +19,9 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  */
 #[Route('/api/v1/me/export', name: 'me_export', methods: ['POST'])]
 #[IsGranted('account.export')]
-final class ExportMyDataController
+final readonly class ExportMyDataController
 {
-    public function __construct(private readonly ExportPersonalDataService $export)
+    public function __construct(private ExportPersonalDataService $export)
     {
     }
 

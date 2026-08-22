@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Api\Platform;
 
 use App\Platform\Application\Service\CollectMetricsService;
+use Symfony\Component\HttpFoundation\IpUtils;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -20,11 +21,11 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  */
 #[Route('/metrics', name: 'metrics', methods: ['GET'])]
 #[IsGranted('PUBLIC_ACCESS')]
-final class MetricsController
+final readonly class MetricsController
 {
     public function __construct(
-        private readonly CollectMetricsService $collect,
-        private readonly string $allowedCidrs,
+        private CollectMetricsService $collect,
+        private string $allowedCidrs,
     ) {
     }
 
@@ -57,6 +58,6 @@ final class MetricsController
             return false;
         }
 
-        return \Symfony\Component\HttpFoundation\IpUtils::checkIp((string) $request->getClientIp(), $cidrs);
+        return IpUtils::checkIp((string) $request->getClientIp(), $cidrs);
     }
 }

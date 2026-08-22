@@ -31,22 +31,16 @@ jobs:
         working-directory: backend
         run: composer install --no-interaction --no-progress --no-scripts
 
-      # Regenerate and fail on ANY diff. Stale documentation is worse than none, because it
-      # gets trusted — and these files are how a session with no prior context orients itself
+      # Ask the generator, not git. `--check` writes nothing and fails naming the stale
+      # files; a `git diff` over docs/ would also flag an edit to a hand-written page, and
+      # report it as generator drift. Stale documentation is worse than none, because it gets
+      # trusted — and these files are how a session with no prior context orients itself
       # (ADR-0016).
-      - name: Regenerate the inventories
+      - name: Fail if any inventory is stale
         working-directory: backend
-        run: php bin/console app:docs:generate
+        run: php bin/console app:docs:generate --check
         env:
           APP_ENV: dev
-
-      - name: Fail if they drifted
-        run: |
-          if ! git diff --exit-code -- docs/; then
-            echo ""
-            echo "::error::Generated documentation is stale. Run 'make docs' and commit the result."
-            exit 1
-          fi
 
   links:
     name: internal links resolve

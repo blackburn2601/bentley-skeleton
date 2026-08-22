@@ -29,14 +29,14 @@ use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInt
  */
 #[AsEventListener(event: ControllerEvent::class, priority: -8)]
 #[AsEventListener(event: ResponseEvent::class, method: 'onResponse')]
-final class RateLimitSubscriber
+final readonly class RateLimitSubscriber
 {
     private const string ATTRIBUTE = '_rate_limit_result';
 
     public function __construct(
-        private readonly RateLimiterRegistry $limiters,
-        private readonly TokenStorageInterface $tokens,
-        private readonly bool $enabled = true,
+        private RateLimiterRegistry $limiters,
+        private TokenStorageInterface $tokens,
+        private bool $enabled = true,
     ) {
     }
 

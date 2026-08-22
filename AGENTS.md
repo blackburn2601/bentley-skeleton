@@ -44,7 +44,8 @@ make fix                apply every safe automatic fix (cs-fixer, then Rector)
 make stan               PHPStan at max, including the architecture rules
 make arch               deptrac, PHPMD and the architecture tests
 make proof              prove the rules still fire (negative and positive controls)
-make docs               regenerate the inventories; fails if they drifted
+make docs               regenerate the inventories after changing code
+make docs-check         fail if any inventory is stale (what CI runs)
 ```
 
 Generators — **use these, do not hand-write a slice**:
@@ -52,6 +53,10 @@ Generators — **use these, do not hand-write a slice**:
 ```
 make endpoint           a full conforming endpoint (controller, DTOs, view, service, test)
 make service            a single-topic Application service and its unit test
+                        Both prompt for what you omit. You have no terminal, so pass it all:
+                          make service CONTEXT=Account NAME=RotateToken WHY="One sentence, no 'and'"
+                          make endpoint CONTEXT=Account NAME=ListNotes METHOD=GET \
+                            ROUTE=/api/v1/notes PERMISSION=note.read WHY="One sentence"
 make adr TITLE="..."    the next architecture decision record
 ```
 
@@ -129,6 +134,6 @@ recover later, and it is exactly what the next session will need.
 ## Definition of done
 
 1. `make check` is green.
-2. `make docs` produces no diff.
+2. `make docs-check` passes.
 3. New endpoints have a functional test that asserts an unpermitted caller is refused.
 4. Anything security-relevant has an ADR.

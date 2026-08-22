@@ -22,9 +22,9 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  */
 #[Route('/api/v1/auth/sessions', name: 'auth_sessions', methods: ['GET'])]
 #[IsGranted('account.read')]
-final class ListSessionsController
+final readonly class ListSessionsController
 {
-    public function __construct(private readonly ListActiveSessionsService $listSessions)
+    public function __construct(private ListActiveSessionsService $listSessions)
     {
     }
 

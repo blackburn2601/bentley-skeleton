@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Audit\Application\Service;
 
 use App\Account\Application\AccountFacade;
+use App\Audit\Domain\SecurityEvent;
 use App\Audit\Domain\SecurityEventRepository;
 use App\Shared\Domain\SecurityEventType;
 use Symfony\Component\Uid\Uuid;
@@ -55,7 +56,7 @@ final readonly class ExportPersonalDataService
                 // Absent on purpose: passwordHash, totpSecretEncrypted.
             ],
             'securityEvents' => array_map(
-                static fn ($event): array => [
+                static fn (SecurityEvent $event): array => [
                     'type' => $event->type()->value,
                     'occurredAt' => $event->occurredAt()->format(\DATE_ATOM),
                     'ipAddress' => $event->ipAddress(),

@@ -42,8 +42,6 @@ final readonly class StartSessionService
             user: $user,
             createdAt: $now,
             expiresAt: $now->modify(\sprintf('+%d seconds', $this->ttlSeconds)),
-            familyId: null,
-            parentId: null,
             ipAddress: $ipAddress,
             userAgent: $userAgent,
         );

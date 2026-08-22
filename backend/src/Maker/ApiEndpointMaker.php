@@ -12,6 +12,7 @@ use Symfony\Bundle\MakerBundle\Maker\AbstractMaker;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 
 /**
  * `bin/console make:api-endpoint`.
@@ -45,9 +46,21 @@ final class ApiEndpointMaker extends AbstractMaker
         $command
             ->addArgument('context', InputArgument::OPTIONAL, 'Bounded context that owns this endpoint')
             ->addArgument('name', InputArgument::OPTIONAL, 'Endpoint name, e.g. ListNotes')
+            // Every prompt below has a matching option, so the whole slice can be generated
+            // without a TTY. An AI session, a script or CI has no way to answer a question,
+            // and a maker they cannot drive is a maker they will work around by hand — which
+            // is exactly how non-conforming endpoints get written.
+            ->addOption('method', null, InputOption::VALUE_REQUIRED, 'HTTP method: GET, POST, PATCH, PUT or DELETE')
+            ->addOption('path', null, InputOption::VALUE_REQUIRED, 'Route path, e.g. /api/v1/notes')
+            ->addOption('permission', null, InputOption::VALUE_REQUIRED, 'Permission required, or PUBLIC_ACCESS')
+            ->addOption('responsibility', null, InputOption::VALUE_REQUIRED, "The service's one-sentence @responsibility (INV-10)")
             ->setHelp(
                 "Creates a full slice under src/Api/<Context>/ plus the Application service.\n"
-                ."Follow docs/cookbook/add-endpoint.md; this maker is step 1 of that recipe.\n",
+                ."Follow docs/cookbook/add-endpoint.md; this maker is step 1 of that recipe.\n\n"
+                ."Non-interactive:\n"
+                ."  bin/console make:api-endpoint Account ListNotes \\\n"
+                ."    --method=GET --path=/api/v1/notes --permission=note.read \\\n"
+                ."    --responsibility='Lists the notes a user may read'\n",
             );
     }
 
@@ -76,19 +89,37 @@ final class ApiEndpointMaker extends AbstractMaker
             return;
         }
 
-        $method = strtoupper($this->choose($io, 'HTTP method', ['GET', 'POST', 'PATCH', 'PUT', 'DELETE']));
-        $path = $this->ask($io, 'Path', '/api/v1/'.strtolower($this->kebab($name)));
+        $methods = ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'];
+        $method = strtoupper($this->option($input, 'method') ?? $this->choose($io, 'HTTP method', $methods));
 
-        $io->text([
-            '',
-            'Which permission does this endpoint require?',
-            'Use PUBLIC_ACCESS only if it is genuinely public — it is greppable for a reason.',
-            'Object-level permissions look like "note.read"; declare them in PermissionCatalog.',
-        ]);
-        $permission = $this->ask($io, 'Permission', strtolower($this->kebab($context)).'.read');
+        if (!\in_array($method, $methods, true)) {
+            $io->error(\sprintf('Unknown HTTP method "%s". Use one of: %s.', $method, implode(', ', $methods)));
 
-        $io->text('');
-        $responsibility = rtrim(trim($this->ask($io, 'One sentence: what is this endpoint\'s service responsible for?')), '.');
+            return;
+        }
+
+        $path = $this->option($input, 'path') ?? $this->ask($io, 'Path', '/api/v1/'.strtolower($this->kebab($name)));
+
+        $permission = $this->option($input, 'permission');
+
+        if (null === $permission) {
+            $io->text([
+                '',
+                'Which permission does this endpoint require?',
+                'Use PUBLIC_ACCESS only if it is genuinely public — it is greppable for a reason.',
+                'Object-level permissions look like "note.read"; declare them in PermissionCatalog.',
+            ]);
+            $permission = $this->ask($io, 'Permission', strtolower($this->kebab($context)).'.read');
+        }
+
+        $responsibility = $this->option($input, 'responsibility');
+
+        if (null === $responsibility) {
+            $io->text('');
+            $responsibility = $this->ask($io, 'One sentence: what is this endpoint\'s service responsible for?');
+        }
+
+        $responsibility = rtrim(trim($responsibility), '.');
         if ('' === $responsibility) {
             $io->error('The responsibility sentence is mandatory (INV-10).');
 
@@ -140,7 +171,13 @@ final class ApiEndpointMaker extends AbstractMaker
             \sprintf('  1. Implement %sService — it owns the logic; the controller must stay thin.', $name),
             \sprintf('  2. Fill in the %sRequest fields and their constraints.', $name),
             \sprintf('  3. Map the result in %sResponse::from().', $name),
-            \sprintf('  4. Declare "%s" in PermissionCatalog, then `bin/console app:acl:sync-permissions`.', $permission),
+            // PUBLIC_ACCESS is a Symfony sentinel, not a row in the catalogue. Telling someone
+            // to declare it there sends them to sync-permissions, which will not fail — the
+            // architecture test will, several steps later, about something else.
+            'PUBLIC_ACCESS' === $permission
+                ? '  4. Add this route to RoutesDeclarePermissionsTest::INTENTIONALLY_PUBLIC with '
+                    .'the reason it is public — the suite fails until you do.'
+                : \sprintf('  4. Declare "%s" in PermissionCatalog, then `bin/console app:acl:sync-permissions`.', $permission),
             '  5. Finish the functional test — the two incomplete cases are the ones that catch IDOR.',
             '  6. `make check` — deptrac, PHPStan and PHPMD will reject the slice if it drifted.',
         ]);
@@ -177,6 +214,13 @@ final class ApiEndpointMaker extends AbstractMaker
     private function argument(InputInterface $input, string $name): ?string
     {
         $value = $input->getArgument($name);
+
+        return \is_string($value) && '' !== trim($value) ? trim($value) : null;
+    }
+
+    private function option(InputInterface $input, string $name): ?string
+    {
+        $value = $input->getOption($name);
 
         return \is_string($value) && '' !== trim($value) ? trim($value) : null;
     }

@@ -34,18 +34,16 @@ final readonly class ListActiveSessionsService
             : TokenHash::of($currentToken)->value;
 
         return array_map(
-            static function (RefreshToken $token) use ($currentHash): array {
-                return [
-                    // The FAMILY id, not the token id: a family is one session, and the token
-                    // within it changes on every refresh. Showing token ids would make one
-                    // device look like hundreds of sessions.
-                    'id' => $token->familyId()->toRfc4122(),
-                    'createdAt' => $token->createdAt()->format(\DATE_ATOM),
-                    'ipAddress' => $token->ipAddress(),
-                    'userAgent' => $token->userAgent(),
-                    'current' => null !== $currentHash && $token->matchesHash($currentHash),
-                ];
-            },
+            static fn (RefreshToken $token): array => [
+                // The FAMILY id, not the token id: a family is one session, and the token
+                // within it changes on every refresh. Showing token ids would make one
+                // device look like hundreds of sessions.
+                'id' => $token->familyId()->toRfc4122(),
+                'createdAt' => $token->createdAt()->format(\DATE_ATOM),
+                'ipAddress' => $token->ipAddress(),
+                'userAgent' => $token->userAgent(),
+                'current' => null !== $currentHash && $token->matchesHash($currentHash),
+            ],
             $this->tokens->findActiveSessionsForUser($userId, $this->clock->now()),
         );
     }

@@ -25,6 +25,18 @@ You will be asked for five things. The third and fifth are the ones that matter:
 | Permission | `note.read` | `PUBLIC_ACCESS` **only** if genuinely public. |
 | Responsibility | `Lists the notes a caller is permitted to read` | One sentence, **no "and"** (INV-10). |
 
+**If you have no terminal** — you are a script, a CI job or an AI session — pass them instead
+of being asked. Every prompt has a flag, so nothing has to be answered interactively:
+
+```bash
+make endpoint CONTEXT=Platform NAME=ListNotes \
+  METHOD=GET ROUTE=/api/v1/notes PERMISSION=note.read \
+  WHY="Lists the notes a caller is permitted to read"
+```
+
+`ROUTE`, not `PATH`: setting `PATH` on a make command line replaces the shell's own. Anything
+you leave out is still prompted for, so the two forms mix freely.
+
 Five files appear:
 
 ```

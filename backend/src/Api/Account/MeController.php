@@ -19,9 +19,9 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  */
 #[Route('/api/v1/auth/me', name: 'auth_me', methods: ['GET'])]
 #[IsGranted('account.read')]
-final class MeController
+final readonly class MeController
 {
-    public function __construct(private readonly DescribeCurrentUserService $describe)
+    public function __construct(private DescribeCurrentUserService $describe)
     {
     }
 

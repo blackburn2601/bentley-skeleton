@@ -4,11 +4,16 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
+use App\Account\Domain\User;
+use App\Acl\Application\AclFacade;
+use App\Acl\Domain\PermissionCatalog;
 use App\Api\Security\AuthCookies;
 use PHPUnit\Framework\Attributes\DataProvider;
 use ReflectionClass;
 use Symfony\Component\Routing\Route;
 use Symfony\Component\Routing\RouterInterface;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Insecure direct object reference: user A reaching user B's data.
@@ -42,7 +47,7 @@ final class IdorRegressionTest extends ApiTestCase
     public static function protectedRoutes(): iterable
     {
         self::bootKernel();
-        $router = static::getContainer()->get(RouterInterface::class);
+        $router = self::getContainer()->get(RouterInterface::class);
 
         foreach ($router->getRouteCollection() as $name => $route) {
             $controller = $route->getDefault('_controller');
@@ -62,7 +67,7 @@ final class IdorRegressionTest extends ApiTestCase
             yield $name => [$name, self::concreteUri($route)];
         }
 
-        static::ensureKernelShutdown();
+        self::ensureKernelShutdown();
     }
 
     /**
@@ -138,13 +143,13 @@ final class IdorRegressionTest extends ApiTestCase
         $carol = $this->createUser('carol');
 
         // Alice may read Bob's record specifically — and nothing else.
-        $this->grantOnObject($alice, \App\Account\Domain\User::class, $bob->id(), \App\Acl\Domain\PermissionCatalog::USER_READ);
+        $this->grantOnObject($alice, User::class, $bob->id(), PermissionCatalog::USER_READ);
 
-        $acl = static::getContainer()->get(\App\Acl\Application\AclFacade::class);
+        $acl = self::getContainer()->get(AclFacade::class);
 
-        self::assertTrue($acl->isGranted($alice->id(), \App\Acl\Domain\PermissionCatalog::USER_READ, $bob));
+        self::assertTrue($acl->isGranted($alice->id(), PermissionCatalog::USER_READ, $bob));
         self::assertFalse(
-            $acl->isGranted($alice->id(), \App\Acl\Domain\PermissionCatalog::USER_READ, $carol),
+            $acl->isGranted($alice->id(), PermissionCatalog::USER_READ, $carol),
             'A grant on one object must not extend to another. This is the whole point of an '
             .'object-level ACL, and the exact bug an IDOR suite exists to catch.',
         );
@@ -168,7 +173,7 @@ final class IdorRegressionTest extends ApiTestCase
         }
 
         $reflection = new ReflectionClass($class);
-        $attributes = $reflection->getAttributes(\Symfony\Component\Security\Http\Attribute\IsGranted::class);
+        $attributes = $reflection->getAttributes(IsGranted::class);
 
         foreach ($attributes as $attribute) {
             $arguments = $attribute->getArguments();
@@ -192,14 +197,14 @@ final class IdorRegressionTest extends ApiTestCase
     {
         return (string) preg_replace(
             '/\{[^}]+\}/',
-            \Symfony\Component\Uid\Uuid::v7()->toRfc4122(),
+            Uuid::v7()->toRfc4122(),
             $route->getPath(),
         );
     }
 
     private function methodFor(string $routeName): string
     {
-        $route = static::getContainer()->get(RouterInterface::class)->getRouteCollection()->get($routeName);
+        $route = self::getContainer()->get(RouterInterface::class)->getRouteCollection()->get($routeName);
         $methods = null === $route ? [] : $route->getMethods();
 
         return $methods[0] ?? 'GET';

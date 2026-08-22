@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Acl\Application\Service;
 
+use App\Acl\Domain\Permission;
 use App\Acl\Domain\PermissionCatalog;
 use App\Acl\Domain\PermissionRepository;
 use App\Acl\Domain\Role;
@@ -80,7 +81,7 @@ final readonly class EnsureBaselineRolesService
         }
 
         $held = array_map(
-            static fn (\App\Acl\Domain\Permission $p): string => $p->name(),
+            static fn (Permission $p): string => $p->name(),
             $defaultUser->permissions(),
         );
 

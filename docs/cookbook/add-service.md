@@ -17,7 +17,12 @@ make service
 ```
 
 You are asked for the context, the name (without the `Service` suffix), and the
-responsibility sentence.
+responsibility sentence. Without a terminal, pass them:
+
+```bash
+make service CONTEXT=Account NAME=RotateRefreshToken \
+  WHY="Rotates a refresh token, revoking the family on reuse"
+```
 
 **Write the sentence before you write the code.** If it needs an "and", you are describing
 two services — generate two. The generator warns you; PHPStan then fails the build

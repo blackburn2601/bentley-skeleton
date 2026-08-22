@@ -20,11 +20,11 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  */
 #[Route('/api/v1/auth/logout-all', name: 'auth_logout_all', methods: ['POST'])]
 #[IsGranted('account.update')]
-final class LogoutAllController
+final readonly class LogoutAllController
 {
     public function __construct(
-        private readonly RevokeAllSessionsService $revokeAll,
-        private readonly AuthCookies $cookies,
+        private RevokeAllSessionsService $revokeAll,
+        private AuthCookies $cookies,
     ) {
     }
 

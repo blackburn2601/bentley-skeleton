@@ -49,7 +49,7 @@ final class AclConsistencyTest extends KernelTestCase
     protected function setUp(): void
     {
         self::bootKernel();
-        $container = static::getContainer();
+        $container = self::getContainer();
 
         $this->em = $container->get(EntityManagerInterface::class);
         $this->resolver = $container->get(PermissionResolver::class);
@@ -63,7 +63,7 @@ final class AclConsistencyTest extends KernelTestCase
         $records = [$this->user('a'), $this->user('b')];
         $this->em->flush();
 
-        self::assertConsistent($caller, $records, $this->resolver, $this->criteria, $this->em);
+        $this->assertConsistent($caller, $records, $this->resolver, $this->criteria, $this->em);
     }
 
     public function testAnObjectLevelGrantAppearsInTheListAndNothingElseDoes(): void
@@ -80,7 +80,7 @@ final class AclConsistencyTest extends KernelTestCase
 
         self::assertContains($visible->id()->toRfc4122(), $allowed);
         self::assertNotContains($hidden->id()->toRfc4122(), $allowed);
-        self::assertConsistent($caller, [$visible, $hidden], $this->resolver, $this->criteria, $this->em);
+        $this->assertConsistent($caller, [$visible, $hidden], $this->resolver, $this->criteria, $this->em);
     }
 
     public function testAClassLevelGrantExposesEveryRecord(): void
@@ -105,7 +105,7 @@ final class AclConsistencyTest extends KernelTestCase
             );
         }
 
-        self::assertConsistent($caller, $records, $this->resolver, $this->criteria, $this->em);
+        $this->assertConsistent($caller, $records, $this->resolver, $this->criteria, $this->em);
     }
 
     /**
@@ -133,7 +133,7 @@ final class AclConsistencyTest extends KernelTestCase
             'A specific grant must override a general refusal, in SQL exactly as it does in the resolver.',
         );
         self::assertNotContains($ordinary->id()->toRfc4122(), $allowed);
-        self::assertConsistent($caller, [$exception, $ordinary], $this->resolver, $this->criteria, $this->em);
+        $this->assertConsistent($caller, [$exception, $ordinary], $this->resolver, $this->criteria, $this->em);
     }
 
     public function testAnObjectLevelDenyOverridesAClassLevelAllow(): void
@@ -151,7 +151,7 @@ final class AclConsistencyTest extends KernelTestCase
 
         self::assertNotContains($forbidden->id()->toRfc4122(), $allowed);
         self::assertContains($ordinary->id()->toRfc4122(), $allowed);
-        self::assertConsistent($caller, [$forbidden, $ordinary], $this->resolver, $this->criteria, $this->em);
+        $this->assertConsistent($caller, [$forbidden, $ordinary], $this->resolver, $this->criteria, $this->em);
     }
 
     public function testTheRoleFallbackExposesEveryRecordThroughBothPaths(): void
@@ -166,7 +166,7 @@ final class AclConsistencyTest extends KernelTestCase
         $this->em->persist(new UserRole($caller->id(), $role, $this->clock->now()));
         $this->em->flush();
 
-        self::assertConsistent($caller, $records, $this->resolver, $this->criteria, $this->em);
+        $this->assertConsistent($caller, $records, $this->resolver, $this->criteria, $this->em);
         self::assertNotEmpty($this->filtered($caller), 'A role grant must also widen the list.');
     }
 
@@ -184,7 +184,7 @@ final class AclConsistencyTest extends KernelTestCase
         $this->em->flush();
 
         self::assertNotContains($forbidden->id()->toRfc4122(), $this->filtered($caller));
-        self::assertConsistent($caller, [$forbidden], $this->resolver, $this->criteria, $this->em);
+        $this->assertConsistent($caller, [$forbidden], $this->resolver, $this->criteria, $this->em);
     }
 
     public function testAnExpiredGrantIsInvisibleToBothPaths(): void
@@ -197,7 +197,7 @@ final class AclConsistencyTest extends KernelTestCase
         $this->em->flush();
 
         self::assertNotContains($stale->id()->toRfc4122(), $this->filtered($caller));
-        self::assertConsistent($caller, [$stale], $this->resolver, $this->criteria, $this->em);
+        $this->assertConsistent($caller, [$stale], $this->resolver, $this->criteria, $this->em);
     }
 
     /**
@@ -205,7 +205,7 @@ final class AclConsistencyTest extends KernelTestCase
      *
      * @param list<User> $records
      */
-    private static function assertConsistent(
+    private function assertConsistent(
         User $caller,
         array $records,
         PermissionResolver $resolver,

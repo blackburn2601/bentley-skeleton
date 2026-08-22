@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Rector\CodeQuality\Rector\Identical\FlipTypeControlToUseExclusiveTypeRector;
 use Rector\Config\RectorConfig;
 use Rector\Php84\Rector\MethodCall\NewMethodCallWithoutParenthesesRector;
 
@@ -35,6 +36,14 @@ return RectorConfig::configure()
         // claims is the failure mode this repo exists to prevent, so the parentheses stay
         // until PHPMD 3 ships.
         NewMethodCallWithoutParenthesesRector::class,
+
+        // Rewrites `null === $user` into `!$user instanceof User`, which is equivalent — and
+        // which drags the class name into a file that previously only mentioned the facade.
+        // In a bounded-context codebase that is not a style change: it turned two Audit
+        // services into direct dependents of App\Account\Domain\User, and deptrac rejected
+        // both. The null check says exactly what is meant ("the facade found nobody") without
+        // naming another context's entity to say it.
+        FlipTypeControlToUseExclusiveTypeRector::class,
     ])
     ->withPhpSets()
     ->withPreparedSets(

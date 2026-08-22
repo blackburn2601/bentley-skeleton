@@ -8,6 +8,8 @@ use DH\Auditor\Auditor;
 use DH\Auditor\Configuration;
 use DH\Auditor\Provider\Doctrine\Configuration as DoctrineConfiguration;
 use DH\Auditor\Provider\Doctrine\DoctrineProvider;
+use DH\Auditor\Provider\Doctrine\Service\AuditingService;
+use DH\Auditor\Provider\Doctrine\Service\StorageService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
@@ -91,10 +93,10 @@ final readonly class AuditorFactory
         ]));
 
         $provider->registerAuditingService(
-            new \DH\Auditor\Provider\Doctrine\Service\AuditingService('default', $this->entityManager),
+            new AuditingService('default', $this->entityManager),
         );
         $provider->registerStorageService(
-            new \DH\Auditor\Provider\Doctrine\Service\StorageService('default', $this->entityManager),
+            new StorageService('default', $this->entityManager),
         );
 
         $auditor->registerProvider($provider);

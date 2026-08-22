@@ -12,7 +12,6 @@ use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Security\Http\Authenticator\AbstractAuthenticator;
 use Symfony\Component\Security\Http\Authenticator\Passport\Badge\UserBadge;
-use Symfony\Component\Security\Http\Authenticator\Passport\Passport;
 use Symfony\Component\Security\Http\Authenticator\Passport\SelfValidatingPassport;
 use Symfony\Component\Security\Http\EntryPoint\AuthenticationEntryPointInterface;
 use Symfony\Component\Uid\Uuid;
@@ -42,7 +41,7 @@ final class CookieTokenAuthenticator extends AbstractAuthenticator implements Au
         return null !== $this->extractToken($request);
     }
 
-    public function authenticate(Request $request): Passport
+    public function authenticate(Request $request): SelfValidatingPassport
     {
         $token = $this->extractToken($request);
 
@@ -80,17 +79,17 @@ final class CookieTokenAuthenticator extends AbstractAuthenticator implements Au
      * endpoint receives. A JSON API answers 401 in the same problem+json shape as everything
      * else — there is nowhere to redirect to.
      */
-    public function start(Request $request, ?AuthenticationException $authException = null): Response
+    public function start(Request $request, ?AuthenticationException $authException = null): JsonResponse
     {
         return $this->unauthorized();
     }
 
-    public function onAuthenticationFailure(Request $request, AuthenticationException $exception): Response
+    public function onAuthenticationFailure(Request $request, AuthenticationException $exception): JsonResponse
     {
         return $this->unauthorized();
     }
 
-    private function unauthorized(): Response
+    private function unauthorized(): JsonResponse
     {
         // The exception message is deliberately not echoed: "signature invalid" versus
         // "expired" tells a prober which of the two they achieved.

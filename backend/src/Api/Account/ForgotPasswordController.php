@@ -21,9 +21,9 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[Route('/api/v1/auth/password/forgot', name: 'auth_password_forgot', methods: ['POST'])]
 #[IsGranted('PUBLIC_ACCESS')]
 #[RateLimit('password_reset', keyedBy: 'ip+payload', payloadField: 'email')]
-final class ForgotPasswordController
+final readonly class ForgotPasswordController
 {
-    public function __construct(private readonly RequestPasswordResetService $requestReset)
+    public function __construct(private RequestPasswordResetService $requestReset)
     {
     }
 

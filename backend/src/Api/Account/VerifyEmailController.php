@@ -22,9 +22,9 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[Route('/api/v1/auth/verify-email', name: 'auth_verify_email', methods: ['POST'])]
 #[IsGranted('PUBLIC_ACCESS')]
 #[RateLimit('verify_resend')]
-final class VerifyEmailController
+final readonly class VerifyEmailController
 {
-    public function __construct(private readonly VerifyEmailService $verify)
+    public function __construct(private VerifyEmailService $verify)
     {
     }
 

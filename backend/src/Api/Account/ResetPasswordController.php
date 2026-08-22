@@ -22,11 +22,11 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[Route('/api/v1/auth/password/reset', name: 'auth_password_reset', methods: ['POST'])]
 #[IsGranted('PUBLIC_ACCESS')]
 #[RateLimit('password_reset', keyedBy: 'ip')]
-final class ResetPasswordController
+final readonly class ResetPasswordController
 {
     public function __construct(
-        private readonly ResetPasswordService $reset,
-        private readonly AuthCookies $cookies,
+        private ResetPasswordService $reset,
+        private AuthCookies $cookies,
     ) {
     }
 

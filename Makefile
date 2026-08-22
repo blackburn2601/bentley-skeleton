@@ -102,13 +102,24 @@ coverage: ## Run tests with the coverage gate (Acl+Account >= 90%, global >= 80%
 lint: ## Check formatting and config validity without changing anything
 	$(RUN_BACKEND) $(COMPOSER) validate --strict
 	$(RUN_BACKEND) $(PHP) vendor/bin/php-cs-fixer check --diff
+	$(RUN_BACKEND) $(PHP) vendor/bin/rector process --dry-run
 	$(RUN_BACKEND) $(PHP) bin/console lint:yaml config
 	$(RUN_BACKEND) $(PHP) bin/console lint:container
 	$(RUN_BACKEND) $(PHP) bin/console doctrine:schema:validate --skip-sync
 
-fix: ## Apply every safe automatic fix (cs-fixer, then Rector)
+# Rector FIRST, cs-fixer LAST. Rector rewrites structure and emits its own formatting —
+# `\DateTimeImmutable` where the file already imports the short name, for example. Running
+# cs-fixer first means Rector gets the last word and leaves the tree failing `make lint`,
+# which is how this target used to behave.
+fix: ## Apply every safe automatic fix (Rector for structure, then cs-fixer for formatting)
+	@# Rector needs more than one pass to settle: narrowing a return type in pass 1 is what
+	@# lets pass 2 narrow the caller. Running it once leaves changes that `make lint` then
+	@# reports, so `make fix && make lint` would fail on a tree you just fixed. Loop until it
+	@# stops changing files, capped so a rule that oscillates fails loudly instead of hanging.
+	$(RUN_BACKEND) sh -c 'for i in 1 2 3 4 5; do \
+	  $(PHP) vendor/bin/rector process --no-diffs | grep -q "Rector is done" && exit 0; \
+	done; echo "Rector still changing files after 5 passes — a rule is likely oscillating."; exit 1'
 	$(RUN_BACKEND) $(PHP) vendor/bin/php-cs-fixer fix
-	$(RUN_BACKEND) $(PHP) vendor/bin/rector process
 
 stan: ## PHPStan at max level, including the custom architecture rules
 	$(RUN_BACKEND) $(PHP) vendor/bin/phpstan analyse --memory-limit=1G
@@ -126,10 +137,15 @@ arch: ## Enforce the architecture contract (deptrac + phpat + PHPMD + arch tests
 proof: ## Prove the architecture rules actually fail on deliberate violations
 	./bin/strictness-proof
 
-docs: ## Regenerate the generated inventories and fail if they drifted
+docs: ## Regenerate the generated inventories (docs/SERVICES.md, ENDPOINTS.md, PERMISSIONS.md, adr/README.md)
 	$(HOST_BACKEND) $(PHP) bin/console app:docs:generate
-	@git diff --exit-code -- docs/ \
-	  || { echo ""; echo "ERROR: generated docs are stale. Commit the regenerated files above."; exit 1; }
+
+# Verifying is a separate target from writing, and it asks the generator rather than git.
+# `git diff -- docs/` cannot tell a stale inventory from an uncommitted edit to a hand-written
+# page, so editing a cookbook file used to fail this gate with a message blaming the
+# generator — which had just reported itself up to date.
+docs-check: ## Fail if any generated inventory is stale, naming the file
+	$(HOST_BACKEND) $(PHP) bin/console app:docs:generate --check
 
 ## ---------------------------------------------------------------- frontend
 
@@ -155,18 +171,26 @@ e2e: ## Playwright end-to-end suite against the running stack
 
 check: lint stan arch test front-lint front-test ## Everything CI runs, except e2e
 
-ci: check docs e2e ## Literally everything
+ci: check docs-check e2e ## Literally everything
 
 ## ---------------------------------------------------------------- project setup
 
 adr: ## Record an architecture decision: make adr TITLE="Use X instead of Y"
 	$(RUN_BACKEND) $(PHP) bin/console make:adr $(if $(TITLE),"$(TITLE)",)
 
-endpoint: ## Generate a conforming endpoint slice (see docs/cookbook/add-endpoint.md)
-	$(RUN_BACKEND) $(PHP) bin/console make:api-endpoint
+# Both makers prompt for anything you leave out, so `make endpoint` alone still works.
+# Passing the variables makes them runnable without a terminal — which is what a scripted
+# or AI-driven session needs.
+# ROUTE, not PATH: PATH is the shell's, and setting it on the make command line would
+# replace it for every recipe in this file.
+endpoint: ## Generate an endpoint slice: make endpoint CONTEXT=Account NAME=ListNotes METHOD=GET ROUTE=/api/v1/notes PERMISSION=note.read WHY="..."
+	$(RUN_BACKEND) $(PHP) bin/console make:api-endpoint $(CONTEXT) $(NAME) \
+		$(if $(METHOD),--method="$(METHOD)",) $(if $(ROUTE),--path="$(ROUTE)",) \
+		$(if $(PERMISSION),--permission="$(PERMISSION)",) $(if $(WHY),--responsibility="$(WHY)",)
 
-service: ## Generate a single-topic Application service and its test
-	$(RUN_BACKEND) $(PHP) bin/console make:service
+service: ## Generate a single-topic service: make service CONTEXT=Account NAME=RotateToken WHY="..."
+	$(RUN_BACKEND) $(PHP) bin/console make:service $(CONTEXT) $(NAME) \
+		$(if $(WHY),--responsibility="$(WHY)",)
 
 keys: ## Generate the JWT keypair (idempotent; never commit the result)
 	$(RUN_BACKEND) $(PHP) bin/console lexik:jwt:generate-keypair --skip-if-exists

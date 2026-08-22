@@ -12,6 +12,7 @@ use Symfony\Bundle\MakerBundle\Maker\AbstractMaker;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 
 /**
  * `bin/console make:service`.
@@ -45,7 +46,16 @@ final class ServiceMaker extends AbstractMaker
         $command
             ->addArgument('context', InputArgument::OPTIONAL, 'Bounded context (Account, Acl, Audit, Platform, …)')
             ->addArgument('name', InputArgument::OPTIONAL, 'Service name without the Service suffix, e.g. RotateRefreshToken')
-            ->setHelp("Creates src/<Context>/Application/Service/<Name>Service.php and its unit test.\n");
+            // Every prompt below has a matching option, so the whole maker can run without a
+            // TTY. An AI session, a script or CI has no way to answer a question, and a maker
+            // that can only be driven by hand is a maker they cannot use.
+            ->addOption('responsibility', null, InputOption::VALUE_REQUIRED, 'The one-sentence @responsibility, no conjunctions (INV-10)')
+            ->setHelp(
+                "Creates src/<Context>/Application/Service/<Name>Service.php and its unit test.\n\n"
+                ."Non-interactive:\n"
+                ."  bin/console make:service Account RotateRefreshToken \\\n"
+                ."    --responsibility='Rotates a refresh token, revoking the family on reuse'\n",
+            );
     }
 
     public function configureDependencies(DependencyBuilder $dependencies): void
@@ -67,13 +77,18 @@ final class ServiceMaker extends AbstractMaker
             return;
         }
 
-        $io->text([
-            '',
-            'Describe this service in ONE sentence, with no "and".',
-            'If you need "and", it is two services — see INV-10. This becomes the',
-            '@responsibility docblock and the row in docs/SERVICES.md.',
-        ]);
-        $responsibility = rtrim(trim($this->askString($io, 'Responsibility')), '.');
+        $given = $this->stringOption($input, 'responsibility');
+
+        if (null === $given) {
+            $io->text([
+                '',
+                'Describe this service in ONE sentence, with no "and".',
+                'If you need "and", it is two services — see INV-10. This becomes the',
+                '@responsibility docblock and the row in docs/SERVICES.md.',
+            ]);
+        }
+
+        $responsibility = rtrim(trim($given ?? $this->askString($io, 'Responsibility')), '.');
 
         if ('' === $responsibility) {
             $io->error('The responsibility sentence is mandatory; PHPStan rejects a service without it.');
@@ -84,7 +99,11 @@ final class ServiceMaker extends AbstractMaker
         if (1 === preg_match('/\b(and|plus)\b/i', $responsibility)) {
             $io->warning('That sentence contains a conjunction, so the build will reject it as two topics.');
 
-            if (!$io->confirm('Generate it anyway?', false)) {
+            // Non-interactive callers cannot answer, so the conjunction is fatal there rather
+            // than a prompt that silently defaults to "no" and generates nothing.
+            if (null !== $given || !$io->confirm('Generate it anyway?', false)) {
+                $io->error('Split it into two services, or rephrase the sentence.');
+
                 return;
             }
         }
@@ -165,6 +184,13 @@ final class ServiceMaker extends AbstractMaker
     private function stringArgument(InputInterface $input, string $name): ?string
     {
         $value = $input->getArgument($name);
+
+        return \is_string($value) && '' !== trim($value) ? trim($value) : null;
+    }
+
+    private function stringOption(InputInterface $input, string $name): ?string
+    {
+        $value = $input->getOption($name);
 
         return \is_string($value) && '' !== trim($value) ? trim($value) : null;
     }

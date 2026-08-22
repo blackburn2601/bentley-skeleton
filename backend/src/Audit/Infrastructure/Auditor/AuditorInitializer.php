@@ -34,12 +34,12 @@ final readonly class AuditorInitializer
     {
     }
 
-    public function __invoke(RequestEvent $event): void
+    public function __invoke(): void
     {
         $this->ensureRegistered();
     }
 
-    public function onCommand(ConsoleCommandEvent $event): void
+    public function onCommand(): void
     {
         $this->ensureRegistered();
     }

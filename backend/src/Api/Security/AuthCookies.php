@@ -20,7 +20,7 @@ use Symfony\Component\HttpFoundation\Cookie;
  * Paths are scoped: the refresh token is only sent to the refresh and logout endpoints, so
  * the long-lived credential is absent from every ordinary API request.
  */
-final class AuthCookies
+final readonly class AuthCookies
 {
     public const string ACCESS = '__Host-bentley_at';
     public const string REFRESH = '__Host-bentley_rt';

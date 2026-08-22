@@ -223,7 +223,8 @@ live in `src/api/`, one module per topic.
 
 ## Generated inventories
 
-Do not edit these — change the code and run `make docs`. CI fails on any diff (ADR-0016).
+Do not edit these — change the code and run `make docs`. CI runs `make docs-check`, which
+fails naming any file the generator would rewrite (ADR-0016).
 
 | File | Answers |
 |---|---|

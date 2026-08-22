@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Acl\Double;
 
 use App\Acl\Domain\AclParentAware;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Component\Uid\UuidV7;
 
 /**
  * A resource that inherits from a folder, for exercising the inheritance tier.
@@ -19,7 +20,7 @@ final readonly class Note implements AclParentAware
         $this->id = Uuid::v7();
     }
 
-    public function id(): Uuid
+    public function id(): UuidV7
     {
         return $this->id;
     }
