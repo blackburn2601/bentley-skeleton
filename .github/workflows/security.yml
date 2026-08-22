@@ -1,0 +1,138 @@
+name: security
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    # Nightly. A dependency that was clean yesterday can be a known CVE today, and nobody
+    # opens a PR to tell you.
+    - cron: '17 3 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  dependencies:
+    name: dependency advisories
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - uses: shivammathur/setup-php@b604ade2a87db23f8871b7182e69ec5e75effb45 # v2
+        with:
+          php-version: '8.5'
+          coverage: none
+          tools: composer:v2
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '26'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: composer install --no-interaction --no-progress --no-scripts
+
+      # roave/security-advisories already blocks a known-vulnerable package at install time.
+      # This catches an advisory published AFTER the lockfile was written, which is the case
+      # the conflict rules cannot cover.
+      - name: composer audit
+        working-directory: backend
+        run: composer audit --no-interaction
+
+      - name: npm audit
+        working-directory: frontend
+        run: npm ci && npm audit --audit-level=high
+
+  secrets:
+    name: secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          # Full history: a secret that was committed and then removed is still a leaked
+          # secret, and it is still in the objects.
+          fetch-depth: 0
+
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@dcedce43c6f43de0b836d1fe38946645c9c638dc # v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  static-security:
+    name: semgrep
+    runs-on: ubuntu-latest
+    # PHP has no CodeQL analyser, so this is the only static security analysis the backend
+    # gets. It is not optional.
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - uses: semgrep/semgrep-action@713efdd345f3035192eaa63f56867b88e63e4e5d # v1
+        with:
+          config: >-
+            p/php
+            p/javascript
+            p/owasp-top-ten
+            p/secrets
+
+  filesystem:
+    name: trivy filesystem
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Trivy
+        uses: aquasecurity/trivy-action@d2a0b60797ff03db6132bd4e2b293f9b37081297 # master
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+          # Entries in .trivyignore MUST carry an expiry date — an ignore with no end is a
+          # vulnerability someone decided to stop looking at.
+          trivyignores: .trivyignore
+
+  image:
+    name: trivy image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Build the production image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: docker/frankenphp/Dockerfile
+          target: runtime
+          push: false
+          load: true
+          tags: bentley-skeleton:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Scanning the IMAGE, not just the source: most of what ships is the base image and its
+      # system packages, and none of that appears in a filesystem scan of the repository.
+      - name: Trivy
+        uses: aquasecurity/trivy-action@d2a0b60797ff03db6132bd4e2b293f9b37081297 # master
+        with:
+          scan-type: image
+          image-ref: bentley-skeleton:ci
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+
+      - name: SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
+        with:
+          image: bentley-skeleton:ci
+          format: spdx-json
+          artifact-name: sbom.spdx.json

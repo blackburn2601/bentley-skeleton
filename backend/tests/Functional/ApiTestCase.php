@@ -106,6 +106,20 @@ abstract class ApiTestCase extends WebTestCase
         return null === $cookie ? [] : ['HTTP_'.str_replace('-', '_', strtoupper(AuthCookies::CSRF_HEADER)) => $cookie->getValue()];
     }
 
+    /**
+     * Re-read an entity from the database.
+     *
+     * Use after a request that changed it: the in-memory instance this test holds predates the
+     * write and will happily report stale values.
+     */
+    final protected function reload(User $user): User
+    {
+        $fresh = $this->em->getRepository(User::class)->find($user->id());
+        self::assertInstanceOf(User::class, $fresh);
+
+        return $fresh;
+    }
+
     final protected function createUser(string $label, bool $verified = true): User
     {
         $hasher = static::getContainer()->get(PasswordHasherFactoryInterface::class)

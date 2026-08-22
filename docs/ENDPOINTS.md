@@ -16,6 +16,8 @@ a build failure (INV-11), so it should never appear here.
 | POST | `/api/v1/auth/logout` | _public_ | — | `LogoutController` |
 | POST | `/api/v1/auth/logout-all` | `account.update` | — | `LogoutAllController` |
 | GET | `/api/v1/auth/me` | `account.read` | — | `MeController` |
+| POST | `/api/v1/auth/password/forgot` | _public_ | `ForgotPasswordRequest` | `ForgotPasswordController` |
+| POST | `/api/v1/auth/password/reset` | _public_ | `ResetPasswordRequest` | `ResetPasswordController` |
 | POST | `/api/v1/auth/refresh` | _public_ | — | `RefreshController` |
 | POST | `/api/v1/auth/register` | _public_ | `RegisterRequest` | `RegisterController` |
 | POST | `/api/v1/auth/verify-email` | _public_ | `TokenRequest` | `VerifyEmailController` |

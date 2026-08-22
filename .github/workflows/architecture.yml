@@ -1,0 +1,65 @@
+name: architecture
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: architecture-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+# A separate workflow from ci-backend on purpose: a layering violation should report AS a
+# layering violation in the checks list, not as "some backend job failed". The distinction
+# matters when someone is deciding whether their change is safe to merge.
+jobs:
+  contract:
+    name: architecture contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - uses: shivammathur/setup-php@b604ade2a87db23f8871b7182e69ec5e75effb45 # v2
+        with:
+          php-version: '8.5'
+          extensions: pdo_pgsql, intl, zip
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache composer
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.composer/cache
+          key: composer-8.5-${{ hashFiles('backend/composer.lock') }}
+          restore-keys: composer-8.5-
+
+      - name: Install dependencies
+        working-directory: backend
+        run: composer install --no-interaction --no-progress --no-scripts
+
+      - name: Layering contract
+        working-directory: backend
+        run: php vendor/bin/deptrac analyse --config-file=deptrac.yaml --no-progress
+
+      - name: Bounded-context contract
+        working-directory: backend
+        run: php vendor/bin/deptrac analyse --config-file=deptrac-context.yaml --no-progress
+
+      - name: Size and complexity limits
+        run: ./bin/phpmd-check
+
+      - name: Architecture tests
+        working-directory: backend
+        run: php vendor/bin/phpunit --testsuite=architecture
+        env:
+          APP_ENV: test
+
+      # The check that checks the checks. Plants a deliberate violation of every rule and
+      # asserts each one fires, then asserts a conforming slice produces nothing at all.
+      # Without this, a mistyped collector or a renamed directory turns enforcement into a
+      # no-op that still reports success.
+      - name: Prove the rules can fail
+        run: ./bin/strictness-proof

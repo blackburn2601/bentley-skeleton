@@ -1,0 +1,25 @@
+# Default owner for everything.
+*                           @OWNER
+
+# The parts where a mistake is a security incident rather than a bug. Review here is not a
+# formality — these are the files ADR-0003, ADR-0002 and ADR-0012 exist to protect.
+/backend/src/Acl/           @OWNER
+/backend/src/Account/       @OWNER
+/backend/src/Audit/         @OWNER
+/backend/config/packages/security.yaml  @OWNER
+
+# The architecture contract itself. Widening these is how enforcement quietly stops.
+/backend/deptrac.yaml           @OWNER
+/backend/deptrac-context.yaml   @OWNER
+/backend/phpstan.dist.neon      @OWNER
+/backend/tests/Architecture/    @OWNER
+/bin/strictness-proof           @OWNER
+
+# Deployment topology and CI.
+/compose.yaml         @OWNER
+/compose.prod.yaml    @OWNER
+/docker/              @OWNER
+/.github/workflows/   @OWNER
+
+# The decision log.
+/docs/adr/            @OWNER

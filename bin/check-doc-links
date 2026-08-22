@@ -1,0 +1,60 @@
+#!/usr/bin/env python3
+"""Every relative link in the documentation must resolve.
+
+A broken link in CLAUDE.md or a cookbook recipe sends a reader — quite possibly a session
+with no other context — to a file that does not exist, at exactly the moment the
+documentation is load-bearing. Cheap to check, so there is no reason not to.
+"""
+
+import glob
+import os
+import re
+import subprocess
+import sys
+
+LINK = re.compile(r"\[[^\]]*\]\(([^)#]+?)(?:#[^)]*)?\)")
+EXTERNAL = ("http://", "https://", "mailto:", "tel:")
+
+
+def repo_root() -> str:
+    return subprocess.check_output(
+        ["git", "rev-parse", "--show-toplevel"], text=True
+    ).strip()
+
+
+def main() -> int:
+    os.chdir(repo_root())
+
+    files = ["README.md", "CLAUDE.md", "AGENTS.md"] + glob.glob("docs/**/*.md", recursive=True)
+    broken = []
+
+    for path in files:
+        if not os.path.exists(path):
+            continue
+
+        base = os.path.dirname(path)
+
+        with open(path, encoding="utf-8") as handle:
+            for match in LINK.finditer(handle.read()):
+                target = match.group(1).strip()
+
+                if target.startswith(EXTERNAL):
+                    continue
+
+                resolved = os.path.normpath(os.path.join(base, target))
+
+                if not os.path.exists(resolved):
+                    broken.append(f"{path} -> {target}")
+
+    if broken:
+        print("Broken documentation links:", file=sys.stderr)
+        for entry in broken:
+            print(f"  {entry}", file=sys.stderr)
+        return 1
+
+    print(f"All internal links resolve ({len(files)} files checked).")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

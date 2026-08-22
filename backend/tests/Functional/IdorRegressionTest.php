@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Api\Security\AuthCookies;
-use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\Attributes\DataProvider;
 use ReflectionClass;
 use Symfony\Component\Routing\Route;
@@ -29,8 +28,12 @@ use Symfony\Component\Routing\RouterInterface;
  *
  * Part 1 is what makes this durable. A suite that only covers endpoints somebody thought to
  * list is a suite that misses the one they forgot.
+ *
+ * No #[CoversNothing] here, deliberately. It reads as "this test targets no particular
+ * class", but what it actually tells PHPUnit is "record no coverage from this test" — which
+ * silently zeroed the entire functional suite's contribution to the coverage report, and made
+ * the coverage gate measure a fraction of what the tests actually exercise.
  */
-#[CoversNothing]
 final class IdorRegressionTest extends ApiTestCase
 {
     /**

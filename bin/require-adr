@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Fail when a change touches the authorization model, the security configuration or the
+# deployment topology without recording a decision.
+#
+# The reason a decision was made is the single hardest thing to recover later, and it is
+# exactly what the next contributor — or the next AI session — will need. This is not
+# bureaucracy: the `no-adr-needed` label exists for changes that genuinely carry no decision,
+# and applying it is a visible act rather than a silent omission.
+set -uo pipefail
+
+BASE="${1:?usage: require-adr <base-sha> <head-sha>}"
+HEAD="${2:?usage: require-adr <base-sha> <head-sha>}"
+
+SENSITIVE_PATHS=(
+    'backend/src/Acl/'
+    'backend/src/Account/'
+    'backend/config/packages/security.yaml'
+    'backend/deptrac.yaml'
+    'backend/deptrac-context.yaml'
+    'compose.yaml'
+    'compose.prod.yaml'
+)
+
+changed="$(git diff --name-only "$BASE" "$HEAD")"
+
+touched=""
+for path in "${SENSITIVE_PATHS[@]}"; do
+    match="$(grep -F "$path" <<< "$changed" || true)"
+    [ -n "$match" ] && touched="$touched$match"$'\n'
+done
+
+if [ -z "$touched" ]; then
+    echo "No sensitive paths touched; no ADR required."
+    exit 0
+fi
+
+if grep -qE '^docs/adr/[0-9]{4}-.*\.md$' <<< "$changed"; then
+    echo "Sensitive paths touched, and an ADR is included. Good."
+    exit 0
+fi
+
+{
+    echo "::error::This change touches the authorization model, security configuration or"
+    echo "::error::deployment topology, but adds no ADR:"
+    sed 's/^/::error::  /' <<< "$touched"
+    echo "::error::"
+    echo "::error::Run 'make adr TITLE=\"...\"' and record the decision, or apply the"
+    echo "::error::'no-adr-needed' label if this change genuinely carries no decision."
+} >&2
+
+exit 1

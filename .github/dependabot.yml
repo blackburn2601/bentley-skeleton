@@ -1,0 +1,37 @@
+version: 2
+
+updates:
+  - package-ecosystem: composer
+    directory: /backend
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    groups:
+      # Grouped so routine patches arrive as ONE reviewable PR. Twenty separate bumps a week
+      # do not get reviewed, they get rubber-stamped — which is worse than not updating.
+      backend-minor-patch:
+        update-types: [minor, patch]
+    labels: [dependencies, no-adr-needed]
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    groups:
+      frontend-minor-patch:
+        update-types: [minor, patch]
+    labels: [dependencies, no-adr-needed]
+
+  - package-ecosystem: docker
+    directory: /docker/frankenphp
+    schedule: { interval: weekly, day: monday }
+    labels: [dependencies, no-adr-needed]
+
+  # Actions are pinned by SHA, which is what makes a supply-chain attack on an action visible
+  # rather than automatic — and is exactly why they need an automated bump, or they never move.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly, day: monday }
+    groups:
+      actions:
+        patterns: ['*']
+    labels: [dependencies, no-adr-needed]

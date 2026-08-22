@@ -6,7 +6,6 @@ namespace App\Tests\Functional\Account;
 
 use App\Api\Security\AuthCookies;
 use App\Tests\Functional\ApiTestCase;
-use PHPUnit\Framework\Attributes\CoversNothing;
 use Symfony\Component\BrowserKit\Cookie as BrowserKitCookie;
 
 /**
@@ -16,8 +15,12 @@ use Symfony\Component\BrowserKit\Cookie as BrowserKitCookie;
  * properties that are easy to break without noticing — the anti-enumeration responses above
  * all, which look like ordinary error handling and stop working the moment someone "improves"
  * an error message.
+ *
+ * No #[CoversNothing] here, deliberately. It reads as "this test targets no particular
+ * class", but what it actually tells PHPUnit is "record no coverage from this test" — which
+ * silently zeroed the entire functional suite's contribution to the coverage report, and made
+ * the coverage gate measure a fraction of what the tests actually exercise.
  */
-#[CoversNothing]
 final class AuthenticationFlowTest extends ApiTestCase
 {
     public function testAnonymousCallersAreRefusedWithProblemJson(): void

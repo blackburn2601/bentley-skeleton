@@ -1,0 +1,161 @@
+name: ci-backend
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Least privilege by default. A job that needs more says so explicitly.
+permissions:
+  contents: read
+
+# A new push supersedes the run in progress. Not for the default branch, where every commit's
+# result is worth having.
+concurrency:
+  group: ci-backend-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  PHP_VERSION: '8.5'
+
+jobs:
+  static-analysis:
+    name: static analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - uses: shivammathur/setup-php@b604ade2a87db23f8871b7182e69ec5e75effb45 # v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: pdo_pgsql, intl, zip
+          # No Xdebug: it is not needed here and roughly halves PHPStan's speed.
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache composer
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.composer/cache
+          key: composer-${{ env.PHP_VERSION }}-${{ hashFiles('backend/composer.lock') }}
+          restore-keys: composer-${{ env.PHP_VERSION }}-
+
+      - name: Install dependencies
+        working-directory: backend
+        # --no-scripts: cache warmup needs a database URL and is not required to analyse code.
+        run: composer install --no-interaction --no-progress --no-scripts
+
+      - name: Validate composer.json
+        working-directory: backend
+        run: composer validate --strict
+
+      - name: Check formatting
+        working-directory: backend
+        run: php vendor/bin/php-cs-fixer check --diff
+
+      - name: PHPStan
+        working-directory: backend
+        run: php vendor/bin/phpstan analyse --no-progress --memory-limit=1G
+
+      - name: Rector (dry run)
+        working-directory: backend
+        run: php vendor/bin/rector process --dry-run --no-progress-bar
+
+      - name: Lint configuration
+        working-directory: backend
+        run: |
+          php bin/console lint:yaml config
+          php bin/console lint:container
+        env:
+          APP_ENV: dev
+
+  tests:
+    name: tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: bentley
+          POSTGRES_USER: bentley
+          POSTGRES_PASSWORD: bentley
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U bentley"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+
+      redis:
+        image: redis:8-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+
+    env:
+      # Services are published on localhost here, not on compose hostnames.
+      DATABASE_URL: postgresql://bentley:bentley@127.0.0.1:5432/bentley?serverVersion=18&charset=utf8
+      REDIS_URL: redis://127.0.0.1:6379
+      APP_ENV: test
+
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - uses: shivammathur/setup-php@b604ade2a87db23f8871b7182e69ec5e75effb45 # v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: pdo_pgsql, intl, zip, redis
+          coverage: xdebug
+          tools: composer:v2
+
+      - name: Cache composer
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.composer/cache
+          key: composer-${{ env.PHP_VERSION }}-${{ hashFiles('backend/composer.lock') }}
+          restore-keys: composer-${{ env.PHP_VERSION }}-
+
+      - name: Install dependencies
+        working-directory: backend
+        run: composer install --no-interaction --no-progress --no-scripts
+
+      - name: Generate the JWT keypair
+        working-directory: backend
+        run: php bin/console lexik:jwt:generate-keypair --skip-if-exists --no-interaction
+
+      - name: Create the test database
+        working-directory: backend
+        run: php bin/console doctrine:database:create --if-not-exists
+
+      # Up AND down, on a scratch database. A migration that cannot be reversed is a
+      # deployment that cannot be aborted, and that is only discoverable before it matters.
+      - name: Migrations apply and revert
+        working-directory: backend
+        run: |
+          php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration
+          php bin/console doctrine:migrations:migrate first --no-interaction
+          php bin/console doctrine:migrations:migrate --no-interaction
+
+      - name: Schema matches the mapping
+        working-directory: backend
+        run: php bin/console doctrine:schema:validate
+
+      - name: PHPUnit with coverage
+        working-directory: backend
+        run: php vendor/bin/phpunit --coverage-clover=var/coverage/clover.xml --coverage-text
+        env:
+          XDEBUG_MODE: coverage
+
+      # The gate is on the security-critical contexts specifically. A global percentage can be
+      # held up by well-covered trivia while the ACL goes untested.
+      - name: Coverage gate
+        working-directory: backend
+        run: php bin/coverage-gate var/coverage/clover.xml
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: coverage
+          path: backend/var/coverage/
+          retention-days: 7

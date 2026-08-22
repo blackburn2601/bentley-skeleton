@@ -1,0 +1,79 @@
+name: docs
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  freshness:
+    name: generated docs are current
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - uses: shivammathur/setup-php@b604ade2a87db23f8871b7182e69ec5e75effb45 # v2
+        with:
+          php-version: '8.5'
+          extensions: pdo_pgsql, intl, zip
+          coverage: none
+          tools: composer:v2
+
+      - name: Install dependencies
+        working-directory: backend
+        run: composer install --no-interaction --no-progress --no-scripts
+
+      # Regenerate and fail on ANY diff. Stale documentation is worse than none, because it
+      # gets trusted — and these files are how a session with no prior context orients itself
+      # (ADR-0016).
+      - name: Regenerate the inventories
+        working-directory: backend
+        run: php bin/console app:docs:generate
+        env:
+          APP_ENV: dev
+
+      - name: Fail if they drifted
+        run: |
+          if ! git diff --exit-code -- docs/; then
+            echo ""
+            echo "::error::Generated documentation is stale. Run 'make docs' and commit the result."
+            exit 1
+          fi
+
+  links:
+    name: internal links resolve
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      # A broken link in CLAUDE.md sends a context-free session to a file that does not exist,
+      # which is precisely the moment the documentation is load-bearing.
+      - name: Check links
+        run: python3 bin/check-doc-links
+
+  adr:
+    name: ADR required for sensitive changes
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+
+      # Changing the authorization model or the deployment topology without recording WHY is
+      # how a skeleton becomes unmaintainable. The `no-adr-needed` label is the escape hatch,
+      # and it is deliberately a visible act rather than a silent one.
+      - name: Require an ADR
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'no-adr-needed') }}
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: ./bin/require-adr "$BASE" "$HEAD"

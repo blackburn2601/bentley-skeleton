@@ -1,0 +1,145 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/*
+ * Fail the build when coverage drops below the agreed floor.
+ *
+ * Two thresholds, not one. A single global percentage can sit comfortably above its target
+ * while the ACL is barely tested, because well-covered trivia drags the average up. The
+ * contexts that decide who may do what get their own, much higher, floor.
+ *
+ * Usage: bin/coverage-gate var/coverage/clover.xml
+ */
+
+$cloverPath = $argv[1] ?? 'var/coverage/clover.xml';
+
+/*
+ * The floors, and why they are shaped like this.
+ *
+ * A single global percentage is a poor gate: well-covered trivia holds it up while the code
+ * that decides who may do what goes untested. So the bar is highest on the DECISION layers —
+ * the Domain and Application of the two security-critical contexts — where a gap is a security
+ * gap, and lower on their Infrastructure, which is Doctrine plumbing whose failures surface
+ * loudly rather than silently.
+ *
+ * These are RATCHET values: set at or just below what the suite achieves today, so coverage
+ * can only go up. PLAN.md's targets are 90% for Acl and Account and 80% globally; reaching
+ * them means testing the Doctrine repositories, the console commands and the docs generators.
+ * Raise each floor as its number rises — that is the whole point of a ratchet, and leaving it
+ * slack is how a gate becomes decorative.
+ */
+
+/** @var array<string, array{floor: float, target: float, prefix: string, exclude?: string}> */
+$gates = [
+    // Where a bug is a security bug.
+    'Acl decisions' => ['floor' => 75.0, 'target' => 90.0, 'prefix' => 'src/Acl/', 'exclude' => 'src/Acl/Infrastructure/'],
+    'Account decisions' => ['floor' => 80.0, 'target' => 90.0, 'prefix' => 'src/Account/', 'exclude' => 'src/Account/Infrastructure/'],
+
+    // Plumbing for the same contexts.
+    'Acl total' => ['floor' => 65.0, 'target' => 90.0, 'prefix' => 'src/Acl/'],
+    'Account total' => ['floor' => 75.0, 'target' => 90.0, 'prefix' => 'src/Account/'],
+];
+
+$globalFloor = 55.0;
+$globalTarget = 80.0;
+
+if (!is_readable($cloverPath)) {
+    fwrite(STDERR, sprintf("Coverage report not found at %s.\n", $cloverPath));
+    exit(1);
+}
+
+$xml = simplexml_load_file($cloverPath);
+
+if (false === $xml) {
+    fwrite(STDERR, "Coverage report could not be parsed.\n");
+    exit(1);
+}
+
+$totals = ['covered' => 0, 'total' => 0];
+$perGate = array_map(static fn (): array => ['covered' => 0, 'total' => 0], $gates);
+
+foreach ($xml->xpath('//file') ?: [] as $file) {
+    $name = (string) $file['name'];
+    $metrics = $file->metrics;
+
+    if (null === $metrics) {
+        continue;
+    }
+
+    $covered = (int) $metrics['coveredstatements'];
+    $total = (int) $metrics['statements'];
+
+    $totals['covered'] += $covered;
+    $totals['total'] += $total;
+
+    foreach ($gates as $label => $gate) {
+        if (!str_contains($name, $gate['prefix'])) {
+            continue;
+        }
+
+        if (isset($gate['exclude']) && str_contains($name, $gate['exclude'])) {
+            continue;
+        }
+
+        $perGate[$label]['covered'] += $covered;
+        $perGate[$label]['total'] += $total;
+    }
+}
+
+$percent = static fn (array $counts): float => 0 === $counts['total']
+    ? 0.0
+    : round($counts['covered'] / $counts['total'] * 100, 2);
+
+$failed = false;
+
+foreach ($gates as $label => $gate) {
+    $actual = $percent($perGate[$label]);
+
+    // Zero measured statements means the paths did not match — a renamed directory would
+    // otherwise pass this gate silently at "0 of 0".
+    if (0 === $perGate[$label]['total']) {
+        fwrite(STDERR, sprintf(
+            "  ✗ %-18s no statements measured. The path %s matched nothing — has it moved?\n",
+            $label,
+            $gate['prefix'],
+        ));
+        $failed = true;
+
+        continue;
+    }
+
+    $ok = $actual >= $gate['floor'];
+    $failed = $failed || !$ok;
+
+    fwrite(STDERR, sprintf(
+        "  %s %-18s %6.2f%%  floor %.0f%%  target %.0f%%%s\n",
+        $ok ? '✓' : '✗',
+        $label,
+        $actual,
+        $gate['floor'],
+        $gate['target'],
+        $actual >= $gate['target'] ? '  ← at target, raise the floor' : '',
+    ));
+}
+
+$global = $percent($totals);
+$globalOk = $global >= $globalFloor;
+$failed = $failed || !$globalOk;
+
+fwrite(STDERR, sprintf(
+    "  %s %-18s %6.2f%%  floor %.0f%%  target %.0f%%\n",
+    $globalOk ? '✓' : '✗',
+    'global',
+    $global,
+    $globalFloor,
+    $globalTarget,
+));
+
+if ($failed) {
+    fwrite(STDERR, "\nCoverage is below the floor. Add tests for what you changed.\n");
+    exit(1);
+}
+
+fwrite(STDERR, "\nCoverage gates passed.\n");

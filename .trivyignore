@@ -1,0 +1,11 @@
+# Vulnerabilities we have consciously accepted, each with an EXPIRY DATE.
+#
+# An ignore with no end date is not a decision, it is a vulnerability somebody stopped looking
+# at. Trivy re-reports an entry once its date passes, which forces the question to be asked
+# again rather than quietly inherited by whoever maintains this next.
+#
+# Format:
+#   CVE-YYYY-NNNNN exp:YYYY-MM-DD
+#   # why it is accepted, and what would change that
+#
+# (empty — nothing accepted yet)

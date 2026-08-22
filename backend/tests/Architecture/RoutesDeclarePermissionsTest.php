@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Tests\Architecture;
 
-use PHPUnit\Framework\Attributes\CoversNothing;
 use ReflectionClass;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Routing\RouterInterface;
@@ -30,8 +29,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * all. (That second case is not hypothetical: a controller taking a non-nullable
  * `#[CurrentUser]` argument answers 401 whether or not it declares a permission, which is
  * exactly why the behavioural check alone is not enough.)
+ *
+ * No #[CoversNothing] here, deliberately. It reads as "this test targets no particular
+ * class", but what it actually tells PHPUnit is "record no coverage from this test" — which
+ * silently zeroed the entire functional suite's contribution to the coverage report, and made
+ * the coverage gate measure a fraction of what the tests actually exercise.
  */
-#[CoversNothing]
 final class RoutesDeclarePermissionsTest extends KernelTestCase
 {
     /**
@@ -47,6 +50,8 @@ final class RoutesDeclarePermissionsTest extends KernelTestCase
         'auth_login' => 'The caller has no credentials yet; that is the point.',
         'auth_register' => 'Anonymous by definition.',
         'auth_verify_email' => 'The emailed token is the credential.',
+        'auth_password_forgot' => 'Requested precisely because the user cannot sign in.',
+        'auth_password_reset' => 'The emailed token is the credential; the whole point is that the password is unknown.',
         'auth_refresh' => 'The access token has expired by definition; the refresh cookie is the credential.',
         'auth_logout' => 'Must always clear cookies, even with an invalid session, or a client can be stranded.',
         'health_live' => 'An orchestrator has no credentials, and an authenticated liveness probe means no liveness probe.',
