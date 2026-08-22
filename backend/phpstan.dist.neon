@@ -33,6 +33,9 @@ parameters:
             - vendor/*
             # Auto-generated config reference shipped by flex; it says so in its own header.
             - config/reference.php
+            # Maker skeletons are templates, not programs: they reference variables that only
+            # exist while a maker renders them.
+            - src/Maker/skeleton/*
 
     # Force every ignore to be justified and to actually match something.
     treatPhpDocTypesAsCertain: false

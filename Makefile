@@ -25,6 +25,7 @@ endif
 .PHONY: help up down restart sh logs ps migrate migrate-down fixtures db-reset \
         test test-unit test-integration test-functional coverage \
         lint fix stan arch proof docs e2e front-lint front-test front-build \
+        adr endpoint service \
         check ci new-project keys hooks
 
 help: ## Show this help
@@ -109,7 +110,7 @@ arch: ## Enforce the architecture contract (deptrac + phpat + PHPMD + arch tests
 	@echo "--> bounded-context contract"
 	$(RUN_BACKEND) $(PHP) vendor/bin/deptrac analyse --config-file=deptrac-context.yaml
 	@echo "--> size and complexity limits"
-	$(RUN_BACKEND) $(PHPMD) src ansi phpmd.xml
+	$(RUN_BACKEND) $(PHPMD) src ansi phpmd.xml --exclude 'src/Maker/skeleton'
 	$(RUN_BACKEND) $(PHPMD) src/Api ansi phpmd-api.xml
 	@echo "--> architecture tests"
 	$(RUN_BACKEND) $(PHP) vendor/bin/phpunit --testsuite=architecture
@@ -144,6 +145,15 @@ check: lint stan arch test front-lint front-test ## Everything CI runs, except e
 ci: check docs e2e ## Literally everything
 
 ## ---------------------------------------------------------------- project setup
+
+adr: ## Record an architecture decision: make adr TITLE="Use X instead of Y"
+	$(RUN_BACKEND) $(PHP) bin/console make:adr $(if $(TITLE),"$(TITLE)",)
+
+endpoint: ## Generate a conforming endpoint slice (see docs/cookbook/add-endpoint.md)
+	$(RUN_BACKEND) $(PHP) bin/console make:api-endpoint
+
+service: ## Generate a single-topic Application service and its test
+	$(RUN_BACKEND) $(PHP) bin/console make:service
 
 keys: ## Generate the JWT keypair (idempotent; never commit the result)
 	$(RUN_BACKEND) $(PHP) bin/console lexik:jwt:generate-keypair --skip-if-exists

@@ -23,13 +23,24 @@ services:
             - '../src/**/Domain/'
             - '../src/Shared/Domain/'
             - '../src/Kernel.php'
+            # Code generators depend on symfony/maker-bundle, which is require-dev. They are
+            # registered below for dev and test only, so a production container never tries
+            # to instantiate a class whose parent does not exist there.
+            - '../src/Maker/'
 
-when@dev: &fixtures
+when@dev: &dev_services
     services:
         _defaults:
             autowire: true
             autoconfigure: true
+            bind:
+                string $projectDir: '%kernel.project_dir%'
+
         App\Fixtures\:
             resource: '../fixtures/'
 
-when@test: *fixtures
+        App\Maker\:
+            resource: '../src/Maker/'
+            exclude: '../src/Maker/skeleton/'
+
+when@test: *dev_services
