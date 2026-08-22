@@ -12,6 +12,9 @@ services:
     _defaults:
         autowire: true
         autoconfigure: true
+        bind:
+            # The docs generators and makers resolve repository paths from here.
+            string $projectDir: '%kernel.project_dir%'
 
     # Every class under src/ is a service candidate, EXCEPT the Domain layer.
     # Domain holds entities, value objects, enums and repository interfaces — none of
