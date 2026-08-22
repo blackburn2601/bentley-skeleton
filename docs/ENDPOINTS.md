@@ -20,6 +20,7 @@ a build failure (INV-11), so it should never appear here.
 | POST | `/api/v1/auth/password/reset` | _public_ | `ResetPasswordRequest` | `ResetPasswordController` |
 | POST | `/api/v1/auth/refresh` | _public_ | — | `RefreshController` |
 | POST | `/api/v1/auth/register` | _public_ | `RegisterRequest` | `RegisterController` |
+| GET | `/api/v1/auth/sessions` | `account.read` | — | `ListSessionsController` |
 | POST | `/api/v1/auth/verify-email` | _public_ | `TokenRequest` | `VerifyEmailController` |
 | DELETE | `/api/v1/me` | `account.delete` | — | `EraseMyAccountController` |
 | POST | `/api/v1/me/export` | `account.export` | — | `ExportMyDataController` |

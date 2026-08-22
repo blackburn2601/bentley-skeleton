@@ -19,6 +19,7 @@ it, extend that one. If none does, `make service` generates a conforming skeleto
 | `AuthenticateUserService` | Decides whether a set of credentials identifies a user who may sign in. |
 | `DescribeCurrentUserService` | Assembles the profile the signed-in user's own client needs. |
 | `IssueSingleUseTokenService` | Mints a one-time secret for an email-delivered action. |
+| `ListActiveSessionsService` | Lists the sessions a user currently has open. |
 | `RefreshSessionService` | Exchanges a valid refresh token for a fresh session. |
 | `RegisterUserService` | Creates an unverified account for a new email address. |
 | `RequestPasswordResetService` | Emails a password-reset link to an address that has an account. |

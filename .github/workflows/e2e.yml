@@ -51,6 +51,11 @@ jobs:
       - name: Run the suite
         working-directory: frontend
         run: npm run e2e
+        env:
+          # The API and the SPA are separate origins in the harness; the sign-in tests need the
+          # SPA, because __Host- cookies only work when both are reached through one origin.
+          E2E_BASE_URL: http://localhost:8080
+          E2E_SPA_URL: http://localhost:5173
 
       # Traces are what make a CI-only failure diagnosable. Without them the only tool is
       # re-running and hoping.

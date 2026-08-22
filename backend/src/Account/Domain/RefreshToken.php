@@ -107,6 +107,17 @@ class RefreshToken
         return $this->userAgent;
     }
 
+    /**
+     * Is this the token the caller presented?
+     *
+     * Compared in constant time and by hash: the plaintext is never stored, so the hash is all
+     * there is — and a length-sensitive comparison on a credential is a habit worth not having.
+     */
+    public function matchesHash(string $tokenHash): bool
+    {
+        return hash_equals($this->tokenHash, $tokenHash);
+    }
+
     public function isUsed(): bool
     {
         return $this->usedAt instanceof DateTimeImmutable;

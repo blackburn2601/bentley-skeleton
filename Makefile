@@ -144,6 +144,11 @@ front-build: ## Production SPA build
 	npm --prefix frontend run build
 
 e2e: ## Playwright end-to-end suite against the running stack
+	# Clear the rate-limit counters first. The login limiter is 5 attempts per 15 minutes per
+	# (IP + email), which is correct behaviour and exactly what a repeated local e2e run trips:
+	# the tests then fail with 429 rather than the thing they were asserting. CI starts a fresh
+	# stack so Redis is already empty; locally it is not.
+	-$(COMPOSE) exec -T redis redis-cli FLUSHDB > /dev/null
 	npm --prefix frontend run e2e
 
 ## ---------------------------------------------------------------- aggregate

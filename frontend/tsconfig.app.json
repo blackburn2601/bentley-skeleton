@@ -5,6 +5,16 @@
     "types": ["vite/client"],
     "allowArbitraryExtensions": true,
 
+    /* The @/ alias, matching the one in vite.config.ts. Both are needed: Vite resolves it at
+       build time, TypeScript resolves it for the editor and vue-tsc. Configuring only one
+       gives an app that builds with an editor full of red, or the reverse.
+
+       No "baseUrl": it is deprecated in TypeScript 6 and removed in 7. Paths are resolved
+       relative to this file instead, which is what baseUrl was doing anyway. */
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+
     /* Linting */
     "noUnusedLocals": true,
     "noUnusedParameters": true,
