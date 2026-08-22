@@ -62,6 +62,11 @@ scaffolding uses `composer create-project`).
    core library carries none of that. The DI wiring the bundle would have done —
    `AuditConfiguration`, `DoctrineProvider`, storage/auditing services, Doctrine subscribers — is
    written by hand in `src/Audit/Infrastructure/` (one provider class plus service config).
+9. **TypeScript 6, not 7** (ADR-0018). TypeScript 7 is the Go port and no longer exports
+   `./lib/tsc`, which `vue-tsc` resolves at startup — `vue-tsc -b` dies with
+   `ERR_PACKAGE_PATH_NOT_EXPORTED` on TS 7.0.2. `vue-tsc` has no TS 7 release (latest 3.3.11, no
+   `next` tag), so SFC type-checking is only possible on TS 6 today. Verified empirically, not
+   assumed. Revisit when Volar supports `tsgo`; the bump is a one-line constraint change.
 
 ---
 
@@ -78,7 +83,7 @@ scaffolding uses `composer create-project`).
 · `rector/rector ^2.6` · `zenstruck/foundry ^2.12` · `dama/doctrine-test-bundle ^8.6`
 · `roave/security-advisories:dev-latest`
 
-**Frontend** — Vue 3.5 · Vite 8 · TypeScript 7 · vue-router 5 · Pinia 4 · ESLint 10 + Prettier
+**Frontend** — Vue 3.5 · Vite 8 · TypeScript 6 · vue-router 5 · Pinia 4 · ESLint 10 + Prettier
 · Vitest 4 · Playwright 1.62 · a fetch wrapper (no axios).
 
 ---
@@ -218,6 +223,7 @@ Written as part of this build, not later:
 | 0015 | Keep `App\` namespace; project identity via package/compose/image names |
 | 0016 | Documentation-as-code: generated inventories + CI freshness gate |
 | 0017 | `damienharper/auditor` core library instead of `auditor-bundle` (Symfony 7.4 support, no Twig in a headless API) |
+| 0018 | TypeScript 6 until `vue-tsc` supports the TypeScript 7 Go port |
 
 **Cookbook** — `docs/cookbook/*.md`, each a numbered, copy-pasteable recipe: which maker to run,
 which files appear, what to add to them in order, which tests to write, which CI checks will catch a
