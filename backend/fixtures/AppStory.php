@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Story;
+namespace App\Fixtures;
 
 use Zenstruck\Foundry\Attribute\AsFixture;
 use Zenstruck\Foundry\Story;

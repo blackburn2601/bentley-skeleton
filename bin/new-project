@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# Reseed this template as a new project.
+#
+#   make new-project NAME=acme-api
+#
+# Rewrites every place the skeleton's identity is baked in, regenerates the
+# secrets that must never be shared between projects, and resets the ADR log
+# so the new project records its own decisions from ADR-0019 onward.
+set -euo pipefail
+
+NEW_NAME="${1:?usage: bin/new-project <project-name>}"
+OLD_NAME="bentley-skeleton"
+
+# kebab-case only: it has to be valid as an npm scope, a compose project name and
+# an OCI image name simultaneously.
+[[ "$NEW_NAME" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]] || {
+  echo "error: '$NEW_NAME' must be lowercase kebab-case (a-z, 0-9, hyphens)." >&2; exit 1; }
+[ "$NEW_NAME" != "$OLD_NAME" ] || { echo "error: that is already the name." >&2; exit 1; }
+
+cd "$(git rev-parse --show-toplevel)"
+
+SHORT="${NEW_NAME%%-*}"          # cookie prefix / compose project: "acme"
+OLD_SHORT="bentley"
+
+echo "==> renaming $OLD_NAME -> $NEW_NAME (short: $OLD_SHORT -> $SHORT)"
+
+# Text substitution across tracked text files only — never vendor/, node_modules/,
+# .git/ or anything binary. NUL-delimited and a while-read loop rather than mapfile,
+# because macOS still ships bash 3.2.
+git ls-files -z -- \
+  ':!:*.png' ':!:*.jpg' ':!:*.ico' ':!:*.pem' ':!:composer.lock' ':!:package-lock.json' \
+| while IFS= read -r -d '' f; do
+  [ -f "$f" ] || continue
+  perl -pi -e "s/\Q$OLD_NAME\E/$NEW_NAME/g; s/\b\Q$OLD_SHORT\E\b/$SHORT/g;" "$f"
+done
+
+# PLAN.md documents how the skeleton was built, not how the new project works.
+rm -f PLAN.md
+
+echo "==> regenerating APP_SECRET"
+NEW_SECRET="$(openssl rand -hex 16)"
+perl -pi -e "s/^APP_SECRET=.*/APP_SECRET=$NEW_SECRET/" backend/.env
+
+echo "==> regenerating the JWT keypair"
+NEW_PASSPHRASE="$(openssl rand -hex 32)"
+perl -pi -e "s/^JWT_PASSPHRASE=.*/JWT_PASSPHRASE=$NEW_PASSPHRASE/" backend/.env
+rm -f backend/config/jwt/private.pem backend/config/jwt/public.pem
+(cd backend && php bin/console lexik:jwt:generate-keypair --skip-if-exists --no-interaction >/dev/null) \
+  && echo "    new keypair written to backend/config/jwt/ (gitignored)"
+
+echo "==> resetting the ADR log"
+# The skeleton's own ADRs (0001-0018) explain why the skeleton is shaped as it is.
+# They stay: a new project inherits those decisions and must be able to read the
+# reasoning before overturning any of them. What resets is the *index*, so the new
+# project's own ADRs start at 0019.
+if [ -f docs/adr/README.md ]; then
+  (cd backend && php bin/console app:docs:generate --only=adr >/dev/null 2>&1) || true
+fi
+
+cat <<BANNER
+
+  ✅  $NEW_NAME is ready.
+
+  The first five things to decide — none of them have a safe default:
+
+  1. CORS + cookie origin.  backend/.env CORS_ALLOW_ORIGIN currently allows
+     localhost only. Set it to your real SPA origin before anything ships.
+     Cookies use the __Host- prefix, so the API and SPA must share an origin
+     (or you must switch on the Bearer-header mode flag).
+
+  2. Your permission catalog.  src/Acl/Domain/PermissionCatalog.php ships with
+     the account/admin permissions only. Add yours, then run
+     \`bin/console app:acl:sync-permissions\`. Grants are code-declared so they
+     stay diffable in git — do not insert permission rows by hand.
+
+  3. Token lifetimes.  ACCESS_TOKEN_TTL=600 / REFRESH_TOKEN_TTL=2592000 suit an
+     interactive SPA. Machine clients usually want the opposite trade-off.
+
+  4. Rate-limit policies.  config/packages/rate_limiter.yaml — the defaults are
+     tuned for a small app. Load-test before trusting them.
+
+  5. Your first bounded context.  Follow docs/cookbook/add-entity-with-acl.md,
+     not your instincts: the maker generates a slice that already satisfies the
+     architecture rules, and CI will reject one that does not.
+
+  Then:  make hooks && make up && make migrate fixtures && make check
+
+BANNER

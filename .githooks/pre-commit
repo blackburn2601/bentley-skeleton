@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# Fast feedback on staged files only. The authoritative checks are in CI
+# (.github/workflows/); this hook exists so you find the obvious things in
+# two seconds instead of two minutes.
+#
+# Bypass with `git commit --no-verify` when you genuinely need to.
+set -uo pipefail
+
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+fail=0
+note() { printf '\n\033[31m✗ %s\033[0m\n' "$1"; fail=1; }
+ok()   { printf '\033[32m✓ %s\033[0m\n' "$1"; }
+
+# NUL-delimited throughout: filenames may contain spaces, and word-splitting an
+# unquoted "$files" silently mangles them.
+staged_into() {  # staged_into ARRAY_NAME <pathspec>...
+  local __name="$1"; shift
+  local __f; eval "$__name=()"
+  while IFS= read -r -d '' __f; do
+    eval "$__name+=(\"\$__f\")"
+  done < <(git diff --cached --name-only -z --diff-filter=ACMR -- "$@")
+}
+
+# ---------------------------------------------------------------- PHP
+staged_into php_files 'backend/*.php' 'backend/**/*.php'
+if [ "${#php_files[@]}" -gt 0 ]; then
+  # Syntax first — everything downstream is noise if a file does not parse.
+  for f in "${php_files[@]}"; do
+    php -l "$f" >/dev/null 2>&1 || { note "PHP syntax error in $f"; php -l "$f"; }
+  done
+
+  # Paths relative to backend/, since both tools run with backend/ as cwd.
+  rel=(); for f in "${php_files[@]}"; do rel+=("${f#backend/}"); done
+
+  if [ -x backend/vendor/bin/php-cs-fixer ]; then
+    # --config is mandatory as soon as more than one path is passed.
+    if (cd backend && php vendor/bin/php-cs-fixer fix --quiet \
+          --config=.php-cs-fixer.dist.php "${rel[@]}"); then
+      git add -- "${php_files[@]}"; ok "php-cs-fixer (restaged)"
+    else
+      note "php-cs-fixer failed"
+    fi
+  fi
+
+  if [ -x backend/vendor/bin/phpstan ]; then
+    (cd backend && php vendor/bin/phpstan analyse --no-progress --memory-limit=1G "${rel[@]}") \
+      && ok "phpstan" || note "phpstan found problems"
+  fi
+fi
+
+# ---------------------------------------------------------------- TS / Vue
+staged_into ts_files 'frontend/**/*.ts' 'frontend/**/*.vue'
+if [ "${#ts_files[@]}" -gt 0 ] && [ -d frontend/node_modules ]; then
+  rel=(); for f in "${ts_files[@]}"; do rel+=("${f#frontend/}"); done
+  if (cd frontend && npx eslint --fix "${rel[@]}"); then
+    git add -- "${ts_files[@]}"; ok "eslint (restaged)"
+  else
+    note "eslint found problems"
+  fi
+fi
+
+# ---------------------------------------------------------------- ADR reminder
+# Changing the authorization model, the security config or the deployment topology
+# without recording why is exactly how a skeleton becomes unmaintainable. This does
+# not block the commit — it just refuses to let the decision pass silently.
+staged_into sensitive \
+  'backend/src/Acl/**' 'backend/src/Account/**' \
+  'backend/config/packages/security.yaml' 'backend/deptrac.yaml' \
+  'compose.yaml' 'compose.prod.yaml'
+staged_into adrs 'docs/adr/**'
+if [ "${#sensitive[@]}" -gt 0 ] && [ "${#adrs[@]}" -eq 0 ]; then
+  printf '\n\033[33m! You changed the authorization model, security config or deployment topology:\033[0m\n'
+  printf '    %s\n' "${sensitive[@]:0:8}"
+  [ "${#sensitive[@]}" -gt 8 ] && printf '    … and %d more\n' "$(( ${#sensitive[@]} - 8 ))"
+  printf '\033[33m  …but no ADR is staged. Add one (docs/adr/template.md) or the `no-adr-needed` PR label.\033[0m\n'
+  printf '\033[33m  CI enforces this (docs.yml); the commit itself is not blocked.\033[0m\n'
+fi
+
+[ "$fail" -eq 0 ] || { printf '\n\033[31mpre-commit failed — fix the above or use --no-verify.\033[0m\n'; exit 1; }
+exit 0
