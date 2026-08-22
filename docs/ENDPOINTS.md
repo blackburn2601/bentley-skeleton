@@ -21,5 +21,8 @@ a build failure (INV-11), so it should never appear here.
 | POST | `/api/v1/auth/refresh` | _public_ | — | `RefreshController` |
 | POST | `/api/v1/auth/register` | _public_ | `RegisterRequest` | `RegisterController` |
 | POST | `/api/v1/auth/verify-email` | _public_ | `TokenRequest` | `VerifyEmailController` |
+| DELETE | `/api/v1/me` | `account.delete` | — | `EraseMyAccountController` |
+| POST | `/api/v1/me/export` | `account.export` | — | `ExportMyDataController` |
 | GET | `/health/live` | _public_ | — | `LivenessController` |
 | GET | `/health/ready` | _public_ | — | `ReadinessController` |
+| GET | `/metrics` | _public_ | — | `MetricsController` |

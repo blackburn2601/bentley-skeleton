@@ -56,6 +56,7 @@ final class RoutesDeclarePermissionsTest extends KernelTestCase
         'auth_logout' => 'Must always clear cookies, even with an invalid session, or a client can be stranded.',
         'health_live' => 'An orchestrator has no credentials, and an authenticated liveness probe means no liveness probe.',
         'health_ready' => 'Same as health_live.',
+        'metrics' => 'A Prometheus scraper has no credentials; restricted by IP instead, and 404s outside the allow-list.',
     ];
 
     public function testEveryRouteDeclaresAPermission(): void

@@ -128,6 +128,38 @@ services:
             $enabled: '%env(bool:RATE_LIMIT_ENABLED)%'
 
 
+    App\Api\Platform\MetricsController:
+        arguments:
+            # Comma-separated CIDRs allowed to scrape. Empty means nobody, which is the right
+            # default: an accidentally public /metrics is reconnaissance for free.
+            $allowedCidrs: '%env(METRICS_ALLOWED_CIDRS)%'
+
+    # Entity change history (ADR-0017). auditor-bundle cannot install on Symfony 7.4, so the
+    # core library is wired here — a factory producing the configured Auditor, and the
+    # subscribers that record changes.
+    App\Audit\Infrastructure\Auditor\AuditorFactory:
+        arguments:
+            $auditedEntities: '%app.audited_entities%'
+            $enabled: '%env(bool:AUDIT_ENTITY_HISTORY)%'
+
+    # The DBAL middleware that actually writes the audit rows.
+    #
+    # The auditor's Doctrine subscriber collects changes on onFlush, then hands them to the
+    # CONNECTION DRIVER to flush once the surrounding transaction commits — so the audit row
+    # and the change it describes land together or not at all. If the driver is not wrapped by
+    # this middleware, the subscriber quietly does nothing: the tables exist, the configuration
+    # verifies, and no history is ever written. auditor-bundle registers this; without the
+    # bundle (ADR-0017) it is registered here.
+    DH\Auditor\Provider\Doctrine\Auditing\DBAL\Middleware\AuditorMiddleware:
+        tags: [{ name: doctrine.middleware }]
+
+    DH\Auditor\Auditor:
+        factory: ['@App\Audit\Infrastructure\Auditor\AuditorFactory', 'create']
+        # Public so app:audit:schema-update and diagnostics can reach it directly. It is
+        # infrastructure wiring rather than application code, and nothing injects it except
+        # the initializer.
+        public: true
+
     # Every outbound HTTP call goes through the SSRF guard, by decorating the default client
     # rather than by asking callers to opt in. A guard you have to remember to use is a guard
     # that will be forgotten exactly once.

@@ -161,7 +161,7 @@ under-weights and that matter most for a JSON API:
 | TOTP secret | `user.totp_secret_encrypted` | Until MFA is disabled or the account is erased |
 | Session metadata (IP, user agent) | `refresh_token` | Until the token expires or is revoked |
 | Security events | `security_event` | Retention policy; append-only, never edited |
-| Audit entity history | auditor tables | Retention policy |
+| Audit entity history | `*_audit` tables | Retention policy — **currently disabled**, see ADR-0017 |
 
 GDPR export and erasure are in the Audit context. Erasure **anonymises** rather than deletes,
 because the security event log must survive the account it describes — that is the point of an

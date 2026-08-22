@@ -47,6 +47,9 @@ it, extend that one. If none does, `make service` generates a conforming skeleto
 | Service | Responsibility |
 |---|---|
 | `AuditFacade` | Exposes the Audit context to other contexts as a single narrow surface. |
+| `ErasePersonalDataService` | Anonymises a person's account in response to an erasure request. |
+| `ExportPersonalDataService` | Assembles everything this system holds about one person. |
+| `PurgeExpiredDataService` | Removes data whose retention period has ended. |
 | `RecordSecurityEventService` | Writes one immutable record of a security-relevant event. |
 
 ## Platform
@@ -54,3 +57,4 @@ it, extend that one. If none does, `make service` generates a conforming skeleto
 | Service | Responsibility |
 |---|---|
 | `CheckReadinessService` | Reports whether every dependency this application needs is reachable. |
+| `CollectMetricsService` | Gathers the application's metrics into Prometheus exposition format. |

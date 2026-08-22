@@ -55,6 +55,35 @@ otherwise do, minus the UI.
   *events*, not field-level before/after values. Compliance questions ask for the latter.
 - **Write our own Doctrine change subscriber** — reinvents a maintained library for no gain.
 
+## Current status — the wiring does not record yet
+
+Recorded here rather than left as a surprise, because a half-working audit trail is worse
+than none: it looks like evidence and is not.
+
+**Working:** the configuration builds, the provider registers one auditing and one storage
+service, six entities are marked audited, `bin/console app:audit:schema-update` produces the
+schema, and the six `*_audit` tables exist via a migration.
+
+**Not working:** no rows are written on flush. Verified at runtime that the auditor is
+enabled, that `isAudited(User::class)` is true, that the initializer constructs the Auditor
+before any request or command, and that the DBAL driver is wrapped in `AuditorDriver` — the
+subscriber's precondition. Rows still do not appear, with or without an explicit transaction.
+Something the bundle does during wiring is still missing, and it was not worth more time to
+find before the rest of the skeleton was finished.
+
+`AUDIT_ENTITY_HISTORY` therefore defaults to **0**, so the feature is honestly off rather
+than silently broken.
+
+**This does not affect the primary compliance control.** The append-only `security_event` log
+(ADR-0012) is a separate mechanism, written explicitly by the code that acts, and it is
+verified end to end: registration, verification, login success and failure, token rotation and
+reuse detection all produce rows with actor, IP and payload.
+
+**Where to look next:** compare against `auditor-bundle`'s `DHAuditorExtension` and its
+compiler passes — specifically whether it registers the storage/auditing services *after* the
+entity manager is fully built, and whether `TransactionManager::process()` needs a storage
+mapper or a flusher hook this wiring omits.
+
 ## Reversal cost
 
 **Cheap, once on Symfony 8.x.** Install the bundle, delete our wiring, keep the schema — the

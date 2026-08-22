@@ -1,0 +1,20 @@
+parameters:
+    # Entities whose field-level change history is kept (ADR-0017).
+    #
+    # A short list on purpose. Auditing every entity writes a row per change per table and
+    # turns the audit store into the largest thing in the database; these are the ones where
+    # "what did this look like before, and who changed it?" is a question somebody actually
+    # asks — identity and authorization.
+    #
+    # Configuration rather than code: the Audit context must not name other contexts' entity
+    # classes (INV-02), and this is where an operator would look for the list anyway.
+    #
+    # After changing this, run `bin/console app:audit:schema-update --dump-sql` and put the
+    # output in a migration — the tables are derived from this list.
+    app.audited_entities:
+        - 'App\Account\Domain\User'
+        - 'App\Acl\Domain\Role'
+        - 'App\Acl\Domain\UserGroup'
+        - 'App\Acl\Domain\UserRole'
+        - 'App\Acl\Domain\GroupMembership'
+        - 'App\Acl\Domain\AclEntry'
