@@ -10,6 +10,15 @@ Every Application service, grouped by bounded context.
 **Before writing a new service, look for the topic here.** If a service already owns
 it, extend that one. If none does, `make service` generates a conforming skeleton.
 
+## Acl
+
+| Service | Responsibility |
+|---|---|
+| `AclCache` | Caches permission decisions under a key that a grant change invalidates. |
+| `AclFacade` | Exposes the Acl context to other contexts as a single narrow surface. |
+| `PermissionResolver` | Decides whether a subject holds a permission on a resource. |
+| `SyncPermissionsService` | Reconciles the database permission rows with the code-declared catalog. |
+
 ## Platform
 
 | Service | Responsibility |

@@ -43,7 +43,11 @@ run() {  # run <paths> <ruleset> [extra args...]
 #   domain   entities — wide but simple; count limits off, complexity limits on
 failed=0
 run src            phpmd.xml        --exclude 'src/Maker,src/Account/Domain,src/Acl/Domain,src/Audit/Domain,src/Platform/Domain,src/Shared/Domain' || failed=1
-run src/Api        phpmd-api.xml    || failed=1
+# The controller limits apply to CONTROLLERS. src/Api also holds voters, listeners,
+# attributes and DTOs, which are ordinary classes and are covered by the general
+# ruleset above — holding a security voter to "three methods, complexity three" would
+# only produce a worse voter.
+run src/Api        phpmd-api.xml    --exclude 'src/Api/Security,src/Api/Attribute,src/Api/Listener' || failed=1
 for domain in src/*/Domain; do
     [ -d "$domain" ] || continue
     run "$domain"  phpmd-domain.xml || failed=1

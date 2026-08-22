@@ -22,30 +22,30 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Table(name: 'role')]
 class Role
 {
+    /**
+     * Bypasses every check, and is itself audited for exactly that reason.
+     *
+     * A short-circuit like this is a liability: it means one row in one table removes all
+     * authorization. It exists because the alternative — an admin locked out of the system
+     * that grants access — is worse. Every use is written to the security event log.
+     */
+    public const string SUPER_ADMIN = 'ROLE_SUPER_ADMIN';
+
     #[ORM\Id]
     #[ORM\Column(type: 'uuid', unique: true)]
     private Uuid $id;
-
-    #[ORM\Column(type: 'string', length: 100, unique: true)]
-    private string $name;
-
-    #[ORM\Column(type: 'string', length: 255, nullable: true)]
-    private ?string $description;
 
     /** @var Collection<int, Permission> */
     #[ORM\ManyToMany(targetEntity: Permission::class)]
     #[ORM\JoinTable(name: 'role_permission')]
     private Collection $permissions;
 
-    #[ORM\Column(type: 'datetime_immutable')]
-    private DateTimeImmutable $createdAt;
-
-    public function __construct(string $name, DateTimeImmutable $now, ?string $description = null)
+    public function __construct(#[ORM\Column(type: 'string', length: 100, unique: true)]
+        private string $name, #[ORM\Column(type: 'datetime_immutable')]
+        private DateTimeImmutable $createdAt, #[ORM\Column(type: 'string', length: 255, nullable: true)]
+        private ?string $description = null)
     {
         $this->id = Uuid::v7();
-        $this->name = $name;
-        $this->description = $description;
-        $this->createdAt = $now;
         $this->permissions = new ArrayCollection();
     }
 

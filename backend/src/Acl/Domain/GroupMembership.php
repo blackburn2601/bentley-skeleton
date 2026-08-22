@@ -21,22 +21,13 @@ class GroupMembership
     #[ORM\Column(type: 'uuid', unique: true)]
     private Uuid $id;
 
-    #[ORM\Column(type: 'uuid')]
-    private Uuid $userId;
-
-    #[ORM\ManyToOne(targetEntity: UserGroup::class)]
-    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-    private UserGroup $group;
-
-    #[ORM\Column(type: 'datetime_immutable')]
-    private DateTimeImmutable $createdAt;
-
-    public function __construct(Uuid $userId, UserGroup $group, DateTimeImmutable $now)
+    public function __construct(#[ORM\Column(type: 'uuid')]
+        private Uuid $userId, #[ORM\ManyToOne(targetEntity: UserGroup::class)]
+        #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
+        private UserGroup $group, #[ORM\Column(type: 'datetime_immutable')]
+        private DateTimeImmutable $createdAt)
     {
         $this->id = Uuid::v7();
-        $this->userId = $userId;
-        $this->group = $group;
-        $this->createdAt = $now;
     }
 
     public function userId(): Uuid

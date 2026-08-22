@@ -36,25 +36,9 @@ class RefreshToken
     #[ORM\Column(type: 'uuid', unique: true)]
     private Uuid $id;
 
-    #[ORM\Column(type: 'string', length: 64, unique: true)]
-    private string $tokenHash;
-
-    #[ORM\ManyToOne(targetEntity: User::class)]
-    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-    private User $user;
-
     /** Shared by every token descended from one login. Revoked as a unit. */
     #[ORM\Column(type: 'uuid')]
     private Uuid $familyId;
-
-    #[ORM\Column(type: 'uuid', nullable: true)]
-    private ?Uuid $parentId;
-
-    #[ORM\Column(type: 'datetime_immutable')]
-    private DateTimeImmutable $expiresAt;
-
-    #[ORM\Column(type: 'datetime_immutable')]
-    private DateTimeImmutable $createdAt;
 
     /** Set when this token is rotated. A second presentation after this is reuse. */
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]
@@ -66,32 +50,30 @@ class RefreshToken
     #[ORM\Column(type: 'uuid', nullable: true)]
     private ?Uuid $replacedBy = null;
 
-    /** Device metadata, for the "your active sessions" screen. Never trusted for decisions. */
-    #[ORM\Column(type: 'string', length: 45, nullable: true)]
-    private ?string $ipAddress;
-
     #[ORM\Column(type: 'string', length: 255, nullable: true)]
     private ?string $userAgent;
 
     public function __construct(
-        string $tokenHash,
-        User $user,
-        DateTimeImmutable $now,
-        DateTimeImmutable $expiresAt,
+        #[ORM\Column(type: 'string', length: 64, unique: true)]
+        private string $tokenHash,
+        #[ORM\ManyToOne(targetEntity: User::class)]
+        #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
+        private User $user,
+        #[ORM\Column(type: 'datetime_immutable')]
+        private DateTimeImmutable $createdAt,
+        #[ORM\Column(type: 'datetime_immutable')]
+        private DateTimeImmutable $expiresAt,
         ?Uuid $familyId = null,
-        ?Uuid $parentId = null,
-        ?string $ipAddress = null,
+        #[ORM\Column(type: 'uuid', nullable: true)]
+        private ?Uuid $parentId = null,
+        /** Device metadata, for the "your active sessions" screen. Never trusted for decisions. */
+        #[ORM\Column(type: 'string', length: 45, nullable: true)]
+        private ?string $ipAddress = null,
         ?string $userAgent = null,
     ) {
         $this->id = Uuid::v7();
-        $this->tokenHash = $tokenHash;
-        $this->user = $user;
         // A token with no parent starts its own family: this is a fresh login.
         $this->familyId = $familyId ?? $this->id;
-        $this->parentId = $parentId;
-        $this->createdAt = $now;
-        $this->expiresAt = $expiresAt;
-        $this->ipAddress = $ipAddress;
         $this->userAgent = null === $userAgent ? null : mb_substr($userAgent, 0, 255);
     }
 
@@ -127,12 +109,12 @@ class RefreshToken
 
     public function isUsed(): bool
     {
-        return null !== $this->usedAt;
+        return $this->usedAt instanceof DateTimeImmutable;
     }
 
     public function isRevoked(): bool
     {
-        return null !== $this->revokedAt;
+        return $this->revokedAt instanceof DateTimeImmutable;
     }
 
     public function isExpiredAt(DateTimeImmutable $now): bool

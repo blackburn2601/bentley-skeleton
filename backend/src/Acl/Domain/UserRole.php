@@ -29,22 +29,13 @@ class UserRole
     #[ORM\Column(type: 'uuid', unique: true)]
     private Uuid $id;
 
-    #[ORM\Column(type: 'uuid')]
-    private Uuid $userId;
-
-    #[ORM\ManyToOne(targetEntity: Role::class)]
-    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-    private Role $role;
-
-    #[ORM\Column(type: 'datetime_immutable')]
-    private DateTimeImmutable $createdAt;
-
-    public function __construct(Uuid $userId, Role $role, DateTimeImmutable $now)
+    public function __construct(#[ORM\Column(type: 'uuid')]
+        private Uuid $userId, #[ORM\ManyToOne(targetEntity: Role::class)]
+        #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
+        private Role $role, #[ORM\Column(type: 'datetime_immutable')]
+        private DateTimeImmutable $createdAt)
     {
         $this->id = Uuid::v7();
-        $this->userId = $userId;
-        $this->role = $role;
-        $this->createdAt = $now;
     }
 
     public function userId(): Uuid

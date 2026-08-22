@@ -38,58 +38,31 @@ class AclEntry
     #[ORM\Column(type: 'uuid', unique: true)]
     private Uuid $id;
 
-    #[ORM\Column(type: 'string', length: 16, enumType: AclSubjectType::class)]
-    private AclSubjectType $subjectType;
-
-    /** No foreign key: this may be a user, a group or a role id. */
-    #[ORM\Column(type: 'uuid')]
-    private Uuid $subjectId;
-
-    #[ORM\Column(type: 'string', length: 255)]
-    private string $resourceClass;
-
-    /** NULL means class-level: every instance of $resourceClass. */
-    #[ORM\Column(type: 'uuid', nullable: true)]
-    private ?Uuid $resourceId;
-
-    #[ORM\ManyToOne(targetEntity: Permission::class)]
-    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-    private Permission $permission;
-
-    #[ORM\Column(type: 'string', length: 8, enumType: AclEffect::class)]
-    private AclEffect $effect;
-
-    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
-    private ?DateTimeImmutable $expiresAt;
-
-    /** Who granted this. Answering "who gave them access?" is half of any access review. */
-    #[ORM\Column(type: 'uuid', nullable: true)]
-    private ?Uuid $grantedBy;
-
-    #[ORM\Column(type: 'datetime_immutable')]
-    private DateTimeImmutable $createdAt;
-
     public function __construct(
-        AclSubjectType $subjectType,
-        Uuid $subjectId,
-        string $resourceClass,
-        ?Uuid $resourceId,
-        Permission $permission,
-        AclEffect $effect,
-        DateTimeImmutable $now,
-        ?DateTimeImmutable $expiresAt = null,
-        ?Uuid $grantedBy = null,
+        #[ORM\Column(type: 'string', length: 16, enumType: AclSubjectType::class)]
+        private AclSubjectType $subjectType,
+        /** No foreign key: this may be a user, a group or a role id. */
+        #[ORM\Column(type: 'uuid')]
+        private Uuid $subjectId,
+        #[ORM\Column(type: 'string', length: 255)]
+        private string $resourceClass,
+        /** NULL means class-level: every instance of $resourceClass. */
+        #[ORM\Column(type: 'uuid', nullable: true)]
+        private ?Uuid $resourceId,
+        #[ORM\ManyToOne(targetEntity: Permission::class)]
+        #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
+        private Permission $permission,
+        #[ORM\Column(type: 'string', length: 8, enumType: AclEffect::class)]
+        private AclEffect $effect,
+        #[ORM\Column(type: 'datetime_immutable')]
+        private DateTimeImmutable $createdAt,
+        #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+        private ?DateTimeImmutable $expiresAt = null,
+        /** Who granted this. Answering "who gave them access?" is half of any access review. */
+        #[ORM\Column(type: 'uuid', nullable: true)]
+        private ?Uuid $grantedBy = null,
     ) {
         $this->id = Uuid::v7();
-        $this->subjectType = $subjectType;
-        $this->subjectId = $subjectId;
-        $this->resourceClass = $resourceClass;
-        $this->resourceId = $resourceId;
-        $this->permission = $permission;
-        $this->effect = $effect;
-        $this->createdAt = $now;
-        $this->expiresAt = $expiresAt;
-        $this->grantedBy = $grantedBy;
     }
 
     public function id(): Uuid
@@ -139,11 +112,11 @@ class AclEntry
 
     public function isClassLevel(): bool
     {
-        return null === $this->resourceId;
+        return !$this->resourceId instanceof Uuid;
     }
 
     public function isEffectiveAt(DateTimeImmutable $now): bool
     {
-        return null === $this->expiresAt || $this->expiresAt > $now;
+        return !$this->expiresAt instanceof DateTimeImmutable || $this->expiresAt > $now;
     }
 }

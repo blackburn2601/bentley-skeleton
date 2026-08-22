@@ -5,6 +5,14 @@ declare(strict_types=1);
 namespace App\Tests\Architecture\PhpStanRules;
 
 use PhpParser\Node;
+use PhpParser\Node\Identifier;
+use PhpParser\Node\IntersectionType;
+use PhpParser\Node\Name;
+use PhpParser\Node\NullableType;
+use PhpParser\Node\Param;
+use PhpParser\Node\Stmt\Class_;
+use PhpParser\Node\Stmt\ClassMethod;
+use PhpParser\Node\UnionType;
 use PHPStan\Analyser\Scope;
 use PHPStan\Node\InClassNode;
 use PHPStan\Rules\Rule;
@@ -40,12 +48,20 @@ final class ServiceMustDeclareResponsibilityRule implements Rule
 
     public function processNode(Node $node, Scope $scope): array
     {
-        if (!Layer::isApplicationService($scope->getFile())) {
+        if (!Layer::isApplicationClass($scope->getFile())) {
             return [];
         }
 
         $class = $node->getClassReflection();
-        if ($class->isInterface() || $class->isEnum()) {
+
+        // Interfaces, enums and abstracts describe a contract rather than owning a topic.
+        if ($class->isInterface() || $class->isEnum() || $class->isAbstract()) {
+            return [];
+        }
+
+        $original = $node->getOriginalNode();
+
+        if (!$original instanceof Class_ || !$this->isService($original, $scope->getFile())) {
             return [];
         }
 
@@ -55,7 +71,7 @@ final class ServiceMustDeclareResponsibilityRule implements Rule
         if (!str_contains($doc, self::TAG)) {
             return [
                 RuleErrorBuilder::message(\sprintf(
-                    'Application service %s has no `%s` docblock. Add one sentence saying what '
+                    'Application class %s has no `%s` docblock. Add one sentence saying what '
                     .'this service is responsible for — it is what docs/SERVICES.md is generated '
                     .'from, and how the next contributor finds this class instead of writing a '
                     .'duplicate (INV-10).',
@@ -94,6 +110,48 @@ final class ServiceMustDeclareResponsibilityRule implements Rule
         }
 
         return [];
+    }
+
+    /**
+     * Is this a service, as opposed to a value object or a helper that happens to live here?
+     *
+     * The test is whether the class takes collaborators. A class with injected objects is
+     * doing work on behalf of the application and owns a topic; a class with only scalars, or
+     * no constructor at all, is a value (HealthProbeResult) or a formatter
+     * (GeneratedFileHeader), and demanding a responsibility sentence from it would be
+     * ceremony that makes docs/SERVICES.md less useful rather than more.
+     *
+     * Everything in Application/Service/ counts regardless, since that directory is the
+     * declared home of services — including ones whose only dependency is an iterable of
+     * tagged collaborators.
+     */
+    private function isService(Class_ $class, string $file): bool
+    {
+        if (Layer::isApplicationService($file)) {
+            return true;
+        }
+
+        $constructor = $class->getMethod('__construct');
+
+        if (!$constructor instanceof ClassMethod) {
+            return false;
+        }
+
+        return array_any($constructor->params, static fn (Param $param): bool => self::isObjectType($param->type));
+    }
+
+    private static function isObjectType(?Node $type): bool
+    {
+        if ($type instanceof NullableType) {
+            return self::isObjectType($type->type);
+        }
+
+        if ($type instanceof UnionType || $type instanceof IntersectionType) {
+            return array_any($type->types, static fn (Identifier|Name|IntersectionType $inner): bool => self::isObjectType($inner));
+        }
+
+        // Node\Name covers class-like types; the built-ins arrive as Node\Identifier.
+        return $type instanceof Name;
     }
 
     /** Pull the sentence that follows the tag, stopping at a blank docblock line. */

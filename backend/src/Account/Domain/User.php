@@ -17,19 +17,6 @@ class User
     #[ORM\Column(type: 'uuid', unique: true)]
     private Uuid $id;
 
-    /**
-     * citext, so uniqueness is case-insensitive in the database.
-     *
-     * Lowercasing in PHP would work right up until the one query that forgets, which then
-     * creates a second account differing only in capitalisation — and now a password reset
-     * is ambiguous. The database is the only place this can be enforced once.
-     */
-    #[ORM\Column(type: 'citext', unique: true)]
-    private string $email;
-
-    #[ORM\Column(type: 'string')]
-    private string $passwordHash;
-
     #[ORM\Column(type: 'string', enumType: UserStatus::class)]
     private UserStatus $status = UserStatus::PendingVerification;
 
@@ -48,9 +35,6 @@ class User
 
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?DateTimeImmutable $lockedUntil = null;
-
-    #[ORM\Column(type: 'datetime_immutable')]
-    private DateTimeImmutable $passwordChangedAt;
 
     /**
      * Bumped whenever anything that could change this user's effective permissions changes:
@@ -82,13 +66,22 @@ class User
     // foreign keys to `"user"` — that constraint is defined in the migration, where it costs
     // nothing and buys referential integrity.
 
-    public function __construct(string $email, string $passwordHash, DateTimeImmutable $now)
-    {
+    public function __construct(/**
+     * citext, so uniqueness is case-insensitive in the database.
+     *
+     * Lowercasing in PHP would work right up until the one query that forgets, which then
+     * creates a second account differing only in capitalisation — and now a password reset
+     * is ambiguous. The database is the only place this can be enforced once.
+     */
+        #[ORM\Column(type: 'citext', unique: true)]
+        private string $email,
+        #[ORM\Column(type: 'string')]
+        private string $passwordHash,
+        #[ORM\Column(type: 'datetime_immutable')]
+        private DateTimeImmutable $passwordChangedAt,
+    ) {
         $this->id = Uuid::v7();
-        $this->email = $email;
-        $this->passwordHash = $passwordHash;
-        $this->passwordChangedAt = $now;
-        $this->createdAt = $now;
+        $this->createdAt = $this->passwordChangedAt;
     }
 
     public function id(): Uuid
@@ -133,7 +126,7 @@ class User
 
     public function isLockedAt(DateTimeImmutable $now): bool
     {
-        return null !== $this->lockedUntil && $this->lockedUntil > $now;
+        return $this->lockedUntil instanceof DateTimeImmutable && $this->lockedUntil > $now;
     }
 
     public function lockedUntil(): ?DateTimeImmutable

@@ -23,17 +23,11 @@ class Permission
     #[ORM\Column(type: 'uuid', unique: true)]
     private Uuid $id;
 
-    #[ORM\Column(type: 'string', length: 100, unique: true)]
-    private string $name;
-
-    #[ORM\Column(type: 'datetime_immutable')]
-    private DateTimeImmutable $createdAt;
-
-    public function __construct(string $name, DateTimeImmutable $now)
+    public function __construct(#[ORM\Column(type: 'string', length: 100, unique: true)]
+        private string $name, #[ORM\Column(type: 'datetime_immutable')]
+        private DateTimeImmutable $createdAt)
     {
         $this->id = Uuid::v7();
-        $this->name = $name;
-        $this->createdAt = $now;
     }
 
     public function id(): Uuid

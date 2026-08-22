@@ -35,6 +35,27 @@ services:
     # so the readiness probe cannot autowire it without this alias.
     Doctrine\Migrations\DependencyFactory: '@doctrine.migrations.dependency_factory'
 
+    # --- Ports to adapters ----------------------------------------------------------
+    # Only real port boundaries appear here (INV-12): a second implementation exists, or the
+    # implementation belongs to a different context or to infrastructure we want to swap in
+    # tests. There is deliberately no interface-per-service ceremony.
+    App\Shared\Domain\Clock: '@App\Shared\Infrastructure\SystemClock'
+    App\Shared\Domain\SecretGenerator: '@App\Shared\Infrastructure\RandomSecretGenerator'
+    App\Shared\Application\AclVersionProvider: '@App\Account\Infrastructure\UserAclVersionProvider'
+
+    App\Account\Domain\UserRepository: '@App\Account\Infrastructure\Repository\DoctrineUserRepository'
+    App\Acl\Domain\AclEntryRepository: '@App\Acl\Infrastructure\Repository\DoctrineAclEntryRepository'
+    App\Acl\Domain\RoleRepository: '@App\Acl\Infrastructure\Repository\DoctrineRoleRepository'
+    App\Acl\Domain\PermissionRepository: '@App\Acl\Infrastructure\Repository\DoctrinePermissionRepository'
+    App\Acl\Domain\SubjectRepository: '@App\Acl\Infrastructure\Repository\DoctrineSubjectRepository'
+
+    # The ACL cache gets its own pool so it can be cleared without touching anything else,
+    # and so its hit rate is visible separately in metrics.
+    App\Acl\Application\AclCache:
+        arguments:
+            $aclCache: '@cache.acl'
+            $ttlSeconds: 300
+
 when@dev: &dev_services
     services:
         _defaults:

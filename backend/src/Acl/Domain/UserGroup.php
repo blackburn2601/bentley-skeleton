@@ -25,26 +25,17 @@ class UserGroup
     #[ORM\Column(type: 'uuid', unique: true)]
     private Uuid $id;
 
-    #[ORM\Column(type: 'string', length: 100, unique: true)]
-    private string $name;
-
-    #[ORM\Column(type: 'string', length: 255, nullable: true)]
-    private ?string $description;
-
     /** @var Collection<int, Role> */
     #[ORM\ManyToMany(targetEntity: Role::class)]
     #[ORM\JoinTable(name: 'group_role')]
     private Collection $roles;
 
-    #[ORM\Column(type: 'datetime_immutable')]
-    private DateTimeImmutable $createdAt;
-
-    public function __construct(string $name, DateTimeImmutable $now, ?string $description = null)
+    public function __construct(#[ORM\Column(type: 'string', length: 100, unique: true)]
+        private string $name, #[ORM\Column(type: 'datetime_immutable')]
+        private DateTimeImmutable $createdAt, #[ORM\Column(type: 'string', length: 255, nullable: true)]
+        private ?string $description = null)
     {
         $this->id = Uuid::v7();
-        $this->name = $name;
-        $this->description = $description;
-        $this->createdAt = $now;
         $this->roles = new ArrayCollection();
     }
 

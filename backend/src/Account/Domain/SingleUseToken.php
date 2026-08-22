@@ -27,38 +27,23 @@ class SingleUseToken
     #[ORM\Column(type: 'uuid', unique: true)]
     private Uuid $id;
 
-    #[ORM\Column(type: 'string', length: 64, unique: true)]
-    private string $tokenHash;
-
-    #[ORM\ManyToOne(targetEntity: User::class)]
-    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-    private User $user;
-
-    #[ORM\Column(type: 'string', enumType: TokenPurpose::class)]
-    private TokenPurpose $purpose;
-
-    #[ORM\Column(type: 'datetime_immutable')]
-    private DateTimeImmutable $expiresAt;
-
-    #[ORM\Column(type: 'datetime_immutable')]
-    private DateTimeImmutable $createdAt;
-
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?DateTimeImmutable $consumedAt = null;
 
     public function __construct(
-        string $tokenHash,
-        User $user,
-        TokenPurpose $purpose,
-        DateTimeImmutable $now,
-        DateTimeImmutable $expiresAt,
+        #[ORM\Column(type: 'string', length: 64, unique: true)]
+        private string $tokenHash,
+        #[ORM\ManyToOne(targetEntity: User::class)]
+        #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
+        private User $user,
+        #[ORM\Column(type: 'string', enumType: TokenPurpose::class)]
+        private TokenPurpose $purpose,
+        #[ORM\Column(type: 'datetime_immutable')]
+        private DateTimeImmutable $createdAt,
+        #[ORM\Column(type: 'datetime_immutable')]
+        private DateTimeImmutable $expiresAt,
     ) {
         $this->id = Uuid::v7();
-        $this->tokenHash = $tokenHash;
-        $this->user = $user;
-        $this->purpose = $purpose;
-        $this->createdAt = $now;
-        $this->expiresAt = $expiresAt;
     }
 
     public function user(): User
@@ -73,7 +58,7 @@ class SingleUseToken
 
     public function isUsableAt(DateTimeImmutable $now, TokenPurpose $expected): bool
     {
-        return null === $this->consumedAt
+        return !$this->consumedAt instanceof DateTimeImmutable
             && $this->purpose === $expected
             && $this->expiresAt > $now;
     }

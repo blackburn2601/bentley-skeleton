@@ -5,8 +5,12 @@
          xsi:schemaLocation="http://pmd.sf.net/ruleset/1.0.0 http://pmd.sf.net/ruleset_xml_schema.xsd">
 
     <description>
-        Controllers only (src/Api). A controller is: a DTO in, one #[IsGranted], one service
-        call, one response view out. That shape fits well inside these limits, and anything
+        Controllers only. src/Api/Security, src/Api/Attribute and src/Api/Listener are excluded
+        on the command line: voters, listeners and attributes live in the Api layer but are not
+        endpoints, and holding a security voter to "three methods, complexity three" produces a
+        worse voter, not a better one. They are covered by the general ruleset instead.
+
+        A controller is: a DTO in, one #[IsGranted], one service call, one response view out. That shape fits well inside these limits, and anything
         that does not fit is business logic that belongs in an Application service — where
         it can be unit-tested without an HTTP kernel. INV-07.
     </description>
