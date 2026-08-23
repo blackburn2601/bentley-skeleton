@@ -65,6 +65,16 @@ enum SecurityEventType: string
      * Kept on the enum so the answer travels with the event rather than living in a
      * dashboard someone has to remember to update.
      */
+    /**
+     * The wire values, for validating a type filter against.
+     *
+     * @return list<string>
+     */
+    public static function names(): array
+    {
+        return array_map(static fn (self $case): string => $case->value, self::cases());
+    }
+
     public function isHighSeverity(): bool
     {
         return match ($this) {

@@ -1,5 +1,6 @@
 import { fileURLToPath, URL } from 'node:url'
 
+import tailwindcss from '@tailwindcss/vite'
 import vue from '@vitejs/plugin-vue'
 // From vitest/config, not vite: it is the same defineConfig widened to accept the `test`
 // block, which keeps one config file instead of two that can drift apart.
@@ -12,7 +13,7 @@ import { defineConfig } from 'vitest/config'
 const apiTarget = process.env.VITE_API_PROXY ?? 'http://localhost:8080'
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [vue(), tailwindcss()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

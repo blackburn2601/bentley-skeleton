@@ -15,9 +15,27 @@ final class StubSubjectRepository implements SubjectRepository
     /** @var array<string, SubjectSet> */
     private array $sets = [];
 
+    /** @var array<string, list<Uuid>> */
+    private array $groupMembers = [];
+
+    /** @var array<string, list<Uuid>> */
+    private array $roleHolders = [];
+
     public function define(SubjectSet $set): void
     {
         $this->sets[$set->userId->toRfc4122()] = $set;
+    }
+
+    /** @param list<Uuid> $userIds */
+    public function defineGroupMembers(UserGroup $group, array $userIds): void
+    {
+        $this->groupMembers[$group->id()->toRfc4122()] = $userIds;
+    }
+
+    /** @param list<Uuid> $userIds */
+    public function defineRoleHolders(Role $role, array $userIds): void
+    {
+        $this->roleHolders[$role->id()->toRfc4122()] = $userIds;
     }
 
     public function subjectSetFor(Uuid $userId): SubjectSet
@@ -53,6 +71,11 @@ final class StubSubjectRepository implements SubjectRepository
 
     public function memberIdsOf(UserGroup $group): array
     {
-        return [];
+        return $this->groupMembers[$group->id()->toRfc4122()] ?? [];
+    }
+
+    public function userIdsWithRole(Role $role): array
+    {
+        return $this->roleHolders[$role->id()->toRfc4122()] ?? [];
     }
 }

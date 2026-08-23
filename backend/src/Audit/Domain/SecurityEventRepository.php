@@ -25,5 +25,15 @@ interface SecurityEventRepository
      */
     public function findRecent(array $types = [], int $offset = 0, int $limit = 50): array;
 
+    /**
+     * The total findRecent() would return unpaged, under the same type filter.
+     *
+     * countAll() cannot serve a filtered list: it ignores the filter, so a pager built on it
+     * offers pages of a result set that does not exist.
+     *
+     * @param list<SecurityEventType> $types
+     */
+    public function countRecent(array $types = []): int;
+
     public function countAll(): int;
 }

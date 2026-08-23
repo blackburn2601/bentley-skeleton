@@ -36,13 +36,14 @@ test.describe('sign in', () => {
     const readable = await page.evaluate(() => document.cookie)
     expect(readable).not.toContain('__Host-bentley_at')
 
-    // exact: true — the account page also has a "Sign out everywhere" button, and a
-    // substring match would be ambiguous.
-    await page.getByRole('button', { name: 'Sign out', exact: true }).click()
+    // Sign out now lives in the account menu in the shell's top bar, so the menu has to be
+    // opened first. exact: true — the account page also has a "Sign out everywhere" button.
+    await page.getByRole('button', { name: 'Account menu' }).click()
+    await page.getByRole('menuitem', { name: 'Sign out', exact: true }).click()
 
-    // Back to the home page, and the session cookies are gone. Scoped to the navigation: the
-    // home page body links to sign-in as well, and an unscoped match is ambiguous.
-    await expect(page.getByRole('navigation').getByRole('link', { name: 'Sign in' })).toBeVisible()
+    // Signed out lands on the sign-in page, which is the one place a signed-out visitor can be.
+    await expect(page).toHaveURL(/\/sign-in$/)
+    await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
 
     const afterSignOut = await page.context().cookies()
     const stillThere = afterSignOut.find(

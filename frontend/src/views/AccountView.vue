@@ -68,13 +68,13 @@ async function erase(): Promise<void> {
 </script>
 
 <template>
-  <section class="panel">
+  <section class="space-y-4">
     <h1>Your account</h1>
 
-    <p v-if="notice" class="notice notice--success" role="status">{{ notice }}</p>
-    <p v-if="error" class="notice notice--error" role="alert">{{ error }}</p>
+    <p v-if="notice" class="rounded-md border border-success/40 bg-success/10 px-3 py-2 text-sm text-success" role="status">{{ notice }}</p>
+    <p v-if="error" class="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">{{ error }}</p>
 
-    <dl class="detail">
+    <dl class="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 text-sm">
       <dt>Email</dt>
       <dd>{{ auth.user?.email }}</dd>
       <dt>Email confirmed</dt>
@@ -99,7 +99,7 @@ async function erase(): Promise<void> {
     </button>
 
     <h2>Delete your account</h2>
-    <p class="warning">
+    <p class="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
       This anonymises your account and ends every session. Security records are kept as
       required and no longer identify you. It cannot be undone.
     </p>
@@ -112,7 +112,7 @@ async function erase(): Promise<void> {
     <input id="confirm-erase" v-model="confirmErase" autocomplete="off" />
     <button
       type="button"
-      class="button--danger"
+      class="inline-flex h-9 cursor-pointer items-center justify-center rounded-md bg-destructive px-4 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 disabled:pointer-events-none disabled:opacity-50"
       :disabled="confirmErase !== 'DELETE' || busy !== null"
       @click="erase"
     >

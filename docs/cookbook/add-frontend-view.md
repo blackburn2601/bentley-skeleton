@@ -56,8 +56,22 @@ button is still a reachable endpoint, and the IDOR suite exists because that get
 make front-lint front-test front-build
 ```
 
-The production build has a size budget. If you just added a large dependency, this is where
-you find out.
+`front-build` now runs the gzipped size budget (400 KB JS, 100 KB CSS) as well, so if you just
+added a large dependency this really is where you find out. It used to say so without doing it
+— the budget ran only in CI.
+
+## 8. Reuse the shell rather than rebuilding it
+
+An admin screen is normally a list, and `usePaginatedResource` + `DataTable` already own
+paging, debounced filters, and the loading, empty and error states — including surfacing
+`ApiError.requestId`, which is what makes a support ticket traceable. A list view that does its
+own `loading = true` bookkeeping is a view that will drift from the others.
+
+For permission-dependent navigation, use `usePermission()` or `useNavigation()`, **not**
+`v-can`. The directive runs once on `mounted` and removes the element, so it cannot show an
+entry that a grant made available a moment ago — which is precisely the behaviour INV-13
+requires. `v-can` remains correct for a static control on a page the user has already
+loaded.
 
 ## Checklist
 
@@ -67,4 +81,5 @@ you find out.
 - [ ] Route guard where authentication is required
 - [ ] `v-can` used for display only, with the endpoint enforcing the real check
 - [ ] Vitest for the component, Playwright for the flow
-- [ ] `make front-lint front-test front-build` green
+- [ ] `make front-lint front-test front-build` green, budget included
+- [ ] Permission-gated navigation uses `usePermission()`/`useNavigation()`, not `v-can`

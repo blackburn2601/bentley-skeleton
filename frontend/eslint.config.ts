@@ -59,4 +59,20 @@ export default defineConfigWithVueTs(
       'no-console': 'off',
     },
   },
+
+  {
+    // The vendored design-system primitives (ADR-0022).
+    //
+    // shadcn-vue names them Button.vue, Card.vue, Table.vue — single words, which
+    // vue/multi-word-component-names rejects. Renaming every one of them would fork the
+    // upstream source for no benefit and make the next re-vendor a merge conflict. Scoped to
+    // this directory so the rule still protects components written here.
+    name: 'app/ui-primitives',
+    files: ['src/components/ui/**/*.vue'],
+    rules: {
+      'vue/multi-word-component-names': 'off',
+      'vue/require-default-prop': 'off',
+      'vue/attributes-order': 'off',
+    },
+  },
 )

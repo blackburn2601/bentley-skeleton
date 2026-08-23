@@ -4,7 +4,35 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+    <meta name="color-scheme" content="light dark" />
+    <title>bentley</title>
+    <!--
+      Apply the stored theme before the first paint.
+
+      This has to be inline and synchronous. Anything deferred — including the app bundle —
+      runs after the browser has already painted, so a dark-themed page flashes white on every
+      single load. It is a few lines of duplication with useTheme(); the alternative is a
+      visible defect on every navigation.
+
+      NOTE for whoever adds a nonce-based Content-Security-Policy to the SPA: this script needs
+      a nonce or a hash in script-src, or the theme silently stops applying early. The backend's
+      SecurityHeadersSubscriber only sends CSP for /api/ and /health/, so nothing blocks it today.
+    -->
+    <script>
+      ;(function () {
+        try {
+          var stored = localStorage.getItem('bentley-theme')
+          var dark =
+            stored === 'dark' ||
+            ((stored === 'system' || stored === null) &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches)
+          document.documentElement.classList.toggle('dark', dark)
+          document.documentElement.style.colorScheme = dark ? 'dark' : 'light'
+        } catch (e) {
+          /* Private modes throw on storage access. A light page is a fine fallback. */
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="app"></div>

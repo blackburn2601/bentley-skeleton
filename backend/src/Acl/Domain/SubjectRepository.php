@@ -34,6 +34,18 @@ interface SubjectRepository
 
     public function removeFromGroup(Uuid $userId, UserGroup $group): void;
 
+    /**
+     * Every user this role reaches: direct holders plus members of groups carrying it.
+     *
+     * Needed to invalidate ACL caches when a role's permission set changes. Direct holders
+     * alone is the wrong answer — a role is usually attached to a group precisely so that it
+     * does not have to be granted person by person, and those people would keep their stale
+     * decisions.
+     *
+     * @return list<Uuid>
+     */
+    public function userIdsWithRole(Role $role): array;
+
     /** @return list<Uuid> user ids in this group — needed to invalidate their ACL caches */
     public function memberIdsOf(UserGroup $group): array;
 }

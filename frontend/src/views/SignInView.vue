@@ -46,7 +46,7 @@ async function submit(): Promise<void> {
     />
 
     <template #footer>
-      <p class="form__links">
+      <p class="flex flex-wrap justify-between gap-3 text-sm">
         <RouterLink :to="{ name: 'forgot-password' }">Forgotten your password?</RouterLink>
         <RouterLink :to="{ name: 'register' }">Create an account</RouterLink>
       </p>

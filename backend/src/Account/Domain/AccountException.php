@@ -106,4 +106,50 @@ final class AccountException extends RuntimeException implements DomainProblem
     {
         return new self('That email address cannot be registered.', ProblemKind::Conflict);
     }
+
+    public static function noSuchAccount(): self
+    {
+        return new self('No such account.', ProblemKind::NotFound);
+    }
+
+    /**
+     * An administrator may not suspend themselves.
+     *
+     * Not paternalism: suspension revokes every session, so the act would immediately lock the
+     * actor out of the tool they would need to undo it — and if they hold the only account
+     * with the permission, nobody can.
+     */
+    public static function cannotChangeOwnStatus(): self
+    {
+        return new self('You cannot change the status of your own account.', ProblemKind::Conflict);
+    }
+
+    public static function accountIsAnonymised(): self
+    {
+        return new self('This account has been erased. Its status is final.', ProblemKind::Conflict);
+    }
+
+    public static function statusNotSettable(string $status): self
+    {
+        return new self(
+            \sprintf('"%s" is not a status an administrator can assign.', $status),
+            ProblemKind::Invalid,
+        );
+    }
+
+    /**
+     * The same conflict, said plainly.
+     *
+     * emailAlreadyRegistered() is deliberately vague because it can reach an anonymous caller,
+     * where naming the reason turns the form into an account-enumeration oracle. An
+     * administrator is already authorized to list every account, so withholding it from them
+     * protects nothing and only leaves them waiting for an account that will never arrive.
+     */
+    public static function emailAlreadyInUse(string $email): self
+    {
+        return new self(
+            \sprintf('An account already exists for %s.', $email),
+            ProblemKind::Conflict,
+        );
+    }
 }

@@ -31,7 +31,7 @@ HOST_BACKEND := cd backend &&
 
 .PHONY: help up down restart sh logs ps migrate migrate-down fixtures db-reset \
         test test-db test-unit test-integration test-functional coverage \
-        lint fix stan arch proof docs docs-check e2e front-lint front-test front-build \
+        lint fix stan arch proof docs docs-check e2e front-lint front-test front-build front-budget \
         adr endpoint service \
         check ci new-project keys hooks
 
@@ -174,8 +174,15 @@ front-lint: ## ESLint + vue-tsc on the SPA
 front-test: ## Vitest unit tests
 	npm --prefix frontend run test
 
-front-build: ## Production SPA build
+front-build: ## Production SPA build, then the bundle-size budget
 	npm --prefix frontend run build
+	$(MAKE) front-budget
+
+# The budget used to run only in CI, while docs/cookbook/add-frontend-view.md told the reader
+# that `make front-build` was "where you find out" if a dependency blew it up. It wasn't. A
+# bundle that quietly triples is a real regression that no other check notices.
+front-budget: ## Fail if the built SPA exceeds the gzipped size budget
+	node bin/bundle-budget.mjs
 
 e2e: ## Playwright end-to-end suite against the running stack
 	# Clear the rate-limit counters first. The login limiter is 5 attempts per 15 minutes per

@@ -6,6 +6,7 @@ namespace App\Acl\Infrastructure\Repository;
 
 use App\Acl\Domain\AclEntry;
 use App\Acl\Domain\AclEntryRepository;
+use App\Acl\Domain\AclSubjectType;
 use App\Acl\Domain\SubjectSet;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\QueryBuilder;
@@ -88,6 +89,44 @@ final readonly class DoctrineAclEntryRepository implements AclEntryRepository
         return $this->em->find(AclEntry::class, $id);
     }
 
+    public function findPaginated(
+        ?AclSubjectType $subjectType,
+        ?Uuid $subjectId,
+        ?string $resourceClass,
+        int $offset,
+        int $limit,
+    ): array {
+        $qb = $this->em->createQueryBuilder()
+            ->select('e', 'p')
+            ->from(AclEntry::class, 'e')
+            ->join('e.permission', 'p')
+            ->orderBy('e.createdAt', 'DESC')
+            ->setFirstResult($offset)
+            ->setMaxResults($limit);
+
+        $this->applyAdminFilters($qb, $subjectType, $subjectId, $resourceClass);
+
+        /** @var list<AclEntry> $result */
+        $result = $qb->getQuery()->getResult();
+
+        return $result;
+    }
+
+    public function countFiltered(
+        ?AclSubjectType $subjectType,
+        ?Uuid $subjectId,
+        ?string $resourceClass,
+    ): int {
+        $qb = $this->em->createQueryBuilder()
+            ->select('COUNT(e.id)')
+            ->from(AclEntry::class, 'e')
+            ->join('e.permission', 'p');
+
+        $this->applyAdminFilters($qb, $subjectType, $subjectId, $resourceClass);
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
     public function findForResource(string $resourceClass, ?Uuid $resourceId): array
     {
         $qb = $this->em->createQueryBuilder()
@@ -108,6 +147,32 @@ final readonly class DoctrineAclEntryRepository implements AclEntryRepository
         $result = $qb->getQuery()->getResult();
 
         return $result;
+    }
+
+    /**
+     * The filter clauses, in one place.
+     *
+     * findPaginated() and countFiltered() must agree exactly: a total computed over a
+     * different WHERE than the rows produces a pager that promises pages which come back
+     * empty.
+     */
+    private function applyAdminFilters(
+        QueryBuilder $qb,
+        ?AclSubjectType $subjectType,
+        ?Uuid $subjectId,
+        ?string $resourceClass,
+    ): void {
+        if ($subjectType instanceof AclSubjectType) {
+            $qb->andWhere('e.subjectType = :subjectType')->setParameter('subjectType', $subjectType->value);
+        }
+
+        if ($subjectId instanceof Uuid) {
+            $qb->andWhere('e.subjectId = :subjectId')->setParameter('subjectId', $subjectId->toRfc4122());
+        }
+
+        if (null !== $resourceClass) {
+            $qb->andWhere('e.resourceClass = :filterResourceClass')->setParameter('filterResourceClass', $resourceClass);
+        }
     }
 
     /**

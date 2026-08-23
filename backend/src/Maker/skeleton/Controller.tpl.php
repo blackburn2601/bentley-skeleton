@@ -8,7 +8,7 @@ use <?php echo $request_fqcn; ?>;
 use <?php echo $response_fqcn; ?>;
 use <?php echo $service_fqcn; ?>;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
+use Symfony\Component\HttpKernel\Attribute\<?php echo $payload_attribute; ?>;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
@@ -30,7 +30,7 @@ final class <?php echo $class_name; ?>
     }
 
     public function __invoke(
-        #[MapRequestPayload] <?php echo $request_short; ?> $request,
+        #[<?php echo $payload_attribute; ?>] <?php echo $request_short; ?> $request,
     ): JsonResponse {
         // Map the request DTO onto the service's parameters here. The service must not
         // receive the DTO itself — Application may not depend on Api.

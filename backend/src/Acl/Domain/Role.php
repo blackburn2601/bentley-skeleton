@@ -80,6 +80,18 @@ class Role
         return array_values($this->permissions->toArray());
     }
 
+    /**
+     * The name is deliberately not editable.
+     *
+     * Role names are load-bearing: they are constants here (SUPER_ADMIN, DEFAULT_USER), they
+     * are the `roles` claim in every access token, and Symfony matches on them. Renaming one
+     * would silently change who is who. Only the human-facing description moves.
+     */
+    public function describe(?string $description): void
+    {
+        $this->description = $description;
+    }
+
     public function grant(Permission $permission): void
     {
         if (!$this->permissions->contains($permission)) {

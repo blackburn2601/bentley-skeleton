@@ -121,7 +121,11 @@ final readonly class DoctrineSubjectRepository implements SubjectRepository
 
     public function memberIdsOf(UserGroup $group): array
     {
-        /** @var list<array{userId: string}> $rows */
+        // Note the type: a `uuid` column hydrates to a Uuid OBJECT even through
+        // getArrayResult(), which returns scalars for everything else. Calling
+        // Uuid::fromString() on it is a TypeError, and annotating the row as
+        // `array{userId: string}` does not make it one — it only stops PHPStan from noticing.
+        /** @var list<array{userId: Uuid}> $rows */
         $rows = $this->em->createQueryBuilder()
             ->select('m.userId')
             ->from(GroupMembership::class, 'm')
@@ -130,7 +134,39 @@ final readonly class DoctrineSubjectRepository implements SubjectRepository
             ->getQuery()
             ->getArrayResult();
 
-        return array_map(static fn (array $row): Uuid => Uuid::fromString($row['userId']), $rows);
+        return array_map(static fn (array $row): Uuid => $row['userId'], $rows);
+    }
+
+    public function userIdsWithRole(Role $role): array
+    {
+        /** @var list<array{userId: Uuid}> $direct — see memberIdsOf() on the hydrated type. */
+        $direct = $this->em->createQueryBuilder()
+            ->select('ur.userId')
+            ->from(UserRole::class, 'ur')
+            ->where('ur.role = :role')
+            ->setParameter('role', $role)
+            ->getQuery()
+            ->getArrayResult();
+
+        // Membership of any group that carries this role. Two queries rather than a UNION:
+        // DQL has no UNION, and this runs on role edits, which are rare.
+        /** @var list<array{userId: Uuid}> $viaGroups */
+        $viaGroups = $this->em->createQueryBuilder()
+            ->select('m.userId')
+            ->from(GroupMembership::class, 'm')
+            ->join('m.group', 'g')
+            ->join('g.roles', 'r')
+            ->where('r.id = :roleId')
+            ->setParameter('roleId', $role->id()->toRfc4122())
+            ->getQuery()
+            ->getArrayResult();
+
+        $ids = [];
+        foreach ([...$direct, ...$viaGroups] as $row) {
+            $ids[$row['userId']->toRfc4122()] = $row['userId'];
+        }
+
+        return array_values($ids);
     }
 
     private function findAssignment(Uuid $userId, Role $role): ?UserRole

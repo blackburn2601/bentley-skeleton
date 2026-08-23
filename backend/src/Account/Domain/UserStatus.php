@@ -24,6 +24,16 @@ enum UserStatus: string
     /** GDPR erasure has anonymised this row. Terminal. */
     case Anonymised = 'anonymised';
 
+    /**
+     * The wire values, for validating a status filter against.
+     *
+     * @return list<string>
+     */
+    public static function names(): array
+    {
+        return array_map(static fn (self $case): string => $case->value, self::cases());
+    }
+
     public function canAuthenticate(): bool
     {
         return self::Active === $this;

@@ -146,6 +146,10 @@ final class ApiEndpointMaker extends AbstractMaker
         ]);
         $generator->generateClass($controller, $this->skeleton('Controller.tpl.php'), $shared + [
             'route_name' => $this->routeName($method, $name),
+            // A GET carries its parameters in the query string, not a body. Binding one with
+            // #[MapRequestPayload] yields an endpoint that silently ignores every filter it
+            // was given, which is a bug the generator should not be able to produce.
+            'payload_attribute' => 'GET' === $method ? 'MapQueryString' : 'MapRequestPayload',
             'request_fqcn' => $request,
             'request_short' => $name.'Request',
             'response_fqcn' => $response,

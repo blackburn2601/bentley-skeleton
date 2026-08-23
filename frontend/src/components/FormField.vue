@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+
 /**
  * One labelled input with its error.
  *
@@ -18,9 +21,9 @@ defineProps<{
 </script>
 
 <template>
-  <div class="field">
-    <label :for="id">{{ label }}</label>
-    <input
+  <div class="space-y-1.5">
+    <Label :for="id">{{ label }}</Label>
+    <Input
       :id="id"
       v-model="model"
       :type="type ?? 'text'"
@@ -28,7 +31,11 @@ defineProps<{
       :aria-invalid="error ? 'true' : undefined"
       :aria-describedby="error ? `${id}-error` : hint ? `${id}-hint` : undefined"
     />
-    <p v-if="hint && !error" :id="`${id}-hint`" class="field__hint">{{ hint }}</p>
-    <p v-if="error" :id="`${id}-error`" class="field__error" role="alert">{{ error }}</p>
+    <p v-if="hint && !error" :id="`${id}-hint`" class="text-xs text-muted-foreground">
+      {{ hint }}
+    </p>
+    <p v-if="error" :id="`${id}-error`" class="text-xs text-destructive" role="alert">
+      {{ error }}
+    </p>
   </div>
 </template>
