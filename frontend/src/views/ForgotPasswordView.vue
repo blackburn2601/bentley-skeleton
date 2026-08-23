@@ -40,7 +40,7 @@ async function submit(): Promise<void> {
     <FormField id="email" v-model="email" label="Email" type="email" autocomplete="username" />
 
     <template #footer>
-      <p class="form__links">
+      <p class="flex flex-wrap justify-between gap-3 text-sm">
         <RouterLink :to="{ name: 'sign-in' }">Back to sign in</RouterLink>
       </p>
     </template>

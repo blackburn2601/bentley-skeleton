@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ApiError } from '@/api/problem'
+import { Button } from '@/components/ui/button'
 
 /**
  * Shared form shell: submission state, and errors rendered where they belong.
@@ -31,23 +32,35 @@ function requestIdFor(error: ApiError | Error | null | undefined): string | unde
 </script>
 
 <template>
-  <form class="form" novalidate @submit.prevent="$emit('submit')">
-    <h1>{{ title }}</h1>
+  <form class="space-y-5" novalidate @submit.prevent="$emit('submit')">
+    <h1 class="text-2xl font-semibold tracking-tight">{{ title }}</h1>
 
-    <p v-if="success" class="notice notice--success" role="status">{{ success }}</p>
+    <p
+      v-if="success"
+      class="rounded-md border border-success/40 bg-success/10 px-3 py-2 text-sm text-success"
+      role="status"
+    >
+      {{ success }}
+    </p>
 
-    <div v-if="messageFor(error)" class="notice notice--error" role="alert">
+    <div
+      v-if="messageFor(error)"
+      class="space-y-1 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+      role="alert"
+    >
       <p>{{ messageFor(error) }}</p>
-      <p v-if="requestIdFor(error)" class="notice__meta">
+      <p v-if="requestIdFor(error)" class="text-xs opacity-80">
         Reference: <code>{{ requestIdFor(error) }}</code>
       </p>
     </div>
 
-    <slot />
+    <div class="space-y-4">
+      <slot />
+    </div>
 
-    <button type="submit" :disabled="busy">
+    <Button type="submit" class="w-full" :disabled="busy">
       {{ busy ? 'Working…' : submitLabel }}
-    </button>
+    </Button>
 
     <slot name="footer" />
   </form>

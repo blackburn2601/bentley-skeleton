@@ -66,7 +66,7 @@ async function submit(): Promise<void> {
     />
 
     <template #footer>
-      <p class="form__links">
+      <p class="flex flex-wrap justify-between gap-3 text-sm">
         <RouterLink :to="{ name: 'sign-in' }">Already have an account?</RouterLink>
       </p>
     </template>

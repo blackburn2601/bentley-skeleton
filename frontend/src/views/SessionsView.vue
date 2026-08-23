@@ -31,7 +31,7 @@ function device(userAgent: string | null): string {
 </script>
 
 <template>
-  <section class="panel">
+  <section class="space-y-4">
     <h1>Active sessions</h1>
     <p>
       Each row is one sign-in. If you do not recognise one, sign out everywhere and change your
@@ -39,9 +39,9 @@ function device(userAgent: string | null): string {
     </p>
 
     <p v-if="loading" role="status">Loading…</p>
-    <p v-else-if="error" class="notice notice--error" role="alert">{{ error }}</p>
+    <p v-else-if="error" class="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">{{ error }}</p>
 
-    <table v-else class="table">
+    <table v-else class="w-full border-collapse text-sm">
       <thead>
         <tr>
           <th scope="col">Device</th>
@@ -53,7 +53,7 @@ function device(userAgent: string | null): string {
         <tr v-for="session in sessions" :key="session.id">
           <td>
             {{ device(session.userAgent) }}
-            <span v-if="session.current" class="badge">This device</span>
+            <span v-if="session.current" class="inline-flex items-center rounded-md border border-border px-2 py-0.5 text-xs font-medium">This device</span>
           </td>
           <td>{{ when(session.createdAt) }}</td>
           <td><code>{{ session.ipAddress ?? 'unknown' }}</code></td>

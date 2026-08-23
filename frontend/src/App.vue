@@ -1,44 +1,32 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 
+import ToastRegion from '@/components/app/ToastRegion.vue'
+import { useTheme } from '@/composables/useTheme'
 import { useAuthStore } from '@/stores/auth'
 
+/**
+ * The application root: a layout outlet and the toast region, nothing else.
+ *
+ * The chrome used to live here. It now lives in the layout routes, so a signed-out visitor
+ * never downloads the admin shell and `meta` can be declared once per layout rather than once
+ * per screen.
+ */
 const auth = useAuthStore()
-const router = useRouter()
+const { initialise } = useTheme()
 
 onMounted(() => {
-  // The router guard already resolves the session before the first navigation; this only
-  // covers the case where the app is mounted without one.
+  // index.html already put the class on <html> before first paint; this adopts that choice
+  // into reactive state so the toggle starts from the right place.
+  initialise()
+
   if (!auth.resolved) {
     void auth.load()
   }
 })
-
-async function signOut(): Promise<void> {
-  await auth.signOut()
-  await router.push({ name: 'home' })
-}
 </script>
 
 <template>
-  <div class="app">
-    <header class="app__header">
-      <RouterLink :to="{ name: 'home' }" class="app__brand">bentley</RouterLink>
-
-      <nav class="app__nav">
-        <template v-if="auth.isAuthenticated">
-          <RouterLink :to="{ name: 'account' }">{{ auth.user?.email }}</RouterLink>
-          <button type="button" class="button--link" @click="signOut">Sign out</button>
-        </template>
-        <template v-else>
-          <RouterLink :to="{ name: 'sign-in' }">Sign in</RouterLink>
-        </template>
-      </nav>
-    </header>
-
-    <main class="app__main">
-      <RouterView />
-    </main>
-  </div>
+  <RouterView />
+  <ToastRegion />
 </template>

@@ -132,5 +132,10 @@ export const api = {
     request<T>('POST', path, { ...options, body }),
   patch: <T>(path: string, body?: unknown, options?: RequestOptions) =>
     request<T>('PATCH', path, { ...options, body }),
+  // PUT, for endpoints that replace a whole collection — a role's permission set, a group's
+  // members. Sending a delta instead would race with itself the moment two administrators
+  // have the same screen open.
+  put: <T>(path: string, body?: unknown, options?: RequestOptions) =>
+    request<T>('PUT', path, { ...options, body }),
   delete: <T>(path: string, options?: RequestOptions) => request<T>('DELETE', path, options),
 }

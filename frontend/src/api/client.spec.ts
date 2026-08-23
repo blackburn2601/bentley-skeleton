@@ -187,4 +187,19 @@ describe('api client', () => {
     // reach must not become an infinite refresh loop.
     expect(vi.mocked(fetch)).toHaveBeenCalledTimes(3)
   })
+
+  it('sends a PUT with its body, the CSRF header and cookies', async () => {
+    document.cookie = '__Host-bentley_csrf=put-token; path=/; secure'
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{"ok":true}', { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await api.put('/api/v1/admin/roles/abc/permissions', { permissions: ['user.read'] })
+
+    const [path, init] = fetchMock.mock.calls[0]
+    expect(path).toBe('/api/v1/admin/roles/abc/permissions')
+    expect(init.method).toBe('PUT')
+    expect(init.credentials).toBe('same-origin')
+    expect(init.headers.get('X-CSRF-Token')).toBe('put-token')
+    expect(JSON.parse(init.body)).toEqual({ permissions: ['user.read'] })
+  })
 })

@@ -48,7 +48,7 @@ async function submit(): Promise<void> {
     :success="success"
     @submit="submit"
   >
-    <p v-if="!token" class="notice notice--error" role="alert">
+    <p v-if="!token" class="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
       This link is missing its token. Request a new reset link.
     </p>
 
@@ -63,7 +63,7 @@ async function submit(): Promise<void> {
     />
 
     <template #footer>
-      <p class="form__links">
+      <p class="flex flex-wrap justify-between gap-3 text-sm">
         <RouterLink :to="{ name: 'forgot-password' }">Request a new link</RouterLink>
       </p>
     </template>

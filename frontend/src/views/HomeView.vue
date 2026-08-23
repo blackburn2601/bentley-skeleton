@@ -5,7 +5,7 @@ const auth = useAuthStore()
 </script>
 
 <template>
-  <section class="panel">
+  <section class="space-y-4">
     <h1>bentley-skeleton</h1>
     <p>A headless Symfony API with a Vue SPA, built to be extended safely.</p>
 

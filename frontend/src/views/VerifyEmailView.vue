@@ -34,12 +34,12 @@ onMounted(async () => {
 </script>
 
 <template>
-  <section class="panel">
+  <section class="space-y-4">
     <h1>Confirm your email</h1>
 
     <p v-if="state === 'working'" role="status">Confirming…</p>
-    <p v-else-if="state === 'done'" class="notice notice--success" role="status">{{ message }}</p>
-    <p v-else class="notice notice--error" role="alert">{{ message }}</p>
+    <p v-else-if="state === 'done'" class="rounded-md border border-success/40 bg-success/10 px-3 py-2 text-sm text-success" role="status">{{ message }}</p>
+    <p v-else class="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">{{ message }}</p>
 
     <p v-if="state === 'done'">
       <RouterLink :to="{ name: 'sign-in' }">Sign in</RouterLink>
