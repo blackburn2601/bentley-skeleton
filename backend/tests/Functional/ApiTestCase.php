@@ -77,6 +77,109 @@ abstract class ApiTestCase extends WebTestCase
     }
 
     /**
+     * One string field out of the last response, asserted to be there.
+     *
+     * responseJson() is deliberately typed as array<array-key, mixed>, because a JSON body can
+     * be anything. Casting mixed at each call site is what PHPStan objects to, and rightly:
+     * this asserts the shape instead.
+     */
+    final protected function responseString(string $key): string
+    {
+        $body = $this->responseJson();
+
+        self::assertArrayHasKey($key, $body);
+        $value = $body[$key];
+        self::assertIsString($value);
+
+        return $value;
+    }
+
+    /**
+     * One list-of-strings field out of the last response, asserted to be there.
+     *
+     * Pass a dotted path for a nested object, e.g. `access.roles`.
+     *
+     * @return list<string>
+     */
+    final protected function responseList(string $key): array
+    {
+        /** @var array<array-key, mixed> $body */
+        $body = $this->responseJson();
+
+        foreach (explode('.', $key) as $segment) {
+            self::assertArrayHasKey($segment, $body);
+            $next = $body[$segment];
+            self::assertIsArray($next);
+            $body = $next;
+        }
+
+        $value = $body;
+        self::assertIsArray($value);
+
+        $strings = [];
+        foreach ($value as $item) {
+            self::assertIsString($item);
+            $strings[] = $item;
+        }
+
+        return $strings;
+    }
+
+    /**
+     * The last response as a paginated envelope, with the envelope itself asserted.
+     *
+     * Every collection in this API returns the same four keys (ADR-0019), so the shape is
+     * checked once here rather than in each list endpoint's test — and a test that reads
+     * `$page['total']` gets an int rather than a mixed it has to cast.
+     *
+     * @return array{items: list<array<string, mixed>>, page: int, perPage: int, total: int}
+     */
+    final protected function pageJson(): array
+    {
+        $body = $this->responseJson();
+
+        self::assertArrayHasKey('items', $body);
+        self::assertArrayHasKey('page', $body);
+        self::assertArrayHasKey('perPage', $body);
+        self::assertArrayHasKey('total', $body);
+
+        $items = $body['items'];
+        $page = $body['page'];
+        $perPage = $body['perPage'];
+        $total = $body['total'];
+
+        self::assertIsArray($items);
+        self::assertIsInt($page);
+        self::assertIsInt($perPage);
+        self::assertIsInt($total);
+
+        $rows = [];
+        foreach (array_values($items) as $row) {
+            self::assertIsArray($row);
+            /** @var array<string, mixed> $row */
+            $rows[] = $row;
+        }
+
+        return ['items' => $rows, 'page' => $page, 'perPage' => $perPage, 'total' => $total];
+    }
+
+    /**
+     * One column out of a paginated envelope's rows, as strings.
+     *
+     * @param list<array<string, mixed>> $items
+     *
+     * @return list<string>
+     */
+    final protected function column(array $items, string $key): array
+    {
+        return array_map(static function (array $row) use ($key): string {
+            $value = $row[$key] ?? '';
+
+            return \is_scalar($value) ? (string) $value : '';
+        }, $items);
+    }
+
+    /**
      * Log in through the real endpoint and keep the cookies for subsequent requests.
      */
     final protected function logIn(User $user): void
@@ -111,11 +214,19 @@ abstract class ApiTestCase extends WebTestCase
      *
      * Use after a request that changed it: the in-memory instance this test holds predates the
      * write and will happily report stale values.
+     *
+     * `find()` alone does NOT do this. It returns whatever is in the identity map, and this
+     * test's EntityManager already tracks any entity it created — so after a request wrote to
+     * the row through a different manager, find() hands back the stale instance and the
+     * assertion passes or fails on data from before the request. `refresh()` is what actually
+     * issues the SELECT.
      */
     final protected function reload(User $user): User
     {
         $fresh = $this->em->getRepository(User::class)->find($user->id());
         self::assertInstanceOf(User::class, $fresh);
+
+        $this->em->refresh($fresh);
 
         return $fresh;
     }

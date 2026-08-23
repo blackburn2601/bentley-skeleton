@@ -12,6 +12,29 @@ a build failure (INV-11), so it should never appear here.
 
 | Method | Path | Permission | Request DTO | Controller |
 |---|---|---|---|---|
+| GET | `/api/v1/admin/audit-events` | `audit.read` | — | `ListSecurityEventsController` |
+| GET | `/api/v1/admin/groups` | `group.read` | — | `ListGroupsController` |
+| POST | `/api/v1/admin/groups` | `group.create` | `CreateGroupRequest` | `CreateGroupController` |
+| DELETE | `/api/v1/admin/groups/{id}` | `group.delete` | — | `DeleteGroupController` |
+| PATCH | `/api/v1/admin/groups/{id}` | `group.update` | `UpdateGroupRequest` | `UpdateGroupController` |
+| GET | `/api/v1/admin/groups/{id}/members` | `group.read` | — | `ListGroupMembersController` |
+| PUT | `/api/v1/admin/groups/{id}/members` | `group.update` | `SetGroupMembersRequest` | `SetGroupMembersController` |
+| PUT | `/api/v1/admin/groups/{id}/roles` | `group.update` | `SetGroupRolesRequest` | `SetGroupRolesController` |
+| GET | `/api/v1/admin/permissions` | `permission.read` | — | `ListPermissionsController` |
+| GET | `/api/v1/admin/roles` | `role.read` | — | `ListRolesController` |
+| POST | `/api/v1/admin/roles` | `role.create` | `CreateRoleRequest` | `CreateRoleController` |
+| DELETE | `/api/v1/admin/roles/{id}` | `role.delete` | — | `DeleteRoleController` |
+| PATCH | `/api/v1/admin/roles/{id}` | `role.update` | `UpdateRoleRequest` | `UpdateRoleController` |
+| PUT | `/api/v1/admin/roles/{id}/permissions` | `permission.grant` | `SetRolePermissionsRequest` | `SetRolePermissionsController` |
+| GET | `/api/v1/admin/users` | `user.read` | — | `ListUsersController` |
+| POST | `/api/v1/admin/users` | `user.create` | `CreateUserRequest` | `CreateUserController` |
+| DELETE | `/api/v1/admin/users/{id}` | `user.delete` | — | `EraseUserController` |
+| GET | `/api/v1/admin/users/{id}` | `user.read` | — | `DescribeUserController` |
+| PATCH | `/api/v1/admin/users/{id}` | `user.update` | `UpdateUserRequest` | `UpdateUserController` |
+| POST | `/api/v1/admin/users/{id}/roles` | `permission.grant` | `AssignRoleRequest` | `AssignRoleController` |
+| DELETE | `/api/v1/admin/users/{id}/roles/{roleName}` | `permission.revoke` | — | `RevokeRoleController` |
+| POST | `/api/v1/admin/users/{id}/sessions/revoke` | `user.update` | — | `RevokeUserSessionsController` |
+| PATCH | `/api/v1/admin/users/{id}/status` | `user.update` | `ChangeUserStatusRequest` | `ChangeUserStatusController` |
 | POST | `/api/v1/auth/login` | _public_ | `LoginRequest` | `LoginController` |
 | POST | `/api/v1/auth/logout` | _public_ | — | `LogoutController` |
 | POST | `/api/v1/auth/logout-all` | `account.update` | — | `LogoutAllController` |

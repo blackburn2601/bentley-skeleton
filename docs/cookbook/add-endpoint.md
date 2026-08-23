@@ -57,16 +57,35 @@ tests/Functional/Platform/ListNotesControllerTest.php
 that class lives in the Api layer, and Application may not depend on Api (deptrac enforces
 this). Take scalars and value objects; the controller does the mapping.
 
-For a collection endpoint, filter through the ACL rather than filtering in PHP:
+For a collection endpoint, filter through the ACL rather than filtering in PHP. Reach it
+through `AclFacade` — `AclCriteriaBuilder` itself is in Infrastructure and Application may
+not depend on Infrastructure (INV-01), so the facade is the only legal door:
 
 ```php
-$qb = $this->notes->createQueryBuilder('n');
-$this->aclCriteria->apply($qb, 'n', 'note.read');
+$qb = $this->em->createQueryBuilder()->select('n')->from(Note::class, 'n');
+$this->acl->filterToVisible($qb, 'n', PermissionCatalog::NOTE_READ, $callerId);
+
+// Clone AFTER filtering, so the count carries the same predicate as the rows.
+$total = (int) (clone $qb)
+    ->select('COUNT(n.id)')
+    ->resetDQLPart('orderBy')
+    ->setFirstResult(0)
+    ->setMaxResults(null)
+    ->getQuery()
+    ->getSingleScalarResult();
+
+$items = $qb->setFirstResult($page->offset())->setMaxResults($page->limit())->getQuery()->getResult();
 ```
 
 This is not an optimisation. Fetching rows and filtering afterwards breaks pagination —
 page 1 returns three rows because seven were filtered out — and it lets the list disagree
-with a single-item permission check.
+with a single-item permission check, which `AclConsistencyTest` asserts can never happen.
+
+Cloning *before* `filterToVisible()` is the same bug wearing a different hat: the total then
+counts rows the caller may not see, and "1-25 of 348" shows four.
+
+Paging comes from `App\Api\Shared\Request\PageRequest`, which your request DTO extends —
+`?page=` and `?perPage=` mean the same thing on every collection in the API (ADR-0019).
 
 ### 2b. The request DTO
 

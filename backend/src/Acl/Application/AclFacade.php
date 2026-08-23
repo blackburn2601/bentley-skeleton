@@ -12,6 +12,7 @@ use App\Acl\Domain\Role;
 use App\Acl\Domain\SubjectRepository;
 use App\Acl\Domain\SubjectSet;
 use App\Acl\Domain\UserGroup;
+use Doctrine\ORM\QueryBuilder;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -35,6 +36,7 @@ final readonly class AclFacade
         private SubjectRepository $subjects,
         private AclEntryRepository $entries,
         private AssignDefaultRoleService $assignDefaultRole,
+        private AclQueryFilter $queryFilter,
     ) {
     }
 
@@ -111,13 +113,61 @@ final readonly class AclFacade
         return $granted;
     }
 
-    /** @return list<Role> */
+    /**
+     * Narrow a collection query to what one caller may see.
+     *
+     * On the facade because a list endpoint's service lives in another context, and this is
+     * that context's only legal door (INV-02). Callers pass their own QueryBuilder and get it
+     * back modified in place.
+     *
+     * Build the count query by cloning AFTER this call, never before: a total computed over a
+     * different predicate than the rows is how "1-25 of 348" ends up showing four rows.
+     */
+    public function filterToVisible(QueryBuilder $qb, string $alias, string $permission, Uuid $userId): void
+    {
+        $this->queryFilter->apply($qb, $alias, $permission, $userId);
+    }
+
+    /**
+     * Names of the roles assigned DIRECTLY to this user, for another context to display.
+     *
+     * Names rather than Role objects, because a Role is Acl's own entity and handing it across
+     * a context boundary is exactly what INV-02 forbids — rolesOf() below returns entities and
+     * is therefore only callable from inside Acl.
+     *
+     * Direct, not effective: a role inherited through a group cannot be revoked from the user,
+     * so a screen that offered it as a checkbox would present a control that does nothing.
+     * Use roleNamesOf() for the effective set.
+     *
+     * @return list<string>
+     */
+    public function directRoleNamesOf(Uuid $userId): array
+    {
+        return array_map(static fn (Role $r): string => $r->name(), $this->subjects->rolesOf($userId));
+    }
+
+    /**
+     * Names of the groups this user belongs to.
+     *
+     * @return list<string>
+     */
+    public function groupNamesOf(Uuid $userId): array
+    {
+        return array_map(static fn (UserGroup $g): string => $g->name(), $this->subjects->groupsOf($userId));
+    }
+
+    /**
+     * @return list<Role> Acl entities — callable only from inside this context (INV-02).
+     *                    Other contexts want directRoleNamesOf().
+     */
     public function rolesOf(Uuid $userId): array
     {
         return $this->subjects->rolesOf($userId);
     }
 
-    /** @return list<UserGroup> */
+    /**
+     * @return list<UserGroup> Acl entities — see rolesOf(). Other contexts want groupNamesOf().
+     */
     public function groupsOf(Uuid $userId): array
     {
         return $this->subjects->groupsOf($userId);

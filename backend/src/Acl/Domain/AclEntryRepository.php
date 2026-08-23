@@ -47,6 +47,30 @@ interface AclEntryRepository
      */
     public function findClassLevelResourceClasses(SubjectSet $subjects, string $permissionName): array;
 
+    /**
+     * One page of entries matching an administrator's filter, newest first.
+     *
+     * Separate from findCandidates: that one answers a permission check and is shaped for the
+     * resolver's tier walk. This one answers "show me the grants", which needs ordering,
+     * paging and filters the hot path must never pay for.
+     *
+     * @return list<AclEntry>
+     */
+    public function findPaginated(
+        ?AclSubjectType $subjectType,
+        ?Uuid $subjectId,
+        ?string $resourceClass,
+        int $offset,
+        int $limit,
+    ): array;
+
+    /** The total findPaginated() would return unpaged, so a page count can be computed. */
+    public function countFiltered(
+        ?AclSubjectType $subjectType,
+        ?Uuid $subjectId,
+        ?string $resourceClass,
+    ): int;
+
     public function save(AclEntry $entry): void;
 
     public function remove(AclEntry $entry): void;

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Acl\Infrastructure;
 
+use App\Acl\Application\AclQueryFilter;
 use App\Acl\Application\PermissionResolver;
 use App\Acl\Domain\AclEffect;
 use App\Acl\Domain\AclEntry;
@@ -52,7 +53,7 @@ use Symfony\Component\Uid\Uuid;
  * throws. The documented ways forward are in docs/cookbook/add-entity-with-acl.md: filter
  * without inheritance, or enable the denormalised `acl_effective` projection.
  */
-final readonly class AclCriteriaBuilder
+final readonly class AclCriteriaBuilder implements AclQueryFilter
 {
     public function __construct(
         private SubjectRepository $subjects,

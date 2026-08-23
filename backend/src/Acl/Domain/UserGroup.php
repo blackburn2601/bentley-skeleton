@@ -60,6 +60,20 @@ class UserGroup
         return array_values($this->roles->toArray());
     }
 
+    /**
+     * Unlike a role name, a group name carries no meaning to the code — nothing matches on
+     * it — so administrators may correct it.
+     */
+    public function rename(string $name): void
+    {
+        $this->name = $name;
+    }
+
+    public function describe(?string $description): void
+    {
+        $this->description = $description;
+    }
+
     public function assignRole(Role $role): void
     {
         if (!$this->roles->contains($role)) {

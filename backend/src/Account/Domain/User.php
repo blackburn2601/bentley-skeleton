@@ -62,7 +62,7 @@ class User
     // internals, which deptrac rejects, and would give two contexts write access to the same
     // authorization state.
     //
-    // Ask the Acl context instead: `AclFacade::rolesOf($userId)`. The database still carries
+    // Ask the Acl context instead: `AclFacade::directRoleNamesOf($userId)`. The database still carries
     // foreign keys to `"user"` — that constraint is defined in the migration, where it costs
     // nothing and buys referential integrity.
 
@@ -109,6 +109,16 @@ class User
         return $this->aclVersion;
     }
 
+    public function createdAt(): DateTimeImmutable
+    {
+        return $this->createdAt;
+    }
+
+    public function deletedAt(): ?DateTimeImmutable
+    {
+        return $this->deletedAt;
+    }
+
     public function passwordChangedAt(): DateTimeImmutable
     {
         return $this->passwordChangedAt;
@@ -142,6 +152,26 @@ class User
     public function failedLoginCount(): int
     {
         return $this->failedLoginCount;
+    }
+
+    /**
+     * Move the account to a different address, at an administrator's request.
+     *
+     * Verification is deliberately reset. The new address is unproven — nobody has
+     * demonstrated they can receive mail there — and leaving the old `emailVerifiedAt` in place
+     * would let a typo silently become a "verified" address that password resets are sent to.
+     *
+     * The status is left alone: an Active account stays Active, so this does not become a way
+     * to lock someone out by editing their profile.
+     */
+    public function changeEmail(string $email): void
+    {
+        if ($email === $this->email) {
+            return;
+        }
+
+        $this->email = $email;
+        $this->emailVerifiedAt = null;
     }
 
     public function verifyEmail(DateTimeImmutable $now): void

@@ -23,19 +23,25 @@ use Symfony\Component\HttpKernel\Event\RequestEvent;
  * had bypasses, is relaxed by some browsers for top-level navigations, and is a single
  * attribute one careless change can weaken.
  *
- * Applied only to the auth endpoints that act on the refresh cookie. Everything else
- * authenticates with the access token, which a cross-site request cannot mint — and the ACL
- * still gates each one.
+ * Applied to every unsafe request under /api/v1/. It used to be an allowlist of the three
+ * auth paths that act on the refresh cookie, on the reasoning that everything else needs an
+ * access token a cross-site request cannot mint. But the access token is itself a cookie the
+ * browser attaches automatically, so that reasoning only ever held for endpoints that did not
+ * exist yet: an administrative write is exactly the request an attacker wants to forge, and
+ * the ACL does not help, because the victim genuinely holds the permission.
+ *
+ * A prefix rather than a longer list, because an exact-match list cannot express a route with
+ * a parameter in it (/api/v1/admin/users/{id}) — and a list that silently fails to cover new
+ * endpoints is worse than no list, since nothing reports the gap.
+ *
+ * Safe methods are exempt, as is a request that presents no CSRF cookie at all: see
+ * tokensMatch() for why only a mismatch is treated as an attack.
  */
 #[AsEventListener(event: RequestEvent::class, priority: 8)]
 final readonly class CsrfDoubleSubmitSubscriber
 {
-    /** Paths where a cookie alone is sufficient to act, so a second proof is required. */
-    private const array PROTECTED_PATHS = [
-        '/api/v1/auth/refresh',
-        '/api/v1/auth/logout',
-        '/api/v1/auth/logout-all',
-    ];
+    /** Everything under here acts on cookie-borne credentials, so it needs a second proof. */
+    private const string PROTECTED_PREFIX = '/api/v1/';
 
     public function __construct(private bool $enabled = true)
     {
@@ -81,7 +87,7 @@ final readonly class CsrfDoubleSubmitSubscriber
             return false;
         }
 
-        return \in_array($request->getPathInfo(), self::PROTECTED_PATHS, true);
+        return str_starts_with($request->getPathInfo(), self::PROTECTED_PREFIX);
     }
 
     private function refuse(string $instance): JsonResponse

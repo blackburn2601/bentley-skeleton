@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Acl\Double;
 
 use App\Acl\Domain\AclEntry;
 use App\Acl\Domain\AclEntryRepository;
+use App\Acl\Domain\AclSubjectType;
 use App\Acl\Domain\SubjectSet;
 use Symfony\Component\Uid\Uuid;
 
@@ -102,9 +103,47 @@ final class InMemoryAclEntryRepository implements AclEntryRepository
         return null;
     }
 
+    public function findPaginated(
+        ?AclSubjectType $subjectType,
+        ?Uuid $subjectId,
+        ?string $resourceClass,
+        int $offset,
+        int $limit,
+    ): array {
+        return \array_slice($this->matching($subjectType, $subjectId, $resourceClass), $offset, $limit);
+    }
+
+    public function countFiltered(
+        ?AclSubjectType $subjectType,
+        ?Uuid $subjectId,
+        ?string $resourceClass,
+    ): int {
+        return \count($this->matching($subjectType, $subjectId, $resourceClass));
+    }
+
     public function findForResource(string $resourceClass, ?Uuid $resourceId): array
     {
         return array_values(array_filter($this->entries, static fn (AclEntry $e): bool => $e->resourceClass() === $resourceClass
             && $e->resourceId()?->toRfc4122() === $resourceId?->toRfc4122()));
+    }
+
+    /**
+     * The one filter both paged methods share, so they cannot drift apart here either.
+     *
+     * @return list<AclEntry>
+     */
+    private function matching(?AclSubjectType $subjectType, ?Uuid $subjectId, ?string $resourceClass): array
+    {
+        return array_values(array_filter($this->entries, static function (AclEntry $e) use ($subjectType, $subjectId, $resourceClass): bool {
+            if ($subjectType instanceof AclSubjectType && $e->subjectType() !== $subjectType) {
+                return false;
+            }
+
+            if ($subjectId instanceof Uuid && !$e->subjectId()->equals($subjectId)) {
+                return false;
+            }
+
+            return null === $resourceClass || $e->resourceClass() === $resourceClass;
+        }));
     }
 }

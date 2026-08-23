@@ -70,6 +70,20 @@ final readonly class DoctrineSecurityEventRepository implements SecurityEventRep
         return $events;
     }
 
+    public function countRecent(array $types = []): int
+    {
+        $qb = $this->em->createQueryBuilder()
+            ->select('COUNT(e.id)')
+            ->from(SecurityEvent::class, 'e');
+
+        if ([] !== $types) {
+            $qb->where('e.type IN (:types)')
+                ->setParameter('types', array_map(static fn (SecurityEventType $t): string => $t->value, $types));
+        }
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
     public function countAll(): int
     {
         return (int) $this->em->createQueryBuilder()

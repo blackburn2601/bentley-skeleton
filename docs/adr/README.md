@@ -34,3 +34,8 @@ New decision? `make adr TITLE="..."`. See [../cookbook/add-adr.md](../cookbook/a
 | 0016 | [Documentation as code: generated inventories with a CI freshness gate](0016-documentation-as-code-generated-inventories-and-a-ci-freshness-gate.md) | accepted |
 | 0017 | [`damienharper/auditor` core library instead of `auditor-bundle`](0017-auditor-core-library-instead-of-auditor-bundle.md) | accepted |
 | 0018 | [TypeScript 6 until `vue-tsc` supports the TypeScript 7 Go port](0018-typescript-6-until-vue-tsc-supports-the-go-port.md) | accepted |
+| 0019 | [Admin API surface, with offset pagination and 403 on a missing permission](0019-admin-api-surface-with-offset-pagination-and-403-on-missing-permission.md) | accepted |
+| 0020 | [CSRF double-submit on every unsafe `/api/v1` request, and rate limits on admin routes](0020-csrf-and-rate-limiting-on-every-admin-write.md) | accepted |
+| 0021 | [One service owns ACL cache invalidation for every admin mutation](0021-one-service-owns-acl-cache-invalidation-for-all-admin-mutations.md) | accepted |
+| 0022 | [Tailwind v4 with hand-vendored shadcn-vue as the SPA design system](0022-tailwind-v4-with-vendored-shadcn-vue-for-the-admin-ui.md) | accepted |
+| 0023 | [Collection ACL filtering through an Application port exposed on `AclFacade`](0023-collection-acl-filtering-through-an-application-port-on-aclfacade.md) | accepted |

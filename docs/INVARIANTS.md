@@ -209,8 +209,16 @@ server-side on every request.
 Revoking access would mean waiting out the TTL. `perm_v` (the user's `acl_version`) lets a
 grant change take effect on the very next request, with no re-login.
 
-**Enforced by:** ADR-0011, `GrantTakesEffectImmediatelyTest`, and the E2E test that grants a
-permission and asserts the affected user's access changes without logging out.
+**Enforced by:** ADR-0011 and three tests, at three levels:
+
+| Test | Level |
+|---|---|
+| `tests/Integration/Acl/GrantTakesEffectImmediatelyTest.php` | the resolver and its cache |
+| `tests/Functional/Acl/AssignRoleControllerTest.php` | over HTTP, on a token minted before the grant |
+| `frontend/e2e/grant-takes-effect.spec.ts` | in a real browser, with no re-authentication |
+
+`tests/Functional/Acl/RevokeRoleControllerTest.php` covers the same property in the direction
+that matters more: a revocation that fails to apply is access someone was supposed to lose.
 
 ### INV-19 — The advisory permission list is computed by the resolver, never beside it
 

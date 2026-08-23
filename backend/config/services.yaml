@@ -66,6 +66,11 @@ services:
     App\Acl\Domain\RoleRepository: '@App\Acl\Infrastructure\Repository\DoctrineRoleRepository'
     App\Acl\Domain\PermissionRepository: '@App\Acl\Infrastructure\Repository\DoctrinePermissionRepository'
     App\Acl\Domain\SubjectRepository: '@App\Acl\Infrastructure\Repository\DoctrineSubjectRepository'
+    App\Acl\Domain\UserGroupRepository: '@App\Acl\Infrastructure\Repository\DoctrineUserGroupRepository'
+
+    # The ACL's SQL-level collection filter, behind the port its Application-layer callers
+    # must reach it through (INV-01).
+    App\Acl\Application\AclQueryFilter: '@App\Acl\Infrastructure\AclCriteriaBuilder'
 
     # The ACL cache gets its own pool so it can be cleared without touching anything else,
     # and so its hit rate is visible separately in metrics.
