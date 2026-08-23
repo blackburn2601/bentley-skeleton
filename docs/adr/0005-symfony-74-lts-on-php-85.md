@@ -53,3 +53,7 @@ revisited, since the bundle becomes installable.
 ## Implemented by
 
 - `backend/composer.json` (`symfony/*: 7.4.*`, `php: >=8.5`)
+- `.github/dependabot.yml` — ignores `symfony/*` major updates, citing this ADR. Without it
+  Dependabot proposes the 8.x move one component at a time: the first push after this repo
+  went public produced five such PRs within a minute. Delete that entry as part of deciding
+  to move, not before.

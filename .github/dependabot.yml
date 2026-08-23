@@ -10,6 +10,17 @@ updates:
       # do not get reviewed, they get rubber-stamped — which is worse than not updating.
       backend-minor-patch:
         update-types: [minor, patch]
+    # An entry here must cite the ADR it enforces. Anything else is a dependency somebody
+    # found inconvenient, which is how a project ends up pinned to something nobody can
+    # explain. Delete the entry when the ADR is superseded, not before.
+    ignore:
+      # ADR-0005: this repository seeds other projects, so it tracks the LTS. 7.4 has security
+      # fixes to November 2029; 8.1 is a standard release with roughly fourteen months. The
+      # first push produced five separate PRs moving individual Symfony components to 8.1,
+      # which would fragment the version set one package at a time — exactly the drift the
+      # ADR exists to prevent. Minor and patch updates within 7.4 still arrive, grouped.
+      - dependency-name: 'symfony/*'
+        update-types: ['version-update:semver-major']
     labels: [dependencies, no-adr-needed]
 
   - package-ecosystem: npm
@@ -19,6 +30,13 @@ updates:
     groups:
       frontend-minor-patch:
         update-types: [minor, patch]
+    ignore:
+      # ADR-0018: TypeScript 7 is the Go rewrite and no longer exports `typescript/lib/tsc`,
+      # which `vue-tsc` resolves at startup — so `make front-lint` dies with
+      # ERR_PACKAGE_PATH_NOT_EXPORTED and the SPA has no type checking at all. Remove this the
+      # day vue-tsc supports it; the ADR says what to test.
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
     labels: [dependencies, no-adr-needed]
 
   - package-ecosystem: docker

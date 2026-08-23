@@ -56,3 +56,6 @@ Pin `typescript: ~6.0.2`. Revisit when Volar supports `tsgo`.
 ## Implemented by
 
 - `frontend/package.json`
+- `.github/dependabot.yml` — ignores `typescript` major updates, citing this ADR. Remove that
+  entry when checking whether `vue-tsc` has caught up; leaving it is how a temporary pin
+  becomes permanent.
