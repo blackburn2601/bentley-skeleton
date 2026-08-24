@@ -40,17 +40,17 @@ export interface NavSection {
 
 export const navigation: NavSection[] = [
   {
-    label: 'Overview',
+    label: 'Übersicht',
     items: [{ label: 'Dashboard', to: '/admin', icon: LayoutDashboard, exact: true }],
   },
   {
-    label: 'Access',
+    label: 'Zugriff',
     items: [
-      { label: 'Users', to: '/admin/users', icon: Users, permission: 'user.read' },
-      { label: 'Groups', to: '/admin/groups', icon: UsersRound, permission: 'group.read' },
-      { label: 'Roles', to: '/admin/roles', icon: ShieldCheck, permission: 'role.read' },
+      { label: 'Benutzer', to: '/admin/users', icon: Users, permission: 'user.read' },
+      { label: 'Gruppen', to: '/admin/groups', icon: UsersRound, permission: 'group.read' },
+      { label: 'Rollen', to: '/admin/roles', icon: ShieldCheck, permission: 'role.read' },
       {
-        label: 'Permissions',
+        label: 'Berechtigungen',
         to: '/admin/permissions',
         icon: KeyRound,
         permission: 'permission.read',
@@ -59,6 +59,6 @@ export const navigation: NavSection[] = [
   },
   {
     label: 'Compliance',
-    items: [{ label: 'Audit log', to: '/admin/audit', icon: ScrollText, permission: 'audit.read' }],
+    items: [{ label: 'Audit-Protokoll', to: '/admin/audit', icon: ScrollText, permission: 'audit.read' }],
   },
 ]

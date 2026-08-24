@@ -59,9 +59,9 @@ onMounted(async () => {
 })
 
 const columns: Column[] = [
-  { key: 'name', label: 'Role' },
-  { key: 'description', label: 'Description' },
-  { key: 'permissions', label: 'Permissions' },
+  { key: 'name', label: 'Rolle' },
+  { key: 'description', label: 'Beschreibung' },
+  { key: 'permissions', label: 'Berechtigungen' },
   { key: 'actions', label: '', class: 'w-12 text-right' },
 ]
 
@@ -77,7 +77,7 @@ const newDescription = ref('')
 async function submitCreate(): Promise<void> {
   const created = await run(
     () => createRole(newName.value.trim(), newDescription.value.trim() || null),
-    `Created ${newName.value.trim()}.`,
+    `${newName.value.trim()} wurde angelegt.`,
   )
 
   if (created.ok) {
@@ -100,7 +100,7 @@ async function submitEdit(): Promise<void> {
   const role = editing.value
   if (!role) return
 
-  if ((await run(() => updateRole(role.id, editDescription.value.trim() || null), 'Description saved.')).ok) {
+  if ((await run(() => updateRole(role.id, editDescription.value.trim() || null), 'Die Beschreibung wurde gespeichert.')).ok) {
     editing.value = null
     await load()
   }
@@ -124,7 +124,7 @@ async function submitGrant(): Promise<void> {
   const role = granting.value
   if (!role) return
 
-  if ((await run(() => setRolePermissions(role.id, selected.value), `Updated ${role.name}.`)).ok) {
+  if ((await run(() => setRolePermissions(role.id, selected.value), `${role.name} wurde aktualisiert.`)).ok) {
     granting.value = null
     await load()
   }
@@ -136,7 +136,7 @@ async function confirmDelete(): Promise<void> {
   const role = deleting.value
   if (!role) return
 
-  if ((await run(() => deleteRole(role.id), `Deleted ${role.name}.`)).ok) {
+  if ((await run(() => deleteRole(role.id), `${role.name} wurde gelöscht.`)).ok) {
     deleting.value = null
     await load()
   }
@@ -158,13 +158,14 @@ const grouped = computed(() => {
   <div class="space-y-4">
     <div class="flex flex-wrap items-start justify-between gap-3">
       <div>
-        <h1 class="text-2xl font-semibold tracking-tight">Roles</h1>
+        <h1 class="text-2xl font-semibold tracking-tight">Rollen</h1>
         <p class="text-sm text-muted-foreground">
-          A role is a named bundle of permissions. Granting one to a user, or to a group, is the
-          coarse layer of the access model — object-level entries refine it.
+          Eine Rolle ist ein benanntes Bündel von Berechtigungen. Sie einem Benutzer oder einer
+          Gruppe zu erteilen, ist die grobe Schicht des Zugriffsmodells — objektbezogene Einträge
+          verfeinern sie.
         </p>
       </div>
-      <Button v-if="canCreate" @click="createOpen = true"><Plus /> New role</Button>
+      <Button v-if="canCreate" @click="createOpen = true"><Plus /> Neue Rolle</Button>
     </div>
 
     <DataTable
@@ -172,7 +173,7 @@ const grouped = computed(() => {
       :rows="items"
       :loading="loading"
       :error="error"
-      empty-title="No roles defined"
+      empty-title="Keine Rollen angelegt"
       @retry="load()"
     >
       <template #cell:name="{ row }">
@@ -185,10 +186,10 @@ const grouped = computed(() => {
         <!-- ROLE_SUPER_ADMIN carries no rows on purpose: it short-circuits the resolver, so a
              permission list on it would imply a meaning it does not have. -->
         <span v-if="isSuperAdmin(row)" class="text-xs text-muted-foreground">
-          Short-circuits every check
+          Übergeht jede Prüfung
         </span>
         <span v-else-if="row.permissions.length === 0" class="text-xs text-muted-foreground">
-          None attached
+          Keine angehängt
         </span>
         <div v-else class="flex flex-wrap gap-1">
           <Badge v-for="permission in row.permissions" :key="permission" variant="secondary">
@@ -200,16 +201,16 @@ const grouped = computed(() => {
       <template #cell:actions="{ row }">
         <DropdownMenu v-if="canUpdate || canGrant || canDelete">
           <DropdownMenuTrigger as-child>
-            <Button variant="ghost" size="icon" :aria-label="`Actions for ${row.name}`">
+            <Button variant="ghost" size="icon" :aria-label="`Aktionen für ${row.name}`">
               <MoreHorizontal />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent>
             <DropdownMenuItem v-if="canUpdate" @select="startEdit(row)">
-              <Pencil /> Edit description
+              <Pencil /> Beschreibung bearbeiten
             </DropdownMenuItem>
             <DropdownMenuItem v-if="canGrant && !isSuperAdmin(row)" @select="startGrant(row)">
-              <KeyRound /> Permissions…
+              <KeyRound /> Berechtigungen…
             </DropdownMenuItem>
             <template v-if="canDelete && !isBaseline(row)">
               <DropdownMenuSeparator />
@@ -217,7 +218,7 @@ const grouped = computed(() => {
                 class="text-destructive data-highlighted:text-destructive"
                 @select="deleting = row"
               >
-                <Trash2 /> Delete…
+                <Trash2 /> Löschen…
               </DropdownMenuItem>
             </template>
           </DropdownMenuContent>
@@ -228,10 +229,10 @@ const grouped = computed(() => {
     <Dialog v-model:open="createOpen">
       <DialogContent class="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>New role</DialogTitle>
+          <DialogTitle>Neue Rolle</DialogTitle>
           <DialogDescription>
-            The role starts empty. Attach permissions afterwards — you can only grant what you
-            hold yourself.
+            Die Rolle beginnt leer. Berechtigungen hängen Sie danach an — erteilen können Sie nur,
+            was Sie selbst besitzen.
           </DialogDescription>
         </DialogHeader>
         <form id="create-role" class="space-y-3" @submit.prevent="submitCreate">
@@ -239,19 +240,19 @@ const grouped = computed(() => {
             <Label for="role-name">Name</Label>
             <Input id="role-name" v-model="newName" placeholder="ROLE_SUPPORT_LEAD" />
             <p class="text-xs text-muted-foreground">
-              Uppercase, starting with <code>ROLE_</code>. Names cannot be changed later — they
-              appear in every access token.
+              Großbuchstaben, beginnend mit <code>ROLE_</code>. Namen lassen sich später nicht
+              mehr ändern — sie stehen in jedem Access-Token.
             </p>
           </div>
           <div class="space-y-1.5">
-            <Label for="role-description">Description</Label>
+            <Label for="role-description">Beschreibung</Label>
             <Input id="role-description" v-model="newDescription" placeholder="Optional" />
           </div>
         </form>
         <DialogFooter>
-          <Button variant="outline" :disabled="busy" @click="createOpen = false">Cancel</Button>
+          <Button variant="outline" :disabled="busy" @click="createOpen = false">Abbrechen</Button>
           <Button type="submit" form="create-role" :disabled="busy || newName.trim() === ''">
-            {{ busy ? 'Working…' : 'Create role' }}
+            {{ busy ? 'Bitte warten…' : 'Rolle anlegen' }}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -260,17 +261,17 @@ const grouped = computed(() => {
     <Dialog :open="editing !== null" @update:open="(o: boolean) => !o && (editing = null)">
       <DialogContent class="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Edit {{ editing?.name }}</DialogTitle>
-          <DialogDescription>Only the description can change.</DialogDescription>
+          <DialogTitle>{{ editing?.name }} bearbeiten</DialogTitle>
+          <DialogDescription>Nur die Beschreibung lässt sich ändern.</DialogDescription>
         </DialogHeader>
         <form id="edit-role" class="space-y-1.5" @submit.prevent="submitEdit">
-          <Label for="edit-role-description">Description</Label>
+          <Label for="edit-role-description">Beschreibung</Label>
           <Input id="edit-role-description" v-model="editDescription" />
         </form>
         <DialogFooter>
-          <Button variant="outline" :disabled="busy" @click="editing = null">Cancel</Button>
+          <Button variant="outline" :disabled="busy" @click="editing = null">Abbrechen</Button>
           <Button type="submit" form="edit-role" :disabled="busy">
-            {{ busy ? 'Working…' : 'Save' }}
+            {{ busy ? 'Bitte warten…' : 'Speichern' }}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -279,10 +280,10 @@ const grouped = computed(() => {
     <Dialog :open="granting !== null" @update:open="(o: boolean) => !o && (granting = null)">
       <DialogContent class="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Permissions for {{ granting?.name }}</DialogTitle>
+          <DialogTitle>Berechtigungen von {{ granting?.name }}</DialogTitle>
           <DialogDescription>
-            Everyone holding this role gains everything ticked here. You can only grant a
-            permission you hold yourself — the server refuses the rest.
+            Wer diese Rolle besitzt, erhält alles, was hier angehakt ist. Sie können nur eine
+            Berechtigung erteilen, die Sie selbst besitzen — alles andere weist der Server ab.
           </DialogDescription>
         </DialogHeader>
 
@@ -308,15 +309,15 @@ const grouped = computed(() => {
             </div>
           </div>
           <p v-if="grouped.length === 0" class="text-sm text-muted-foreground">
-            The permission catalogue could not be loaded. It needs the
-            <code>permission.read</code> permission.
+            Der Berechtigungskatalog konnte nicht geladen werden. Dafür wird die Berechtigung
+            <code>permission.read</code> benötigt.
           </p>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" :disabled="busy" @click="granting = null">Cancel</Button>
+          <Button variant="outline" :disabled="busy" @click="granting = null">Abbrechen</Button>
           <Button :disabled="busy" @click="submitGrant">
-            {{ busy ? 'Working…' : 'Save permissions' }}
+            {{ busy ? 'Bitte warten…' : 'Berechtigungen speichern' }}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -324,9 +325,9 @@ const grouped = computed(() => {
 
     <ConfirmDialog
       :open="deleting !== null"
-      :title="`Delete ${deleting?.name}?`"
-      description="Everyone holding this role loses whatever it granted them, immediately. This cannot be undone."
-      confirm-label="Delete role"
+      :title="`${deleting?.name} löschen?`"
+      description="Wer diese Rolle besitzt, verliert sofort alles, was sie ihm erteilt hat. Das lässt sich nicht rückgängig machen."
+      confirm-label="Rolle löschen"
       :busy="busy"
       @update:open="(o: boolean) => !o && (deleting = null)"
       @confirm="confirmDelete"

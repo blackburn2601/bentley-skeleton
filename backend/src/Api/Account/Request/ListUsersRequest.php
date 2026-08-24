@@ -20,7 +20,12 @@ final readonly class ListUsersRequest extends PageRequest
         int $page = 1,
         int $perPage = 25,
         /**
-         * Free-text match against the email address.
+         * Free-text match against the username or the account id.
+         *
+         * Either, not one or the other: the list shows the id first, so a fragment pasted from
+         * a log line has to find its row. The id side matches any part of the canonical UUID
+         * text, not just its start — UUIDv7 ids are time-ordered, so accounts created together
+         * share a prefix and it is the tail that tells them apart.
          *
          * Capped, because it reaches a LIKE: an unbounded pattern is a scan someone else pays
          * for.

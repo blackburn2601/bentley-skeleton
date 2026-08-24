@@ -74,9 +74,9 @@ export class ApiError extends Error {
 export async function parseProblem(response: Response): Promise<Problem> {
   const fallback: Problem = {
     type: 'about:blank',
-    title: response.statusText || 'Request failed',
+    title: response.statusText || 'Die Anfrage ist fehlgeschlagen',
     status: response.status,
-    detail: 'The server returned an unexpected response.',
+    detail: 'Der Server hat unerwartet geantwortet.',
   }
 
   const contentType = response.headers.get('content-type') ?? ''

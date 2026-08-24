@@ -46,9 +46,23 @@ final readonly class ListUsersService
             ->from(User::class, 'u');
 
         if (null !== $search && '' !== $search) {
-            // citext makes the column case-insensitive, so LOWER() would only muddle the intent.
-            $qb->andWhere('u.username LIKE :search')
-                ->setParameter('search', '%'.$search.'%');
+            // Username OR id. The id is what the list shows in its first column, and someone
+            // holding one quoted from a log line or an audit row has no username to type.
+            //
+            // The two sides are matched differently because the columns are. citext makes the
+            // username case-insensitive already, so LOWER() there would only muddle the
+            // intent. The id is a `uuid`, which cannot be pattern-matched at all, so TEXT()
+            // renders it in its canonical form first (see TextCastFunction). PostgreSQL writes
+            // that form in lowercase while an id pasted from elsewhere may well arrive
+            // uppercased, so the id side is lowered on both ends.
+            //
+            // Parenthesised explicitly. Doctrine does bracket a part containing OR (DDC-1237),
+            // but the ACL predicate is ANDed on below, and an OR that escaped its brackets
+            // there would widen the page past what the caller is allowed to see. That is not a
+            // thing to leave to a regex in the query builder.
+            $qb->andWhere('(u.username LIKE :search OR TEXT(u.id) LIKE :idSearch)')
+                ->setParameter('search', '%'.$search.'%')
+                ->setParameter('idSearch', '%'.strtolower($search).'%');
         }
 
         if ($status instanceof UserStatus) {

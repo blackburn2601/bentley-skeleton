@@ -31,9 +31,9 @@ export const listUsers = (query: ListUsersQuery = {}) =>
 
 /** The wire values, with labels, for a status filter. */
 export const USER_STATUSES: { value: UserStatus; label: string }[] = [
-  { value: 'active', label: 'Active' },
-  { value: 'suspended', label: 'Suspended' },
-  { value: 'anonymised', label: 'Anonymised' },
+  { value: 'active', label: 'Aktiv' },
+  { value: 'suspended', label: 'Gesperrt' },
+  { value: 'anonymised', label: 'Anonymisiert' },
 ]
 
 /**

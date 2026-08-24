@@ -15,7 +15,7 @@ const to = computed(() => Math.min(props.page * props.perPage, props.total))
 <template>
   <div class="flex flex-wrap items-center justify-between gap-2 px-1 py-3 text-sm">
     <p class="text-muted-foreground" aria-live="polite">
-      {{ from }}–{{ to }} of {{ props.total }}
+      {{ from }}–{{ to }} von {{ props.total }}
     </p>
 
     <div class="flex items-center gap-2">
@@ -23,20 +23,20 @@ const to = computed(() => Math.min(props.page * props.perPage, props.total))
         variant="outline"
         size="sm"
         :disabled="props.page <= 1 || props.loading"
-        aria-label="Previous page"
+        aria-label="Vorherige Seite"
         @click="emit('update:page', props.page - 1)"
       >
-        <ChevronLeft /> Previous
+        <ChevronLeft /> Zurück
       </Button>
-      <span class="text-muted-foreground">Page {{ props.page }} of {{ lastPage }}</span>
+      <span class="text-muted-foreground">Seite {{ props.page }} von {{ lastPage }}</span>
       <Button
         variant="outline"
         size="sm"
         :disabled="props.page >= lastPage || props.loading"
-        aria-label="Next page"
+        aria-label="Nächste Seite"
         @click="emit('update:page', props.page + 1)"
       >
-        Next <ChevronRight />
+        Weiter <ChevronRight />
       </Button>
     </div>
   </div>

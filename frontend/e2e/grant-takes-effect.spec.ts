@@ -25,9 +25,9 @@ const GRANTED_ROLE = 'ROLE_AUDITOR'
 
 async function signIn(page: Page, username: string): Promise<void> {
   await page.goto(`${SPA}/sign-in`)
-  await page.getByLabel('Username').fill(username)
-  await page.getByLabel('Password').fill(PASSWORD)
-  await page.getByRole('button', { name: 'Sign in' }).click()
+  await page.getByLabel('Benutzername').fill(username)
+  await page.getByLabel('Passwort').fill(PASSWORD)
+  await page.getByRole('button', { name: 'Anmelden' }).click()
   await expect(page).toHaveURL(/\/account$/)
 }
 
@@ -62,7 +62,7 @@ test('a granted permission takes effect without signing in again', async ({ page
     // The viewer holds only an OBJECT-level grant on one user record — no class-level
     // user.read — so the admin area offers them nothing but the dashboard.
     await signIn(page, 'viewer')
-    await expect(page.getByRole('link', { name: 'Users' })).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Benutzer' })).toHaveCount(0)
 
     const before = await page.request.get(`${SPA}${USERS_ENDPOINT}`)
     expect(before.status(), 'the viewer must start without class-level user.read').toBe(403)
@@ -81,7 +81,7 @@ test('a granted permission takes effect without signing in again', async ({ page
 
     // And the navigation follows once /me is re-read — a reload, not a login.
     await page.reload()
-    await expect(page.getByRole('link', { name: 'Users' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Benutzer' })).toBeVisible()
   } finally {
     await revoke()
   }

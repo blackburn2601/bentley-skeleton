@@ -42,10 +42,10 @@ export function useToast() {
     error: (title: string, description?: string) => push(title, description, 'destructive'),
 
     /** Turn a failed request into a toast that a support ticket can be opened against. */
-    fromError(error: unknown, fallback = 'Something went wrong'): void {
+    fromError(error: unknown, fallback = 'Etwas ist schiefgelaufen'): void {
       if (error instanceof ApiError) {
         const reference =
-          error.requestId === undefined ? undefined : `Reference: ${error.requestId}`
+          error.requestId === undefined ? undefined : `Referenz: ${error.requestId}`
         push(error.message, reference, 'destructive')
         return
       }

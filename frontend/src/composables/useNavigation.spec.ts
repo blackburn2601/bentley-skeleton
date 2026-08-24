@@ -49,8 +49,8 @@ describe('useNavigation', () => {
 
     expect(useNavigation().value.flatMap((s) => s.items).map((i) => i.label)).toEqual([
       'Dashboard',
-      'Users',
-      'Audit log',
+      'Benutzer',
+      'Audit-Protokoll',
     ])
   })
 
@@ -58,11 +58,11 @@ describe('useNavigation', () => {
     signIn(['user.read'])
     const sections = useNavigation()
 
-    expect(sections.value.flatMap((s) => s.items).map((i) => i.label)).not.toContain('Roles')
+    expect(sections.value.flatMap((s) => s.items).map((i) => i.label)).not.toContain('Rollen')
 
     // What auth.load() does after an administrator grants the permission.
     signIn(['user.read', 'role.read'])
 
-    expect(sections.value.flatMap((s) => s.items).map((i) => i.label)).toContain('Roles')
+    expect(sections.value.flatMap((s) => s.items).map((i) => i.label)).toContain('Rollen')
   })
 })

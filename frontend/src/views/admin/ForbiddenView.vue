@@ -7,13 +7,14 @@ import { Button } from '@/components/ui/button'
 <template>
   <div class="flex flex-col items-center gap-3 py-16 text-center">
     <ShieldAlert class="size-10 text-muted-foreground" />
-    <h1 class="text-xl font-semibold">You do not have access to this page</h1>
+    <h1 class="text-xl font-semibold">Sie haben keinen Zugriff auf diese Seite</h1>
     <p class="max-w-md text-sm text-muted-foreground">
-      Your account does not hold the permission this screen requires. If that is wrong, an
-      administrator can grant it — it takes effect on your next request, without signing out.
+      Ihrem Konto fehlt die Berechtigung, die diese Seite voraussetzt. Falls das nicht richtig
+      ist, kann eine Administratorin oder ein Administrator sie erteilen — sie wirkt ab Ihrer
+      nächsten Anfrage, ganz ohne Abmelden.
     </p>
     <Button as-child variant="outline" class="mt-2">
-      <RouterLink to="/admin">Back to administration</RouterLink>
+      <RouterLink to="/admin">Zurück zur Administration</RouterLink>
     </Button>
   </div>
 </template>

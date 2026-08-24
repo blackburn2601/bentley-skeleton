@@ -35,18 +35,18 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <AppForm title="Sign in" submit-label="Sign in" :busy="busy" :error="error" @submit="submit">
+  <AppForm title="Anmelden" submit-label="Anmelden" :busy="busy" :error="error" @submit="submit">
     <FormField
       id="username"
       v-model="username"
-      label="Username"
+      label="Benutzername"
       type="text"
       autocomplete="username"
     />
     <FormField
       id="password"
       v-model="password"
-      label="Password"
+      label="Passwort"
       type="password"
       autocomplete="current-password"
     />

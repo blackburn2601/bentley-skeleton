@@ -110,6 +110,74 @@ final class ListUsersControllerTest extends ApiTestCase
         self::assertSame([$needle->username()], $this->column($this->pageJson()['items'], 'username'));
     }
 
+    /**
+     * The whole point of searching by id: a fragment, not the full value.
+     *
+     * The tail is used deliberately. UUIDv7 ids are time-ordered, so accounts created in the
+     * same moment share their leading characters — a search that only matched a prefix would
+     * return every one of them and look like it worked.
+     */
+    public function testItSearchesByAFragmentOfTheId(): void
+    {
+        $caller = $this->permittedCaller();
+        $needle = $this->createUser('id-search-target');
+        $this->createUser('id-search-other');
+
+        $this->logIn($caller);
+        $fragment = substr($needle->id()->toRfc4122(), -12);
+        $this->json('GET', '/api/v1/admin/users?q='.urlencode($fragment));
+
+        self::assertResponseIsSuccessful();
+        self::assertSame([$needle->username()], $this->column($this->pageJson()['items'], 'username'));
+    }
+
+    public function testItSearchesByTheWholeId(): void
+    {
+        $caller = $this->permittedCaller();
+        $needle = $this->createUser('whole-id-target');
+
+        $this->logIn($caller);
+        $this->json('GET', '/api/v1/admin/users?q='.urlencode($needle->id()->toRfc4122()));
+
+        self::assertResponseIsSuccessful();
+        self::assertSame([$needle->username()], $this->column($this->pageJson()['items'], 'username'));
+    }
+
+    /** PostgreSQL renders a uuid in lowercase; an id pasted from elsewhere may not be. */
+    public function testItSearchesByAnUppercasedId(): void
+    {
+        $caller = $this->permittedCaller();
+        $needle = $this->createUser('upper-id-target');
+
+        $this->logIn($caller);
+        $this->json('GET', '/api/v1/admin/users?q='.urlencode(strtoupper($needle->id()->toRfc4122())));
+
+        self::assertResponseIsSuccessful();
+        self::assertSame([$needle->username()], $this->column($this->pageJson()['items'], 'username'));
+    }
+
+    /**
+     * Searching must not become a way around the ACL.
+     *
+     * The id is the one search term a caller can hold for a record they were explicitly denied
+     * — it is in their audit log — so this asserts the filter still wins over the match.
+     */
+    public function testSearchingByIdCannotSurfaceADeniedUser(): void
+    {
+        $caller = $this->permittedCaller();
+        $hidden = $this->createUser('hidden-from-search');
+        $this->grantOnObject($caller, User::class, $hidden->id(), PermissionCatalog::USER_READ, AclEffect::Deny);
+
+        $this->logIn($caller);
+        $this->json('GET', '/api/v1/admin/users?q='.urlencode($hidden->id()->toRfc4122()));
+
+        self::assertResponseIsSuccessful();
+        $body = $this->pageJson();
+
+        self::assertSame([], $body['items']);
+        self::assertSame(0, $body['total']);
+    }
+
     public function testItRefusesAPageSizeAboveTheCap(): void
     {
         $this->logIn($this->permittedCaller());

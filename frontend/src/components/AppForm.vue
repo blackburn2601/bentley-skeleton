@@ -50,7 +50,7 @@ function requestIdFor(error: ApiError | Error | null | undefined): string | unde
     >
       <p>{{ messageFor(error) }}</p>
       <p v-if="requestIdFor(error)" class="text-xs opacity-80">
-        Reference: <code>{{ requestIdFor(error) }}</code>
+        Referenz: <code>{{ requestIdFor(error) }}</code>
       </p>
     </div>
 
@@ -59,7 +59,7 @@ function requestIdFor(error: ApiError | Error | null | undefined): string | unde
     </div>
 
     <Button type="submit" class="w-full" :disabled="busy">
-      {{ busy ? 'Working…' : submitLabel }}
+      {{ busy ? 'Bitte warten…' : submitLabel }}
     </Button>
 
     <slot name="footer" />

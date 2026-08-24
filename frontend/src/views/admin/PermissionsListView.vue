@@ -31,11 +31,12 @@ const byResource = computed(() => {
 <template>
   <div class="space-y-4">
     <div>
-      <h1 class="text-2xl font-semibold tracking-tight">Permissions</h1>
+      <h1 class="text-2xl font-semibold tracking-tight">Berechtigungen</h1>
       <p class="text-sm text-muted-foreground">
-        Declared in code and synced into the database, so grants are diffable in git and survive
-        a redeploy. This list is read from the database rows — if it disagrees with the code
-        catalogue, the sync command has not been run.
+        Im Code deklariert und in die Datenbank synchronisiert — dadurch sind Erteilungen in Git
+        diffbar und überstehen ein erneutes Deployment. Diese Liste stammt aus den
+        Datenbankzeilen: Weicht sie vom Katalog im Code ab, wurde der Sync-Befehl nicht
+        ausgeführt.
       </p>
     </div>
 
