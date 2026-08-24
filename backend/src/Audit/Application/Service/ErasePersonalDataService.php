@@ -61,7 +61,7 @@ final readonly class ErasePersonalDataService
             $revoked = $this->accounts->revokeAllSessions($userId);
 
             $user->anonymise(
-                \sprintf('erased-%s@invalid.local', $userId->toRfc4122()),
+                \sprintf('erased-%s', $userId->toRfc4122()),
                 $now,
             );
 

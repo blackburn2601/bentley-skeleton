@@ -46,8 +46,9 @@ final readonly class ListUsersService
             ->from(User::class, 'u');
 
         if (null !== $search && '' !== $search) {
-            $qb->andWhere('LOWER(u.email) LIKE :search')
-                ->setParameter('search', '%'.mb_strtolower($search).'%');
+            // citext makes the column case-insensitive, so LOWER() would only muddle the intent.
+            $qb->andWhere('u.username LIKE :search')
+                ->setParameter('search', '%'.$search.'%');
         }
 
         if ($status instanceof UserStatus) {
@@ -67,7 +68,7 @@ final readonly class ListUsersService
 
         /** @var list<User> $items */
         $items = $qb
-            ->orderBy('u.email', 'ASC')
+            ->orderBy('u.username', 'ASC')
             ->setFirstResult($offset)
             ->setMaxResults($limit)
             ->getQuery()

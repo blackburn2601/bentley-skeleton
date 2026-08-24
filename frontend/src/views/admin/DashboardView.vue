@@ -26,7 +26,7 @@ const permissionCount = computed(() => auth.user?.permissions.length ?? 0)
     <div>
       <h1 class="text-2xl font-semibold tracking-tight">Administration</h1>
       <p class="text-sm text-muted-foreground">
-        Signed in as {{ auth.user?.email }} with {{ permissionCount }} permissions.
+        Signed in as {{ auth.user?.username }} with {{ permissionCount }} permissions.
       </p>
     </div>
 

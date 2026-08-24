@@ -379,14 +379,14 @@ async function confirmDelete(): Promise<void> {
 
         <Input
           v-model="memberFilter"
-          placeholder="Filter by email"
+          placeholder="Filter by username"
           aria-label="Filter members"
           :disabled="membersLoading"
         />
 
         <div class="max-h-80 space-y-1 overflow-y-auto">
           <label
-            v-for="user in users.filter((u) => u.email.includes(memberFilter))"
+            v-for="user in users.filter((u) => u.username.includes(memberFilter))"
             :key="user.id"
             class="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
           >
@@ -396,7 +396,7 @@ async function confirmDelete(): Promise<void> {
               :checked="selectedMembers.includes(user.id)"
               @change="toggleMember(user.id)"
             />
-            {{ user.email }}
+            {{ user.username }}
           </label>
           <p v-if="users.length === 0" class="text-sm text-muted-foreground">
             No users could be loaded. This needs the <code>user.read</code> permission.

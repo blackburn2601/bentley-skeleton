@@ -19,7 +19,7 @@ final readonly class IssuedSession
      */
     public function __construct(
         public string $userId,
-        public string $email,
+        public string $username,
         public array $roles,
         public string $accessToken,
         public int $accessTtlSeconds,

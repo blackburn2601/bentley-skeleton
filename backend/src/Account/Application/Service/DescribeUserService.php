@@ -32,7 +32,7 @@ final readonly class DescribeUserService
 
     /**
      * @return array{
-     *     id: string, email: string, status: string, emailVerified: bool, mfaEnabled: bool,
+     *     id: string, username: string, status: string,
      *     failedLoginCount: int, lockedUntil: string|null, passwordChangedAt: string,
      *     createdAt: string, aclVersion: int,
      *     roles: list<string>, groups: list<string>, effectivePermissions: list<string>
@@ -48,10 +48,8 @@ final readonly class DescribeUserService
 
         return [
             'id' => $user->id()->toRfc4122(),
-            'email' => $user->email(),
+            'username' => $user->username(),
             'status' => $user->status()->value,
-            'emailVerified' => $user->isEmailVerified(),
-            'mfaEnabled' => $user->hasMfaEnabled(),
             'failedLoginCount' => $user->failedLoginCount(),
             'lockedUntil' => $user->lockedUntil()?->format(DateTimeInterface::ATOM),
             'passwordChangedAt' => $user->passwordChangedAt()->format(DateTimeInterface::ATOM),

@@ -10,9 +10,8 @@ use DateTimeInterface;
 /**
  * One page of user accounts, as an administrator's client needs them.
  *
- * Every field is listed by hand (INV-05). Two are absent on purpose and must stay absent:
- * `passwordHash` and `totpSecretEncrypted`. Serialising the entity would have shipped both the
- * day someone added a column.
+ * Every field is listed by hand (INV-05). `passwordHash` is absent on purpose and must stay
+ * absent: serialising the entity would ship it the day someone added a column.
  *
  * The envelope — items, page, perPage, total — is the same on every collection in this API
  * (ADR-0019), so a client writes one pager.
@@ -22,10 +21,8 @@ final readonly class ListUsersResponse
     /**
      * @param list<array{
      *     id: string,
-     *     email: string,
+     *     username: string,
      *     status: string,
-     *     emailVerified: bool,
-     *     mfaEnabled: bool,
      *     lockedUntil: string|null,
      *     createdAt: string,
      * }> $items
@@ -46,10 +43,8 @@ final readonly class ListUsersResponse
         return new self(
             array_map(static fn (User $user): array => [
                 'id' => $user->id()->toRfc4122(),
-                'email' => $user->email(),
+                'username' => $user->username(),
                 'status' => $user->status()->value,
-                'emailVerified' => $user->isEmailVerified(),
-                'mfaEnabled' => $user->hasMfaEnabled(),
                 'lockedUntil' => $user->lockedUntil()?->format(DateTimeInterface::ATOM),
                 'createdAt' => $user->createdAt()->format(DateTimeInterface::ATOM),
             ], $users),

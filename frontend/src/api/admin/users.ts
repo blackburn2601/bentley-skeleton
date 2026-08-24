@@ -8,15 +8,13 @@ import { toQuery, type Paginated } from '@/api/pagination'
  * `client.ts` — a bare fetch() skips the single-flight refresh, and concurrent refreshes
  * present already-rotated tokens, trip reuse detection and sign the user out everywhere.
  */
-export type UserStatus = 'pending_verification' | 'active' | 'suspended' | 'anonymised'
+export type UserStatus = 'active' | 'suspended' | 'anonymised'
 
 /** Mirrors ListUsersResponse field for field. */
 export interface AdminUser {
   id: string
-  email: string
+  username: string
   status: UserStatus
-  emailVerified: boolean
-  mfaEnabled: boolean
   lockedUntil: string | null
   createdAt: string
 }
@@ -34,7 +32,6 @@ export const listUsers = (query: ListUsersQuery = {}) =>
 /** The wire values, with labels, for a status filter. */
 export const USER_STATUSES: { value: UserStatus; label: string }[] = [
   { value: 'active', label: 'Active' },
-  { value: 'pending_verification', label: 'Pending verification' },
   { value: 'suspended', label: 'Suspended' },
   { value: 'anonymised', label: 'Anonymised' },
 ]
@@ -47,10 +44,8 @@ export const USER_STATUSES: { value: UserStatus; label: string }[] = [
  */
 export interface AdminUserDetail {
   id: string
-  email: string
+  username: string
   status: UserStatus
-  emailVerified: boolean
-  mfaEnabled: boolean
   createdAt: string
   /**
    * The counter behind "a grant takes effect on the next request" (ADR-0011). Shown because a
@@ -74,30 +69,39 @@ export interface AdminUserDetail {
 export const describeUser = (id: string) =>
   api.get<AdminUserDetail>(`/api/v1/admin/users/${id}`)
 
-/** Changing the address resets verification: the new one is unproven until mail reaches it. */
-export const updateUser = (id: string, email: string) =>
-  api.patch<{ id: string; email: string; emailVerified: boolean }>(
-    `/api/v1/admin/users/${id}`,
-    { email },
-  )
+export const updateUser = (id: string, username: string) =>
+  api.patch<{ id: string; username: string }>(`/api/v1/admin/users/${id}`, { username })
 
 export const revokeUserSessions = (id: string) =>
   api.post<{ sessionsRevoked: number }>(`/api/v1/admin/users/${id}/sessions/revoke`)
 
 export interface CreatedUser {
   id: string
-  email: string
+  username: string
   status: UserStatus
-  /** The account has no usable password until the holder follows the emailed link. */
-  passwordSetupEmailed: boolean
+  /**
+   * A one-time temporary password. The API returns it exactly once and never again — it is not
+   * persisted server-side. The SPA must show it immediately with a Copy button, or it is lost
+   * and only an admin reset can recover it.
+   */
+  temporaryPassword: string
 }
 
 /**
- * Create an account. No password field, deliberately — the new user sets their own through
- * the link this sends, so no administrator ever knows it.
+ * Create an account. No password field, deliberately — the API generates a one-time temporary
+ * password and returns it here. Nobody else ever sees it again, so hand it to the user now.
  */
-export const createUser = (email: string) =>
-  api.post<CreatedUser>('/api/v1/admin/users', { email })
+export const createUser = (username: string) =>
+  api.post<CreatedUser>('/api/v1/admin/users', { username })
+
+/**
+ * Admin-initiated password reset. Returns a fresh one-time temporary password that must be shown
+ * immediately — it is never returned again.
+ */
+export const resetUserPassword = (id: string) =>
+  api.post<{ id: string; username: string; temporaryPassword: string }>(
+    `/api/v1/admin/users/${id}/password`,
+  )
 
 export const changeUserStatus = (id: string, status: UserStatus) =>
   api.patch<{ id: string; status: UserStatus }>(`/api/v1/admin/users/${id}/status`, { status })

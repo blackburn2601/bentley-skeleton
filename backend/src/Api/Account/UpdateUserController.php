@@ -41,7 +41,7 @@ final readonly class UpdateUserController
         #[MapRequestPayload]
         UpdateUserRequest $request,
     ): JsonResponse {
-        $user = ($this->updateUser)(Uuid::fromString($id), $request->email, $actor->id());
+        $user = ($this->updateUser)(Uuid::fromString($id), $request->username, $actor->id());
 
         return new JsonResponse(UpdateUserResponse::from($user));
     }

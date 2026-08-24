@@ -49,8 +49,8 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function signIn(email: string, password: string): Promise<void> {
-    await authApi.login(email, password)
+  async function signIn(username: string, password: string): Promise<void> {
+    await authApi.login(username, password)
     // Reload rather than trusting the login response: /me is the single source of truth for
     // roles and permissions, and it reflects grants made since the token was minted.
     await load()

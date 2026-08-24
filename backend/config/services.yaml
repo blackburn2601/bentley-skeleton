@@ -55,7 +55,6 @@ services:
 
     App\Account\Domain\UserRepository: '@App\Account\Infrastructure\Repository\DoctrineUserRepository'
     App\Account\Domain\RefreshTokenRepository: '@App\Account\Infrastructure\Repository\DoctrineRefreshTokenRepository'
-    App\Account\Domain\SingleUseTokenRepository: '@App\Account\Infrastructure\Repository\DoctrineSingleUseTokenRepository'
     App\Account\Application\PasswordHasher: '@App\Account\Infrastructure\Security\SymfonyPasswordHasher'
     App\Account\Application\AccessTokenIssuer: '@App\Account\Infrastructure\Security\JwtAccessTokenIssuer'
     App\Account\Application\BreachedPasswordChecker: '@App\Account\Infrastructure\Http\HibpBreachedPasswordChecker'
@@ -106,12 +105,6 @@ services:
     App\Account\Infrastructure\Http\HibpBreachedPasswordChecker:
         arguments:
             $enabled: '%env(bool:PASSWORD_HIBP_CHECK)%'
-
-    App\Account\Application\Service\SendAccountEmailService:
-        arguments:
-            $senderAddress: '%env(MAILER_FROM_ADDRESS)%'
-            $senderName: '%env(MAILER_FROM_NAME)%'
-            $frontendBaseUrl: '%env(FRONTEND_BASE_URL)%'
 
     App\Api\Security\AuthCookies:
         arguments:
@@ -182,9 +175,7 @@ services:
         arguments:
             $factories:
                 login: '@limiter.login'
-                password_reset: '@limiter.password_reset'
-                verify_resend: '@limiter.verify_resend'
-                register: '@limiter.register'
+                change_password: '@limiter.change_password'
                 refresh: '@limiter.refresh'
                 api_user: '@limiter.api_user'
                 api_anon: '@limiter.api_anon'
@@ -259,10 +250,6 @@ when@test:
         # individually would test four classes; fetching the collection also tests that each
         # one is actually tagged — an untagged generator never runs, and its document rots
         # while every gate stays green.
-        App\Account\Application\Service\IssueSingleUseTokenService: { public: true }
-        App\Account\Domain\SingleUseTokenRepository: '@App\Account\Infrastructure\Repository\DoctrineSingleUseTokenRepository'
-        App\Account\Infrastructure\Repository\DoctrineSingleUseTokenRepository: { public: true }
-
         App\Tests\Support\DocumentGenerators:
             public: true
             arguments:

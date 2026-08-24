@@ -17,9 +17,7 @@ function signIn(permissions: string[]): void {
   const auth = useAuthStore()
   auth.user = {
     id: 'a-user',
-    email: 'someone@example.test',
-    emailVerified: true,
-    mfaEnabled: false,
+    username: 'someone',
     roles: [],
     permissions,
   } as Me

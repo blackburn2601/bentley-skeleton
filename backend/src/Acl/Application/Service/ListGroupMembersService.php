@@ -14,10 +14,10 @@ use Symfony\Component\Uid\Uuid;
 /**
  * @responsibility Lists the users who belong to one group.
  *
- * Membership is stored as bare user ids, so the emails come from the Account context one at a
+ * Membership is stored as bare user ids, so the usernames come from the Account context one at a
  * time through its facade. That is an N+1, accepted because a group is a team rather than a
- * mailing list — if groups ever grow past a few hundred people, this is the first thing to
- * replace with a batch lookup on the facade.
+ * roster — if groups ever grow past a few hundred people, this is the first thing to replace
+ * with a batch lookup on the facade.
  */
 final readonly class ListGroupMembersService
 {
@@ -29,7 +29,7 @@ final readonly class ListGroupMembersService
     }
 
     /**
-     * @return list<array{id: string, email: string}>
+     * @return list<array{id: string, username: string}>
      */
     public function __invoke(Uuid $groupId): array
     {
@@ -44,13 +44,13 @@ final readonly class ListGroupMembersService
         foreach ($this->subjects->memberIdsOf($group) as $memberId) {
             $members[] = [
                 'id' => $memberId->toRfc4122(),
-                // An id with no email is a membership row pointing at an account that has been
+                // An id with no username is a membership row pointing at an account that has been
                 // erased. Showing the id is more honest than hiding the row.
-                'email' => $this->accounts->emailOf($memberId) ?? '(erased account)',
+                'username' => $this->accounts->usernameOf($memberId) ?? '(erased account)',
             ];
         }
 
-        usort($members, static fn (array $a, array $b): int => $a['email'] <=> $b['email']);
+        usort($members, static fn (array $a, array $b): int => $a['username'] <=> $b['username']);
 
         return $members;
     }

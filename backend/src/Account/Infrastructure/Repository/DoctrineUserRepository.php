@@ -20,21 +20,21 @@ final readonly class DoctrineUserRepository implements UserRepository
         return $this->em->find(User::class, $id);
     }
 
-    public function findByEmail(string $email): ?User
+    public function findByUsername(string $username): ?User
     {
         // No strtolower() here on purpose: the column is citext, so the database compares
         // case-insensitively. Normalising in PHP as well would hide that, and the next query
         // written without it would behave differently for no visible reason.
-        return $this->em->getRepository(User::class)->findOneBy(['email' => $email]);
+        return $this->em->getRepository(User::class)->findOneBy(['username' => $username]);
     }
 
-    public function existsByEmail(string $email): bool
+    public function existsByUsername(string $username): bool
     {
         $count = $this->em->createQueryBuilder()
             ->select('COUNT(u.id)')
             ->from(User::class, 'u')
-            ->where('u.email = :email')
-            ->setParameter('email', $email)
+            ->where('u.username = :username')
+            ->setParameter('username', $username)
             ->getQuery()
             ->getSingleScalarResult();
 

@@ -108,11 +108,11 @@ final class IdorRegressionTest extends ApiTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSame(
-            $alice->email(),
-            $this->responseJson()['email'] ?? null,
+            $alice->username(),
+            $this->responseJson()['username'] ?? null,
             '/me must describe the CALLER. Returning anyone else would be the purest form of IDOR.',
         );
-        self::assertNotSame($bob->email(), $this->responseJson()['email'] ?? null);
+        self::assertNotSame($bob->username(), $this->responseJson()['username'] ?? null);
     }
 
     public function testStealingAnotherUsersRefreshTokenDoesNotYieldTheirSession(): void
@@ -133,7 +133,7 @@ final class IdorRegressionTest extends ApiTestCase
         $this->logIn($alice);
         $this->json('GET', '/api/v1/auth/me');
 
-        self::assertSame($alice->email(), $this->responseJson()['email'] ?? null);
+        self::assertSame($alice->username(), $this->responseJson()['username'] ?? null);
     }
 
     public function testAnObjectLevelGrantDoesNotLeakToOtherObjects(): void

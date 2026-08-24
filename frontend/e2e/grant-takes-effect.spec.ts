@@ -23,9 +23,9 @@ const PASSWORD = 'demo-password-not-for-real-use'
 const USERS_ENDPOINT = '/api/v1/admin/users'
 const GRANTED_ROLE = 'ROLE_AUDITOR'
 
-async function signIn(page: Page, email: string): Promise<void> {
+async function signIn(page: Page, username: string): Promise<void> {
   await page.goto(`${SPA}/sign-in`)
-  await page.getByLabel('Email').fill(email)
+  await page.getByLabel('Username').fill(username)
   await page.getByLabel('Password').fill(PASSWORD)
   await page.getByRole('button', { name: 'Sign in' }).click()
   await expect(page).toHaveURL(/\/account$/)
@@ -34,7 +34,7 @@ async function signIn(page: Page, email: string): Promise<void> {
 /** The admin acts through the API directly: this test is about the viewer's session. */
 async function signInAsAdmin(request: APIRequestContext): Promise<string> {
   const login = await request.post(`${API}/api/v1/auth/login`, {
-    data: { email: 'admin@bentley.localhost', password: PASSWORD },
+    data: { username: 'admin', password: PASSWORD },
   })
   expect(login.ok(), await login.text()).toBe(true)
 
@@ -47,7 +47,7 @@ test('a granted permission takes effect without signing in again', async ({ page
   // below whatever happens. The e2e database is shared and workers run one at a time, so a
   // test that leaves state behind is a test that passes exactly once.
   const csrf = await signInAsAdmin(request)
-  const viewers = await request.get(`${API}${USERS_ENDPOINT}?q=viewer@bentley.localhost`)
+  const viewers = await request.get(`${API}${USERS_ENDPOINT}?q=viewer`)
   const viewerId = (await viewers.json()).items[0].id
 
   const revoke = () =>
@@ -61,7 +61,7 @@ test('a granted permission takes effect without signing in again', async ({ page
   try {
     // The viewer holds only an OBJECT-level grant on one user record — no class-level
     // user.read — so the admin area offers them nothing but the dashboard.
-    await signIn(page, 'viewer@bentley.localhost')
+    await signIn(page, 'viewer')
     await expect(page.getByRole('link', { name: 'Users' })).toHaveCount(0)
 
     const before = await page.request.get(`${SPA}${USERS_ENDPOINT}`)

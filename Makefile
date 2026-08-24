@@ -50,7 +50,6 @@ up: ## Build if needed and start the dev stack
 	$(COMPOSE) up -d --build --wait --renew-anon-volumes
 	@echo "API      http://localhost:8080"
 	@echo "SPA      http://localhost:5173"
-	@echo "Mailpit  http://localhost:8025"
 
 down: ## Stop the stack and remove volumes
 	$(COMPOSE) down --remove-orphans --volumes

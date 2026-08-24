@@ -20,6 +20,17 @@ interface SecretGenerator
      */
     public function generate(int $bytes = 32): string;
 
-    /** A numeric code for MFA recovery and similar human-typed secrets. */
+    /** A numeric code for human-typed, read-aloud secrets. */
     public function generateNumericCode(int $digits = 8): string;
+
+    /**
+     * A password an administrator hands over once and a user types in.
+     *
+     * Distinct from {@see generate()}: that returns a url-safe base64 string which is fine for
+     * a cookie but wretched to read aloud across a counter. This returns a copyable string from
+     * an unambiguous alphabet (no 0/O/1/l/I) long enough to clear the password policy.
+     *
+     * @return non-empty-string
+     */
+    public function generateTemporaryPassword(int $length = 16): string;
 }

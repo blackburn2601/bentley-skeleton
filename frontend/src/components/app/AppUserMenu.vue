@@ -20,8 +20,8 @@ const auth = useAuthStore()
 const router = useRouter()
 const toast = useToast()
 
-const email = computed(() => auth.user?.email ?? '')
-const initials = computed(() => email.value.slice(0, 2).toUpperCase())
+const username = computed(() => auth.user?.username ?? '')
+const initials = computed(() => username.value.slice(0, 2).toUpperCase())
 
 async function signOut(): Promise<void> {
   try {
@@ -40,13 +40,13 @@ async function signOut(): Promise<void> {
     <DropdownMenuTrigger as-child>
       <Button variant="ghost" class="gap-2 px-2" aria-label="Account menu">
         <Avatar>{{ initials }}</Avatar>
-        <span class="hidden max-w-40 truncate text-sm sm:block">{{ email }}</span>
+        <span class="hidden max-w-40 truncate text-sm sm:block">{{ username }}</span>
       </Button>
     </DropdownMenuTrigger>
 
     <DropdownMenuContent class="w-56">
       <DropdownMenuLabel class="truncate font-normal text-muted-foreground">
-        {{ email }}
+        {{ username }}
       </DropdownMenuLabel>
       <DropdownMenuSeparator />
       <DropdownMenuItem as-child>

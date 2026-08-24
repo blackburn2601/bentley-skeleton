@@ -17,7 +17,7 @@ use Throwable;
  * component that merely verifies tokens cannot mint them. That matters the first time
  * something else in the estate wants to check a token.
  *
- * The payload carries `sub`, `email`, `roles` and `perm_v` — and deliberately **no permission
+ * The payload carries `sub`, `username`, `roles` and `perm_v` — and deliberately **no permission
  * list** (ADR-0011). `perm_v` is the user's acl_version, which is what lets a revoked grant
  * take effect on the next request instead of when the token expires.
  */
@@ -30,13 +30,13 @@ final readonly class JwtAccessTokenIssuer implements AccessTokenIssuer
     ) {
     }
 
-    public function issue(Uuid $userId, string $email, array $roleNames, int $aclVersion): string
+    public function issue(Uuid $userId, string $username, array $roleNames, int $aclVersion): string
     {
         $now = $this->clock->now()->getTimestamp();
 
         return $this->encoder->encode([
             'sub' => $userId->toRfc4122(),
-            'email' => $email,
+            'username' => $username,
             'roles' => array_values($roleNames),
             'perm_v' => $aclVersion,
             // A unique id per token, so a specific one can be named in an audit trail.
@@ -75,14 +75,14 @@ final readonly class JwtAccessTokenIssuer implements AccessTokenIssuer
      *
      * @param array<array-key, mixed> $payload
      *
-     * @return array{sub: string, email: string, roles: list<string>, perm_v: int}|null
+     * @return array{sub: string, username: string, roles: list<string>, perm_v: int}|null
      */
     private function claimsFrom(array $payload): ?array
     {
         $sub = $payload['sub'] ?? null;
-        $email = $payload['email'] ?? null;
+        $username = $payload['username'] ?? null;
 
-        if (!\is_string($sub) || !\is_string($email) || !Uuid::isValid($sub)) {
+        if (!\is_string($sub) || !\is_string($username) || !Uuid::isValid($sub)) {
             return null;
         }
 
@@ -91,7 +91,7 @@ final readonly class JwtAccessTokenIssuer implements AccessTokenIssuer
 
         return [
             'sub' => $sub,
-            'email' => $email,
+            'username' => $username,
             'roles' => \is_array($roles) ? array_values(array_filter($roles, \is_string(...))) : [],
             'perm_v' => \is_int($permissionVersion) ? $permissionVersion : 0,
         ];

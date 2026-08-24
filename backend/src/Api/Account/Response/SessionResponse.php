@@ -17,17 +17,16 @@ final readonly class SessionResponse
      */
     private function __construct(
         public string $id,
-        public string $email,
+        public string $username,
         public array $roles,
-        public bool $mfaRequired = false,
     ) {
     }
 
     /**
      * @param list<string> $roles
      */
-    public static function authenticated(string $id, string $email, array $roles): self
+    public static function authenticated(string $id, string $username, array $roles): self
     {
-        return new self($id, $email, $roles);
+        return new self($id, $username, $roles);
     }
 }

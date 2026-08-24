@@ -9,16 +9,18 @@ use Symfony\Component\Validator\Constraints as Assert;
 /**
  * The body of POST /api/v1/admin/users.
  *
- * No password field, deliberately: the new user sets their own through the link this creates
- * (see CreateUserService). An administrator who could type a password would know it.
+ * No password field, deliberately: the service generates a temporary password and hands it to
+ * the administrator once (ADR-0024). An administrator who could type a password would know it.
+ *
+ * The username charset (`[A-Za-z0-9._-]`) is the workforce identity policy recorded in ADR-0024.
  */
 final readonly class CreateUserRequest
 {
     public function __construct(
         #[Assert\NotBlank]
-        #[Assert\Email(mode: Assert\Email::VALIDATION_MODE_STRICT)]
-        #[Assert\Length(max: 254)]
-        public string $email = '',
+        #[Assert\Length(min: 3, max: 64)]
+        #[Assert\Regex('/^[A-Za-z0-9._-]+$/')]
+        public string $username = '',
     ) {
     }
 }

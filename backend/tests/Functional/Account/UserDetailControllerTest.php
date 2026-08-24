@@ -9,7 +9,7 @@ use App\Acl\Domain\PermissionCatalog;
 use App\Tests\Functional\ApiTestCase;
 
 /**
- * The single-user endpoints: detail, email edit, session revocation.
+ * The single-user endpoints: detail, username edit, session revocation.
  */
 final class UserDetailControllerTest extends ApiTestCase
 {
@@ -41,7 +41,7 @@ final class UserDetailControllerTest extends ApiTestCase
         self::assertResponseIsSuccessful();
         $body = $this->responseJson();
 
-        self::assertSame($target->email(), $body['email']);
+        self::assertSame($target->username(), $body['username']);
         self::assertArrayNotHasKey('passwordHash', $body);
         self::assertArrayNotHasKey('totpSecretEncrypted', $body);
     }
@@ -79,32 +79,29 @@ final class UserDetailControllerTest extends ApiTestCase
     }
 
     /**
-     * A changed address is unproven, so verification is reset. Leaving it verified would let a
-     * typo become an address that password resets are sent to.
+     * An administrator can rename a user. The new username is the identity from the next request.
      */
-    public function testChangingTheEmailResetsVerification(): void
+    public function testItChangesTheUsername(): void
     {
-        $target = $this->createUser('target', verified: true);
+        $target = $this->createUser('target');
         $this->logIn($this->editor());
-        $newEmail = 'moved-'.bin2hex(random_bytes(4)).'@functional.test';
+        $newUsername = 'moved-'.bin2hex(random_bytes(4));
 
         $this->json(
             'PATCH',
             '/api/v1/admin/users/'.$target->id()->toRfc4122(),
-            ['email' => $newEmail],
+            ['username' => $newUsername],
             $this->csrfHeader(),
         );
 
         self::assertResponseIsSuccessful();
-        self::assertSame($newEmail, $this->responseJson()['email']);
-        self::assertFalse($this->responseJson()['emailVerified']);
+        self::assertSame($newUsername, $this->responseJson()['username']);
 
         $reloaded = $this->reload($target);
-        self::assertSame($newEmail, $reloaded->email());
-        self::assertFalse($reloaded->isEmailVerified());
+        self::assertSame($newUsername, $reloaded->username());
     }
 
-    public function testItRefusesAnEmailAlreadyInUse(): void
+    public function testItRefusesAUsernameAlreadyInUse(): void
     {
         $target = $this->createUser('target');
         $other = $this->createUser('other');
@@ -113,7 +110,7 @@ final class UserDetailControllerTest extends ApiTestCase
         $this->json(
             'PATCH',
             '/api/v1/admin/users/'.$target->id()->toRfc4122(),
-            ['email' => $other->email()],
+            ['username' => $other->username()],
             $this->csrfHeader(),
         );
 

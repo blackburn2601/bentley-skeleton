@@ -13,9 +13,6 @@ namespace App\Account\Domain;
  */
 enum UserStatus: string
 {
-    /** Registered, email not yet verified. Cannot log in. */
-    case PendingVerification = 'pending_verification';
-
     case Active = 'active';
 
     /** Suspended by an administrator. Cannot log in; may be reinstated. */

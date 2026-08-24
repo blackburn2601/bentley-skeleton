@@ -27,7 +27,6 @@ make migrate fixtures         # schema + demo dataset
 | API | <http://localhost:8080> |
 | SPA | <http://localhost:5173> |
 | API docs | <http://localhost:8080/api/doc> |
-| Mailpit | <http://localhost:8025> |
 
 Then `make check` to run everything CI runs.
 
@@ -46,9 +45,10 @@ them for you — none of them have a safe default.
 ## What is in the box
 
 **Authentication** — argon2id, RS256 access tokens (10 min), opaque refresh tokens rotated
-on every use with reuse detection that revokes the whole family, TOTP MFA with recovery
-codes, per-account lockout with exponential backoff, HIBP k-anonymity password checks,
-session and device management. Everything in `__Host-` cookies.
+on every use with reuse detection that revokes the whole family, admin-issued username
+credentials with one-time temporary passwords, per-account lockout with exponential
+backoff, HIBP k-anonymity password checks, session and device management. Everything in
+`__Host-` cookies.
 
 **Authorization** — a real per-object ACL: users, groups, roles, permissions and
 object-scoped entries, resolved most-specific-first with deny beating allow. Collection

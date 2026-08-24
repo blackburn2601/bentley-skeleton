@@ -73,8 +73,8 @@ describe('api client', () => {
         detail: 'The request body did not pass validation.',
         requestId: 'req-abc',
         errors: [
-          { field: 'email', message: 'This value is not a valid email address.' },
-          { field: 'email', message: 'A second complaint about the same field.' },
+          { field: 'username', message: 'This value is not a valid username.' },
+          { field: 'username', message: 'A second complaint about the same field.' },
           { field: 'password', message: 'This value is too short.' },
         ],
       }),
@@ -83,7 +83,7 @@ describe('api client', () => {
     // ONE call. A Response body can only be read once, so asserting twice against the same
     // mocked Response would hand the second attempt an already-consumed stream and quietly
     // produce the fallback problem — a test that passes for the wrong reason.
-    const error = await api.post('/api/v1/auth/register', {}).catch((caught: unknown) => caught)
+    const error = await api.post('/api/v1/auth/login', {}).catch((caught: unknown) => caught)
 
     expect(error).toBeInstanceOf(ApiError)
 
@@ -91,7 +91,7 @@ describe('api client', () => {
     expect(apiError.status).toBe(422)
     expect(apiError.requestId).toBe('req-abc')
     expect(apiError.fieldErrors).toEqual({
-      email: 'This value is not a valid email address.',
+      username: 'This value is not a valid username.',
       password: 'This value is too short.',
     })
   })

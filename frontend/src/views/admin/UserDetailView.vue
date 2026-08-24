@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeft, LogOut, Pencil, ShieldCheck, ShieldOff, Trash2 } from 'lucide-vue-next'
+import { ArrowLeft, KeyRound, LogOut, Pencil, ShieldCheck, ShieldOff, Trash2 } from 'lucide-vue-next'
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -9,6 +9,7 @@ import {
   changeUserStatus,
   describeUser,
   eraseUser,
+  resetUserPassword,
   revokeRole,
   revokeUserSessions,
   updateUser,
@@ -79,17 +80,17 @@ onMounted(async () => {
 const isSelf = (): boolean => user.value?.id === auth.user?.id
 
 const editOpen = ref(false)
-const emailDraft = ref('')
+const usernameDraft = ref('')
 
 function startEdit(): void {
-  emailDraft.value = user.value?.email ?? ''
+  usernameDraft.value = user.value?.username ?? ''
   editOpen.value = true
 }
 
 async function submitEdit(): Promise<void> {
   const saved = await run(
-    () => updateUser(id, emailDraft.value.trim()),
-    'Email changed. The new address must be verified before it can receive a password reset.',
+    () => updateUser(id, usernameDraft.value.trim()),
+    'Username changed.',
   )
 
   if (saved.ok) {
@@ -134,9 +135,39 @@ async function confirmErase(): Promise<void> {
   }
 }
 
+interface ResetResult {
+  id: string
+  username: string
+  temporaryPassword: string
+}
+
+const resetOpen = ref(false)
+const resetResult = ref<ResetResult | null>(null)
+const copied = ref(false)
+
+async function submitResetPassword(): Promise<void> {
+  const result = await run(() => resetUserPassword(id), '')
+
+  if (result.ok) {
+    resetResult.value = result.value
+    copied.value = false
+    resetOpen.value = false
+    await load()
+  }
+}
+
+async function copyTemporaryPassword(): Promise<void> {
+  if (!resetResult.value) return
+  try {
+    await navigator.clipboard.writeText(resetResult.value.temporaryPassword)
+    copied.value = true
+  } catch {
+    copied.value = false
+  }
+}
+
 const statusVariant: Record<UserStatus, 'success' | 'warning' | 'destructive' | 'secondary'> = {
   active: 'success',
-  pending_verification: 'warning',
   suspended: 'destructive',
   anonymised: 'secondary',
 }
@@ -164,22 +195,24 @@ const formatDateTime = (iso: string | null): string =>
     <template v-else-if="user">
       <div class="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 class="text-2xl font-semibold tracking-tight">{{ user.email }}</h1>
+          <h1 class="text-2xl font-semibold tracking-tight">{{ user.username }}</h1>
           <div class="flex flex-wrap items-center gap-2 pt-1">
             <Badge :variant="statusVariant[user.status]">{{ statusLabel(user.status) }}</Badge>
-            <Badge :variant="user.emailVerified ? 'outline' : 'warning'">
-              {{ user.emailVerified ? 'Email verified' : 'Email unverified' }}
-            </Badge>
-            <Badge :variant="user.mfaEnabled ? 'outline' : 'secondary'">
-              MFA {{ user.mfaEnabled ? 'on' : 'off' }}
-            </Badge>
             <span v-if="isSelf()" class="text-xs text-muted-foreground">This is your account</span>
           </div>
         </div>
 
         <div class="flex flex-wrap gap-2">
           <Button v-if="canUpdate && !isSelf()" variant="outline" @click="startEdit">
-            <Pencil /> Edit email
+            <Pencil /> Edit username
+          </Button>
+          <Button
+            v-if="canUpdate && !isSelf()"
+            variant="outline"
+            :disabled="busy"
+            @click="resetOpen = true"
+          >
+            <KeyRound /> Reset password
           </Button>
           <Button v-if="canUpdate && !isSelf()" variant="outline" :disabled="busy" @click="endSessions">
             <LogOut /> Sign out everywhere
@@ -313,28 +346,83 @@ const formatDateTime = (iso: string | null): string =>
     <Dialog v-model:open="editOpen">
       <DialogContent class="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Change email address</DialogTitle>
+          <DialogTitle>Change username</DialogTitle>
           <DialogDescription>
-            The new address starts unverified, and a verification email is sent to it. Password
-            resets go to the new address from now on.
+            The username is the account's identity. It is case-insensitive on the server.
           </DialogDescription>
         </DialogHeader>
         <form id="edit-user" class="space-y-1.5" @submit.prevent="submitEdit">
-          <Label for="user-email">Email address</Label>
-          <Input id="user-email" v-model="emailDraft" type="email" autocomplete="off" />
+          <Label for="user-username">Username</Label>
+          <Input id="user-username" v-model="usernameDraft" type="text" autocomplete="off" />
         </form>
         <DialogFooter>
           <Button variant="outline" :disabled="busy" @click="editOpen = false">Cancel</Button>
-          <Button type="submit" form="edit-user" :disabled="busy || emailDraft.trim() === ''">
+          <Button type="submit" form="edit-user" :disabled="busy || usernameDraft.trim() === ''">
             {{ busy ? 'Working…' : 'Save' }}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
 
+    <!--
+      Confirm before resetting: the reset generates a one-time password that cannot be
+      retrieved again, so it should be a deliberate act.
+    -->
+    <Dialog :open="resetOpen" @update:open="(o: boolean) => !o && (resetOpen = false)">
+      <DialogContent class="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Reset password for {{ user?.username }}</DialogTitle>
+          <DialogDescription>
+            This generates a new one-time temporary password. The current password stops working
+            immediately. The temporary password is shown once afterwards — have the user ready to
+            receive it.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" :disabled="busy" @click="resetOpen = false">Cancel</Button>
+          <Button variant="destructive" :disabled="busy" @click="submitResetPassword">
+            {{ busy ? 'Working…' : 'Reset password' }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <!--
+      The one-time temporary password. The API returns it exactly once and never again; it is
+      not persisted server-side. Closing this dialog without copying it means only another reset
+      can recover it.
+    -->
+    <Dialog
+      :open="resetResult !== null"
+      @update:open="(o: boolean) => !o && (resetResult = null)"
+    >
+      <DialogContent class="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Temporary password for {{ resetResult?.username }}</DialogTitle>
+          <DialogDescription>
+            Shown only once — hand it to the user now. It cannot be retrieved again.
+          </DialogDescription>
+        </DialogHeader>
+        <div class="space-y-3">
+          <div class="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning">
+            This password will not be shown again. Copy it now.
+          </div>
+          <code class="block break-all rounded-md border bg-muted px-3 py-2 text-sm">
+            {{ resetResult?.temporaryPassword }}
+          </code>
+          <Button class="w-full" @click="copyTemporaryPassword">
+            {{ copied ? 'Copied' : 'Copy to clipboard' }}
+          </Button>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" @click="resetResult = null">Done</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
     <ConfirmDialog
       v-model:open="eraseOpen"
-      :title="`Erase ${user?.email}?`"
+      :title="`Erase ${user?.username}?`"
       description="This anonymises the account and ends every session it has. It cannot be undone — the audit trail is kept, but the person's details are gone."
       confirm-label="Erase account"
       confirm-phrase="ERASE"

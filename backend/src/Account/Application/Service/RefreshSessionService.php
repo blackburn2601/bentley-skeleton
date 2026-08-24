@@ -46,9 +46,9 @@ final readonly class RefreshSessionService
 
         return new IssuedSession(
             userId: $user->id()->toRfc4122(),
-            email: $user->email(),
+            username: $user->username(),
             roles: $roles,
-            accessToken: $this->accessTokens->issue($user->id(), $user->email(), $roles, $user->aclVersion()),
+            accessToken: $this->accessTokens->issue($user->id(), $user->username(), $roles, $user->aclVersion()),
             accessTtlSeconds: $this->accessTokens->ttlSeconds(),
             refreshToken: $rotated['plaintext'],
             refreshTtlSeconds: $this->refreshTtlSeconds,

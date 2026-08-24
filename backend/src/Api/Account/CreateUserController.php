@@ -33,8 +33,8 @@ final readonly class CreateUserController
         #[MapRequestPayload]
         CreateUserRequest $request,
     ): JsonResponse {
-        $user = ($this->createUser)($request->email, $actor->id());
+        $created = ($this->createUser)($request->username, $actor->id());
 
-        return new JsonResponse(CreateUserResponse::from($user), JsonResponse::HTTP_CREATED);
+        return new JsonResponse(CreateUserResponse::from($created), JsonResponse::HTTP_CREATED);
     }
 }

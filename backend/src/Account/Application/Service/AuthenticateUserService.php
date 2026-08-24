@@ -50,15 +50,15 @@ final readonly class AuthenticateUserService
     /**
      * @throws AccountException always with the same message, whatever actually went wrong
      */
-    public function __invoke(string $email, string $plainPassword): User
+    public function __invoke(string $username, string $plainPassword): User
     {
         $now = $this->clock->now();
-        $user = $this->users->findByEmail($email);
+        $user = $this->users->findByUsername($username);
 
         if (null === $user) {
             // Same work, same message, same shape of response.
             $this->hasher->verify(self::DUMMY_HASH, $plainPassword);
-            $this->audit->record(SecurityEventType::LoginFailed, null, ['reason' => 'unknown_email']);
+            $this->audit->record(SecurityEventType::LoginFailed, null, ['reason' => 'unknown_username']);
 
             throw AccountException::invalidCredentials();
         }

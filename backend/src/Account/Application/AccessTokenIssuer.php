@@ -17,11 +17,11 @@ interface AccessTokenIssuer
     /**
      * @param list<string> $roleNames Symfony roles only — never a permission list (ADR-0011)
      */
-    public function issue(Uuid $userId, string $email, array $roleNames, int $aclVersion): string;
+    public function issue(Uuid $userId, string $username, array $roleNames, int $aclVersion): string;
 
     /**
-     * @return array{sub: string, email: string, roles: list<string>, perm_v: int}|null
-     *                                                                                  null if absent, malformed, expired or badly signed
+     * @return array{sub: string, username: string, roles: list<string>, perm_v: int}|null
+     *                                                                                     null if absent, malformed, expired or badly signed
      */
     public function decode(string $token): ?array;
 

@@ -37,7 +37,7 @@ Generated inventories — use these to find existing code instead of writing a s
 `make help` lists everything. The ones you will actually use:
 
 ```
-make up                 start the dev stack (API :8080, SPA :5173, Mailpit :8025)
+make up                 start the dev stack (API :8080, SPA :5173)
 make migrate fixtures   apply migrations, load the demo dataset
 make check              everything CI runs except e2e — run this before you say you are done
 make fix                apply every safe automatic fix (cs-fixer, then Rector)
@@ -69,7 +69,7 @@ make adr TITLE="..."    the next architecture decision record
 | `Api` | controllers, request DTOs, response views, HTTP listeners, voters | `Application`, `Domain` |
 | `Application` | **service classes**, ports (interfaces) | `Domain` |
 | `Domain` | entities, value objects, enums, domain exceptions, repository *interfaces* | nothing |
-| `Infrastructure` | Doctrine repositories, mailer/redis/HTTP/JWT adapters | `Domain`, `Application` ports |
+| `Infrastructure` | Doctrine repositories, Redis/HTTP/JWT adapters | `Domain`, `Application` ports |
 
 Bounded contexts live in `backend/src/<Context>/` — `Account`, `Acl`, `Audit`, `Platform`,
 plus `Shared` for domain primitives. **A context may only use another context through that
@@ -92,7 +92,7 @@ by reflex.
 - **Never import `Request`, `Response` or `HttpException` below the Api layer.**
 - **Never serialize an entity into a response.** Map it onto a response view, field by field.
 - **Never generate an interface per service.** Interfaces are for real port boundaries — a
-  second implementation, a clock, a mailer, an HTTP egress. One implementer means no
+  second implementation, a clock, an HTTP egress. One implementer means no
   interface.
 - **Never put a permission list in the JWT.** Permissions are resolved server-side so that
   revocation takes effect on the next request.

@@ -48,10 +48,6 @@ final class RoutesDeclarePermissionsTest extends KernelTestCase
      */
     private const array INTENTIONALLY_PUBLIC = [
         'auth_login' => 'The caller has no credentials yet; that is the point.',
-        'auth_register' => 'Anonymous by definition.',
-        'auth_verify_email' => 'The emailed token is the credential.',
-        'auth_password_forgot' => 'Requested precisely because the user cannot sign in.',
-        'auth_password_reset' => 'The emailed token is the credential; the whole point is that the password is unknown.',
         'auth_refresh' => 'The access token has expired by definition; the refresh cookie is the credential.',
         'auth_logout' => 'Must always clear cookies, even with an invalid session, or a client can be stranded.',
         'health_live' => 'An orchestrator has no credentials, and an authenticated liveness probe means no liveness probe.',

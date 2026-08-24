@@ -26,4 +26,21 @@ final readonly class RandomSecretGenerator implements SecretGenerator
 
         return str_pad((string) random_int(0, $max), $digits, '0', \STR_PAD_LEFT);
     }
+
+    public function generateTemporaryPassword(int $length = 16): string
+    {
+        // Unambiguous alphabet: no 0/O, 1/l/I. The result must clear PasswordPolicy (length and
+        // the repetition check), so 16 chars from this set is deliberately generous and varied.
+        $alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+        $max = \strlen($alphabet) - 1;
+        $out = '';
+
+        for ($i = 0; $i < $length; ++$i) {
+            $out .= $alphabet[random_int(0, $max)];
+        }
+
+        \assert('' !== $out);
+
+        return $out;
+    }
 }

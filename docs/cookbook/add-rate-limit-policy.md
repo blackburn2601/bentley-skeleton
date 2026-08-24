@@ -29,7 +29,7 @@ This is the decision that determines whether the limit works.
 - **Per user** — the default for authenticated endpoints.
 - **Per IP** — for anonymous endpoints, but remember NAT: an office shares one address.
 - **Per IP *and* per identifier** — what `login` does. Keyed on IP alone, an attacker
-  rotates addresses; keyed on email alone, they spray many accounts from one host. Both
+  rotates addresses; keyed on username alone, they spray many accounts from one host. Both
   together closes each gap.
 
 Anything keyed on IP is wrong unless `TRUSTED_PROXIES` is configured correctly — behind a

@@ -21,7 +21,7 @@ final readonly class DescribeCurrentUserService
     }
 
     /**
-     * @return array{id: string, email: string, emailVerified: bool, mfaEnabled: bool, roles: list<string>, permissions: list<string>}
+     * @return array{id: string, username: string, roles: list<string>, permissions: list<string>}
      */
     public function __invoke(Uuid $userId): array
     {
@@ -36,9 +36,7 @@ final readonly class DescribeCurrentUserService
 
         return [
             'id' => $user->id()->toRfc4122(),
-            'email' => $user->email(),
-            'emailVerified' => $user->isEmailVerified(),
-            'mfaEnabled' => $user->hasMfaEnabled(),
+            'username' => $user->username(),
             'roles' => $this->acl->roleNamesOf($user->id()),
             'permissions' => $this->acl->classLevelPermissionsOf($userId),
         ];

@@ -57,7 +57,7 @@ final class CookieTokenAuthenticator extends AbstractAuthenticator implements Au
 
         $user = new AuthenticatedUser(
             Uuid::fromString($claims['sub']),
-            $claims['email'],
+            $claims['username'],
             $claims['roles'],
             $claims['perm_v'],
         );

@@ -17,12 +17,12 @@ test.describe('sign in', () => {
   test('a fixture user can sign in, see their account, and sign out', async ({ page }) => {
     await page.goto(`${SPA}/sign-in`)
 
-    await page.getByLabel('Email').fill('admin@bentley.localhost')
+    await page.getByLabel('Username').fill('admin')
     await page.getByLabel('Password').fill('demo-password-not-for-real-use')
     await page.getByRole('button', { name: 'Sign in' }).click()
 
     await expect(page).toHaveURL(/\/account$/)
-    await expect(page.getByText('admin@bentley.localhost').first()).toBeVisible()
+    await expect(page.getByText('admin').first()).toBeVisible()
 
     // The browser accepted the __Host- cookies and is sending them back.
     const cookies = await page.context().cookies()
@@ -62,10 +62,10 @@ test.describe('sign in', () => {
   test('wrong credentials show the error without revealing whether the account exists', async ({ page }) => {
     await page.goto(`${SPA}/sign-in`)
 
-    await page.getByLabel('Email').fill('admin@bentley.localhost')
+    await page.getByLabel('Username').fill('admin')
     await page.getByLabel('Password').fill('definitely-not-the-password')
     await page.getByRole('button', { name: 'Sign in' }).click()
 
-    await expect(page.getByRole('alert')).toContainText('email address or password is incorrect')
+    await expect(page.getByRole('alert')).toContainText('incorrect')
   })
 })

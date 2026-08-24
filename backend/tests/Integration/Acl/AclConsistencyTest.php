@@ -228,7 +228,7 @@ final class AclConsistencyTest extends KernelTestCase
                 ."  PermissionResolver: %s\n  AclCriteriaBuilder: %s\n"
                 .'One of them is wrong, and if it is the filter, a list is showing or hiding '
                 .'rows a direct fetch would not.',
-                $record->email(),
+                $record->username(),
                 $resolverSays ? 'granted' : 'denied',
                 $listSays ? 'included' : 'excluded',
             ));

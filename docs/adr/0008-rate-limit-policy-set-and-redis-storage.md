@@ -1,6 +1,6 @@
 # 0008. Rate-limit policy set, stored in Redis
 
-- **Status:** accepted
+- **Status:** partially superseded by 0024 — the `register`, `password_reset` and `verify_resend` policies below are removed (those endpoints no longer exist), and `login` is now keyed on IP **and username** rather than email. The remaining policies (login, refresh, admin_write) stand.
 - **Date:** 2026-08-22
 
 ## Context
