@@ -40,3 +40,4 @@ New decision? `make adr TITLE="..."`. See [../cookbook/add-adr.md](../cookbook/a
 | 0022 | [Tailwind v4 with hand-vendored shadcn-vue as the SPA design system](0022-tailwind-v4-with-vendored-shadcn-vue-for-the-admin-ui.md) | accepted |
 | 0023 | [Collection ACL filtering through an Application port exposed on `AclFacade`](0023-collection-acl-filtering-through-an-application-port-on-aclfacade.md) | accepted |
 | 0024 | [Workforce identity: username-only, admin-issued credentials, no self-registration, no email, no MFA](0024-workforce-identity-username-only-admin-issued-credentials-no-self-registration-no-email-no-mfa.md) | accepted |
+| 0025 | [Search users by id fragment via a narrow TEXT() DQL cast](0025-search-users-by-id-fragment-via-a-narrow-text-dql-cast.md) | accepted |
