@@ -1,6 +1,6 @@
 # 0024. Workforce identity: username-only, admin-issued credentials, no self-registration, no email, no MFA
 
-- **Status:** accepted
+- **Status:** partially superseded by 0026 — only its "no MFA" decision; the username-only, admin-issued, no-self-registration, no-email workforce model stands untouched
 - **Date:** 2026-08-24
 - **Deciders:**
 - **Supersedes:** 0010 (synchronous mail / Mailpit) — the mailer the skeleton no longer has

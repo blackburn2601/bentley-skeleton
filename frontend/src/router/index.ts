@@ -21,6 +21,12 @@ declare module 'vue-router' {
     /** Redirect signed-in users away — the sign-in page. */
     guestOnly?: boolean
     /**
+     * The MFA verify screen: only a caller in the half-authenticated pending state may stay
+     * here (ADR-0026). Anyone else is moved on — a verified user to their account, a guest to
+     * sign-in.
+     */
+    mfaRequired?: boolean
+    /**
      * Class-level permission this screen needs.
      *
      * Display convenience only (INV-16): the endpoints behind the screen enforce it.
@@ -48,6 +54,12 @@ const routes: RouteRecordRaw[] = [
         name: 'sign-in',
         component: () => import('@/views/SignInView.vue'),
         meta: { guestOnly: true, title: 'Anmelden' },
+      },
+      {
+        path: 'mfa',
+        name: 'mfa',
+        component: () => import('@/views/MfaVerifyView.vue'),
+        meta: { mfaRequired: true, title: 'Zwei-Faktor-Authentifizierung' },
       },
     ],
   },
@@ -163,6 +175,19 @@ router.beforeEach(async (to) => {
   // sign-in page for someone who is in fact signed in.
   if (!auth.resolved) {
     await auth.load()
+  }
+
+  // A half-authenticated caller (password OK, second factor owed) may go nowhere but the MFA
+  // screen (ADR-0026). This comes first: a pending user is not `isAuthenticated`, so the
+  // requiresAuth and guestOnly branches below would otherwise bounce them to sign-in.
+  if (auth.mfaPending && to.name !== 'mfa') {
+    return { name: 'mfa' }
+  }
+
+  // The MFA screen is for pending callers only. A verified user has no business here; a guest
+  // would see an empty form that can never succeed.
+  if (to.meta.mfaRequired && !auth.mfaPending) {
+    return auth.isAuthenticated ? { name: 'account' } : { name: 'sign-in' }
   }
 
   if (to.meta.requiresAuth && !auth.isAuthenticated) {

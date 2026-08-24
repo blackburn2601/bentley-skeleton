@@ -51,13 +51,17 @@ services:
     # tests. There is deliberately no interface-per-service ceremony.
     App\Shared\Domain\Clock: '@App\Shared\Infrastructure\SystemClock'
     App\Shared\Domain\SecretGenerator: '@App\Shared\Infrastructure\RandomSecretGenerator'
+    App\Shared\Domain\SecretEncryptor: '@App\Shared\Infrastructure\Security\SodiumSecretBox'
     App\Shared\Application\AclVersionProvider: '@App\Account\Infrastructure\UserAclVersionProvider'
 
     App\Account\Domain\UserRepository: '@App\Account\Infrastructure\Repository\DoctrineUserRepository'
     App\Account\Domain\RefreshTokenRepository: '@App\Account\Infrastructure\Repository\DoctrineRefreshTokenRepository'
+    App\Account\Domain\MfaRecoveryCodeRepository: '@App\Account\Infrastructure\Repository\DoctrineMfaRecoveryCodeRepository'
     App\Account\Application\PasswordHasher: '@App\Account\Infrastructure\Security\SymfonyPasswordHasher'
     App\Account\Application\AccessTokenIssuer: '@App\Account\Infrastructure\Security\JwtAccessTokenIssuer'
     App\Account\Application\BreachedPasswordChecker: '@App\Account\Infrastructure\Http\HibpBreachedPasswordChecker'
+    App\Account\Application\Totp: '@App\Account\Infrastructure\Security\OtpTotp'
+    App\Account\Application\QrCode: '@App\Account\Infrastructure\Security\EndroidQrCode'
 
     App\Audit\Domain\SecurityEventRepository: '@App\Audit\Infrastructure\Repository\DoctrineSecurityEventRepository'
     App\Audit\Application\Service\RequestContextProvider: '@App\Audit\Infrastructure\Http\HttpRequestContextProvider'
@@ -85,6 +89,7 @@ services:
     App\Account\Infrastructure\Security\JwtAccessTokenIssuer:
         arguments:
             $ttlSeconds: '%env(int:ACCESS_TOKEN_TTL)%'
+            $challengeTtlSeconds: '%env(int:MFA_CHALLENGE_TTL)%'
 
     App\Account\Application\Service\StartSessionService:
         arguments:
@@ -94,11 +99,16 @@ services:
         arguments:
             $ttlSeconds: '%env(int:REFRESH_TOKEN_TTL)%'
 
-    App\Account\Application\Service\SignInService:
+    App\Account\Application\Service\RefreshSessionService:
         arguments:
             $refreshTtlSeconds: '%env(int:REFRESH_TOKEN_TTL)%'
 
-    App\Account\Application\Service\RefreshSessionService:
+    # The shared tail of every login path mints the full session, so its refresh-cookie Max-Age
+    # must track the same env the token's real expiry comes from (StartSessionService). A
+    # hardcoded default here would let the cookie outlive — or fall short of — the token it
+    # carries. SignInService and the two MFA-completing services all reach the session through
+    # this one service, so the TTL is bound in one place rather than four.
+    App\Account\Application\Service\CompleteSessionService:
         arguments:
             $refreshTtlSeconds: '%env(int:REFRESH_TOKEN_TTL)%'
 
@@ -109,6 +119,14 @@ services:
     App\Api\Security\AuthCookies:
         arguments:
             $sameSite: '%env(COOKIE_SAMESITE)%'
+
+    App\Shared\Infrastructure\Security\SodiumSecretBox:
+        arguments:
+            $keyBase64: '%env(TOTP_SECRET_KEY)%'
+
+    App\Account\Infrastructure\Security\OtpTotp:
+        arguments:
+            $issuer: '%app.name%'
 
     App\Api\Listener\SecurityHeadersSubscriber:
         arguments:
@@ -180,6 +198,13 @@ services:
                 api_user: '@limiter.api_user'
                 api_anon: '@limiter.api_anon'
                 admin_write: '@limiter.admin_write'
+                totp_verify: '@limiter.totp_verify'
+                recovery_verify: '@limiter.recovery_verify'
+                mfa_enrol: '@limiter.mfa_enrol'
+                mfa_confirm: '@limiter.mfa_confirm'
+                mfa_disable: '@limiter.mfa_disable'
+                mfa_admin_set: '@limiter.mfa_admin_set'
+                mfa_admin_reset: '@limiter.mfa_admin_reset'
 
     App\Api\Security\CookieTokenAuthenticator:
         arguments:

@@ -32,6 +32,7 @@ export interface RequestOptions extends Omit<RequestInit, 'body'> {
 }
 
 type Unauthenticated = () => void
+type LoadingEvent = () => void
 
 /** The in-flight refresh, shared by every request that hits a 401 while it is running. */
 let refreshInFlight: Promise<boolean> | null = null
@@ -43,9 +44,24 @@ export function setUnauthenticatedHandler(handler: Unauthenticated): void {
   onUnauthenticated = handler
 }
 
+// Bracketing every request so the global loading bar can react. Registered from outside the
+// client (in main.ts) rather than imported here, mirroring `setUnauthenticatedHandler` and
+// keeping this module free of a Pinia dependency — which would be circular, since the stores
+// import the client to make requests.
+let onLoadingStart: LoadingEvent = () => {}
+let onLoadingEnd: LoadingEvent = () => {}
+
+/** Drives the global loading bar: `start` fires when a request begins, `end` when it settles. */
+export function setLoadingHandler(start: LoadingEvent, end: LoadingEvent): void {
+  onLoadingStart = start
+  onLoadingEnd = end
+}
+
 /** Exported for tests; there is no other reason to reset module state. */
 export function resetClientState(): void {
   refreshInFlight = null
+  onLoadingStart = () => {}
+  onLoadingEnd = () => {}
 }
 
 function readCookie(name: string): string | null {
@@ -96,34 +112,41 @@ async function refreshOnce(): Promise<boolean> {
 }
 
 export async function request<T>(method: string, path: string, options: RequestOptions = {}): Promise<T> {
-  const response = await fetch(path, {
-    ...options,
-    method,
-    credentials: 'same-origin',
-    headers: buildHeaders(options),
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
-  })
+  onLoadingStart()
+  try {
+    const response = await fetch(path, {
+      ...options,
+      method,
+      credentials: 'same-origin',
+      headers: buildHeaders(options),
+      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    })
 
-  if (response.status === 401 && !options._isRetry && path !== REFRESH_PATH) {
-    const refreshed = await refreshOnce()
+    if (response.status === 401 && !options._isRetry && path !== REFRESH_PATH) {
+      const refreshed = await refreshOnce()
 
-    if (refreshed) {
-      return request<T>(method, path, { ...options, _isRetry: true })
+      if (refreshed) {
+        return request<T>(method, path, { ...options, _isRetry: true })
+      }
+
+      // Refresh failed: the session is over. Tell the app once, then surface the error.
+      onUnauthenticated()
     }
 
-    // Refresh failed: the session is over. Tell the app once, then surface the error.
-    onUnauthenticated()
-  }
+    if (!response.ok) {
+      throw new ApiError(await parseProblem(response), response)
+    }
 
-  if (!response.ok) {
-    throw new ApiError(await parseProblem(response), response)
-  }
+    if (response.status === 204) {
+      return undefined as T
+    }
 
-  if (response.status === 204) {
-    return undefined as T
+    return (await response.json()) as T
+  } finally {
+    // Always settle, including the throw paths above — a counter that only goes up on error
+    // would leave the loading bar stuck on for the rest of the session.
+    onLoadingEnd()
   }
-
-  return (await response.json()) as T
 }
 
 export const api = {

@@ -44,6 +44,32 @@ class User
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?DateTimeImmutable $deletedAt = null;
 
+    /**
+     * The user's TOTP secret, encrypted at rest (ADR-0026). NULL until the user enrolls and
+     * confirms. The secret the user is *about* to enroll is held in
+     * {@see $totpSecretEncryptedProvisional} until the first code confirms the app captured it.
+     */
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $totpSecretEncrypted = null;
+
+    /**
+     * A secret the user has begun enrolling but not yet confirmed. Replaced by
+     * {@see $totpSecretEncrypted} on confirmation, or cleared on disable/reset. Keeping it
+     * separate means a confirmed, working second factor is never disturbed by an abandoned
+     * enrollment attempt.
+     */
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $totpSecretEncryptedProvisional = null;
+
+    /**
+     * An administrator has required MFA for this account (ADR-0026). Set independently of the
+     * secret: required-but-unenrolled blocks login (the user enrolls inside an authenticated
+     * session, not at the login prompt), and a self-disabled factor leaves the requirement in
+     * place because removing the device is the user's choice, not a relaxation of policy.
+     */
+    #[ORM\Column(type: 'boolean')]
+    private bool $mfaRequired = false;
+
     // Roles and group memberships are deliberately NOT modelled here.
     //
     // They belong to the Acl context, which owns `role_assignment` and `group_membership`
@@ -129,6 +155,75 @@ class User
         return $this->failedLoginCount;
     }
 
+    public function totpSecretEncrypted(): ?string
+    {
+        return $this->totpSecretEncrypted;
+    }
+
+    public function totpSecretEncryptedProvisional(): ?string
+    {
+        return $this->totpSecretEncryptedProvisional;
+    }
+
+    public function isMfaRequired(): bool
+    {
+        return $this->mfaRequired;
+    }
+
+    /**
+     * Does MFA apply to this account at login?
+     *
+     * True when the administrator has required it OR the user has enrolled a factor. Floor
+     * users with neither are untouched — they log in exactly as in ADR-0024. This is the
+     * single switch {@see \App\Account\Application\Service\SignInService} branches on.
+     */
+    public function mfaApplies(): bool
+    {
+        return $this->mfaRequired || null !== $this->totpSecretEncrypted;
+    }
+
+    public function hasEnrolledTotp(): bool
+    {
+        return null !== $this->totpSecretEncrypted;
+    }
+
+    /**
+     * Hold a secret the user has begun enrolling, pending confirmation by a first code.
+     */
+    public function beginTotpEnrollment(string $secretEncrypted): void
+    {
+        $this->totpSecretEncryptedProvisional = $secretEncrypted;
+    }
+
+    /**
+     * Promote the provisional secret to the live one, on confirmation by a valid code.
+     */
+    public function confirmTotpEnrollment(): void
+    {
+        if (null === $this->totpSecretEncryptedProvisional) {
+            return;
+        }
+
+        $this->totpSecretEncrypted = $this->totpSecretEncryptedProvisional;
+        $this->totpSecretEncryptedProvisional = null;
+    }
+
+    public function clearTotpSecret(): void
+    {
+        $this->totpSecretEncrypted = null;
+        $this->totpSecretEncryptedProvisional = null;
+    }
+
+    public function requireMfa(): void
+    {
+        $this->mfaRequired = true;
+    }
+
+    public function clearMfaRequirement(): void
+    {
+        $this->mfaRequired = false;
+    }
+
     /**
      * Move the account to a different username, at an administrator's request.
      *
@@ -189,5 +284,9 @@ class User
         $this->passwordHash = '';
         $this->status = UserStatus::Anonymised;
         $this->deletedAt = $now;
+        // An erased account leaves no second factor behind either.
+        $this->totpSecretEncrypted = null;
+        $this->totpSecretEncryptedProvisional = null;
+        $this->mfaRequired = false;
     }
 }

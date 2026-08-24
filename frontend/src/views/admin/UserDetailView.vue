@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ArrowLeft, Copy, KeyRound, LogOut, Pencil, ShieldCheck, ShieldOff, Trash2 } from 'lucide-vue-next'
+import { ArrowLeft, Copy, KeyRound, LogOut, Pencil, RotateCcw, ShieldCheck, ShieldOff, Trash2 } from 'lucide-vue-next'
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
+import { adminResetMfa, adminSetMfaRequired } from '@/api/auth'
 import { listRoles, type AdminRole } from '@/api/admin/roles'
 import {
   assignRole,
@@ -135,6 +136,28 @@ async function endSessions(): Promise<void> {
   }
 }
 
+// --- MFA-Verwaltung (ADR-0026) ---------------------------------------------------------------
+
+const mfaResetOpen = ref(false)
+
+async function toggleMfaRequired(): Promise<void> {
+  const next = !(user.value?.security.mfaRequired ?? false)
+  const message = next
+    ? 'MFA wurde für dieses Konto vorgeschrieben.'
+    : 'Die MFA-Pflicht wurde für dieses Konto aufgehoben.'
+
+  if ((await run(() => adminSetMfaRequired(id, next), message)).ok) {
+    await load()
+  }
+}
+
+async function confirmResetMfa(): Promise<void> {
+  if ((await run(() => adminResetMfa(id), 'MFA wurde zurückgesetzt.')).ok) {
+    mfaResetOpen.value = false
+    await load()
+  }
+}
+
 const eraseOpen = ref(false)
 
 async function confirmErase(): Promise<void> {
@@ -227,6 +250,23 @@ const formatDateTime = (iso: string | null): string =>
             <LogOut /> Überall abmelden
           </Button>
           <Button
+            v-if="canUpdate && !isSelf()"
+            variant="outline"
+            :disabled="busy"
+            @click="toggleMfaRequired"
+          >
+            <component :is="user?.security.mfaRequired ? ShieldOff : ShieldCheck" />
+            {{ user?.security.mfaRequired ? 'MFA nicht mehr erzwingen' : 'MFA erzwingen' }}
+          </Button>
+          <Button
+            v-if="canUpdate && !isSelf()"
+            variant="outline"
+            :disabled="busy || !user?.security.mfaEnrolled"
+            @click="mfaResetOpen = true"
+          >
+            <RotateCcw /> MFA zurücksetzen
+          </Button>
+          <Button
             v-if="canUpdate && !isSelf() && user.status !== 'suspended' && user.status !== 'anonymised'"
             variant="outline"
             :disabled="busy"
@@ -285,6 +325,10 @@ const formatDateTime = (iso: string | null): string =>
               <dd>{{ user.security.failedLoginCount }}</dd>
               <dt class="text-muted-foreground">Gesperrt bis</dt>
               <dd>{{ formatDateTime(user.security.lockedUntil) }}</dd>
+              <dt class="text-muted-foreground">MFA eingerichtet</dt>
+              <dd>{{ user.security.mfaEnrolled ? 'Ja' : 'Nein' }}</dd>
+              <dt class="text-muted-foreground">MFA vorgeschrieben</dt>
+              <dd>{{ user.security.mfaRequired ? 'Ja' : 'Nein' }}</dd>
               <dt class="text-muted-foreground">ACL-Version</dt>
               <dd>
                 {{ user.aclVersion }}
@@ -458,6 +502,20 @@ const formatDateTime = (iso: string | null): string =>
       confirm-phrase="LÖSCHEN"
       :busy="busy"
       @confirm="confirmErase"
+    />
+
+    <!--
+      Resetting strips the user's factor and clears any admin-enforced requirement, ending every
+      session so the next login starts clean. A deliberate act: the user must re-enroll from
+      their account screen.
+    -->
+    <ConfirmDialog
+      v-model:open="mfaResetOpen"
+      :title="`MFA für ${user?.username} zurücksetzen?`"
+      description="Dabei wird der zweite Faktor entfernt und eine eventuell vorgeschriebene MFA-Pflicht aufgehoben. Alle Sitzungen dieser Person werden beendet."
+      confirm-label="MFA zurücksetzen"
+      :busy="busy"
+      @confirm="confirmResetMfa"
     />
   </div>
 </template>

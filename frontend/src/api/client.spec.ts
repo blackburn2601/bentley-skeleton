@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { api, request, resetClientState, setUnauthenticatedHandler } from './client'
+import { api, request, resetClientState, setLoadingHandler, setUnauthenticatedHandler } from './client'
 import { ApiError } from './problem'
 
 /**
@@ -201,5 +201,55 @@ describe('api client', () => {
     expect(init.credentials).toBe('same-origin')
     expect(init.headers.get('X-CSRF-Token')).toBe('put-token')
     expect(JSON.parse(init.body)).toEqual({ permissions: ['user.read'] })
+  })
+
+  describe('loading handler', () => {
+    it('fires start then end for a successful request', async () => {
+      const start = vi.fn()
+      const end = vi.fn()
+      setLoadingHandler(start, end)
+
+      vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { ok: true }))
+
+      await api.get('/api/v1/thing')
+
+      expect(start).toHaveBeenCalledOnce()
+      expect(end).toHaveBeenCalledOnce()
+      expect(end).toHaveBeenCalledAfter(start)
+    })
+
+    it('fires end even when the request throws', async () => {
+      // A counter that only increments on error would leave the loading bar stuck on for the
+      // rest of the session.
+      const start = vi.fn()
+      const end = vi.fn()
+      setLoadingHandler(start, end)
+
+      vi.mocked(fetch).mockResolvedValue(problemResponse(500))
+
+      await expect(api.get('/api/v1/thing')).rejects.toThrow(ApiError)
+
+      expect(start).toHaveBeenCalledOnce()
+      expect(end).toHaveBeenCalledOnce()
+    })
+
+    it('does not count the silent refresh, but counts the replayed request', async () => {
+      // refreshOnce() uses raw `fetch`, not `request`, so it must not drive the bar; the retry
+      // goes through `request` again and so is bracketed like any other request.
+      const start = vi.fn()
+      const end = vi.fn()
+      setLoadingHandler(start, end)
+
+      vi.mocked(fetch)
+        .mockResolvedValueOnce(problemResponse(401))
+        .mockResolvedValueOnce(new Response(null, { status: 204 })) // the refresh
+        .mockResolvedValueOnce(jsonResponse(200, { ok: true })) // the replay
+
+      await api.get('/api/v1/thing')
+
+      // Two starts (original + replay) and two ends — the refresh contributes neither.
+      expect(start).toHaveBeenCalledTimes(2)
+      expect(end).toHaveBeenCalledTimes(2)
+    })
   })
 })

@@ -18,8 +18,8 @@ namespace App\Api\Account\Response;
 final readonly class DescribeUserResponse
 {
     /**
-     * @param array{failedLoginCount: int, lockedUntil: string|null, passwordChangedAt: string}    $security
-     * @param array{roles: list<string>, groups: list<string>, effectivePermissions: list<string>} $access
+     * @param array{failedLoginCount: int, lockedUntil: string|null, passwordChangedAt: string, mfaEnrolled: bool, mfaRequired: bool} $security
+     * @param array{roles: list<string>, groups: list<string>, effectivePermissions: list<string>}                                    $access
      */
     private function __construct(
         public string $id,
@@ -42,7 +42,8 @@ final readonly class DescribeUserResponse
      *     id: string, username: string, status: string,
      *     failedLoginCount: int, lockedUntil: string|null, passwordChangedAt: string,
      *     createdAt: string, aclVersion: int,
-     *     roles: list<string>, groups: list<string>, effectivePermissions: list<string>
+     *     roles: list<string>, groups: list<string>, effectivePermissions: list<string>,
+     *     mfaEnrolled: bool, mfaRequired: bool
      * } $profile
      */
     public static function from(array $profile): self
@@ -57,6 +58,8 @@ final readonly class DescribeUserResponse
                 'failedLoginCount' => $profile['failedLoginCount'],
                 'lockedUntil' => $profile['lockedUntil'],
                 'passwordChangedAt' => $profile['passwordChangedAt'],
+                'mfaEnrolled' => $profile['mfaEnrolled'],
+                'mfaRequired' => $profile['mfaRequired'],
             ],
             [
                 'roles' => $profile['roles'],

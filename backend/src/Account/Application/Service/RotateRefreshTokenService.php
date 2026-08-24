@@ -84,6 +84,9 @@ final readonly class RotateRefreshTokenService
             parentId: $presented->id(),
             ipAddress: $ipAddress,
             userAgent: $userAgent,
+            // The family's authentication method travels with it, so a refresh reissues an
+            // access token carrying the same amr claim (ADR-0026).
+            amr: $presented->amr(),
         );
 
         $this->tokens->save($successor);

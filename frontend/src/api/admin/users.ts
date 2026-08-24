@@ -56,6 +56,10 @@ export interface AdminUserDetail {
     failedLoginCount: number
     lockedUntil: string | null
     passwordChangedAt: string
+    /** Whether the user has a live TOTP factor (ADR-0026). Advisory; the enrol endpoint re-checks. */
+    mfaEnrolled: boolean
+    /** Whether an administrator has enforced MFA on this account, independently of enrollment. */
+    mfaRequired: boolean
   }
   access: {
     /** Assigned directly. Roles inherited through a group are not listed here. */

@@ -41,6 +41,16 @@ enum SecurityEventType: string
     case PasswordReset = 'password_reset';
     case PasswordChanged = 'password_changed';
 
+    // --- multi-factor authentication (ADR-0026)
+    case MfaEnrolled = 'mfa_enrolled';
+    case MfaDisabled = 'mfa_disabled';
+    case MfaVerified = 'mfa_verified';
+    case MfaChallengeFailed = 'mfa_challenge_failed';
+    case MfaRecoveryUsed = 'mfa_recovery_used';
+    case MfaResetByAdmin = 'mfa_reset_by_admin';
+    case MfaRequiredSet = 'mfa_required_set';
+    case MfaRequiredCleared = 'mfa_required_cleared';
+
     // --- authorization
     case PermissionGranted = 'permission_granted';
     case PermissionRevoked = 'permission_revoked';
@@ -75,7 +85,13 @@ enum SecurityEventType: string
             self::RefreshTokenReuse,
             self::AccountLocked,
             self::SuperAdminAccessUsed,
-            self::GdprErasureRequested => true,
+            self::GdprErasureRequested,
+            // A recovery code is the fallback when the factor is lost; its use signals "the
+            // user could not authenticate normally", and an admin reset strips a factor
+            // outright — both deserve a page. A single wrong OTP code (MfaChallengeFailed)
+            // is normal user error, like LoginFailed, and stays off the page list.
+            self::MfaRecoveryUsed,
+            self::MfaResetByAdmin => true,
             default => false,
         };
     }

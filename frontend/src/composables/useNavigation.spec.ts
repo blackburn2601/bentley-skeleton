@@ -20,6 +20,8 @@ function signIn(permissions: string[]): void {
     username: 'someone',
     roles: [],
     permissions,
+    mfaEnrolled: false,
+    mfaRequired: false,
   } as Me
 }
 

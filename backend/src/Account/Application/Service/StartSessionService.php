@@ -30,9 +30,11 @@ final readonly class StartSessionService
      * A fresh login starts its own family, so revoking a compromised chain never signs the
      * user out of their other devices.
      *
+     * @param list<string> $amr how the session authenticated (ADR-0026); ['totp'] after MFA
+     *
      * @return array{token: RefreshToken, plaintext: string}
      */
-    public function __invoke(User $user, ?string $ipAddress, ?string $userAgent): array
+    public function __invoke(User $user, ?string $ipAddress, ?string $userAgent, array $amr = []): array
     {
         $now = $this->clock->now();
         $plaintext = $this->secrets->generate();
@@ -44,6 +46,7 @@ final readonly class StartSessionService
             expiresAt: $now->modify(\sprintf('+%d seconds', $this->ttlSeconds)),
             ipAddress: $ipAddress,
             userAgent: $userAgent,
+            amr: $amr,
         );
 
         $this->tokens->save($token);

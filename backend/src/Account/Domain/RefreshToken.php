@@ -53,6 +53,20 @@ class RefreshToken
     #[ORM\Column(type: 'string', length: 255, nullable: true)]
     private ?string $userAgent;
 
+    /**
+     * How the session this token belongs to was authenticated (ADR-0026). `['totp']` for a
+     * session that completed the second factor, `[]` otherwise. Carried on the row so a
+     * refresh reissues an access token with the same `amr` claim — MFA is not re-challenged
+     * on refresh, because it was already proved when the family started.
+     *
+     * @var list<string>
+     */
+    #[ORM\Column(type: 'json')]
+    private array $amr;
+
+    /**
+     * @param list<string> $amr
+     */
     public function __construct(
         #[ORM\Column(type: 'string', length: 64, unique: true)]
         private string $tokenHash,
@@ -70,11 +84,13 @@ class RefreshToken
         #[ORM\Column(type: 'string', length: 45, nullable: true)]
         private ?string $ipAddress = null,
         ?string $userAgent = null,
+        array $amr = [],
     ) {
         $this->id = Uuid::v7();
         // A token with no parent starts its own family: this is a fresh login.
         $this->familyId = $familyId ?? $this->id;
         $this->userAgent = null === $userAgent ? null : mb_substr($userAgent, 0, 255);
+        $this->amr = array_values(array_filter($amr, \is_string(...)));
     }
 
     public function id(): Uuid
@@ -105,6 +121,12 @@ class RefreshToken
     public function userAgent(): ?string
     {
         return $this->userAgent;
+    }
+
+    /** @return list<string> */
+    public function amr(): array
+    {
+        return $this->amr;
     }
 
     /**

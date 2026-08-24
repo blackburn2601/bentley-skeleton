@@ -15,24 +15,34 @@ it, extend that one. If none does, `make service` generates a conforming skeleto
 | Service | Responsibility |
 |---|---|
 | `AccountFacade` | Exposes the Account context to other contexts as a single narrow surface. |
+| `AdminRequireTwoFactorService` | Sets or clears the MFA requirement an administrator enforces on one user. |
+| `AdminResetTwoFactorService` | Clears a user's TOTP factor with its recovery codes as an administrator. |
 | `AssertPasswordAcceptableService` | Refuses a password that this system will not accept. |
 | `AuthenticateUserService` | Decides whether a set of credentials identifies a user who may sign in. |
 | `ChangePasswordService` | Changes the signed-in user's password after verifying the current one. |
 | `ChangeUserStatusService` | Moves a user account to a new administrative status. |
+| `CompleteSessionService` | Mints a full authenticated session for a user who just proved a factor. |
+| `ConfirmTwoFactorService` | Activates the provisional TOTP secret on a valid first code. |
 | `CreateUserService` | Creates a user account with a system-generated temporary password. |
 | `DescribeCurrentUserService` | Assembles the profile the signed-in user's own client needs. |
 | `DescribeUserService` | Assembles the administrative profile of one user account. |
+| `DisableTwoFactorService` | Removes the caller's enrolled TOTP factor with its recovery codes. |
+| `EnrolTwoFactorService` | Holds a provisional TOTP secret for the caller to enroll an authenticator. |
+| `IssueTwoFactorChallengeService` | Mints the short-lived challenge token for a pending second factor. |
 | `ListActiveSessionsService` | Lists the sessions a user currently has open. |
 | `ListUsersService` | Lists the user accounts a caller is permitted to read. |
+| `MintRecoveryCodesService` | Mints a fresh set of single-use recovery codes for a user. |
 | `RefreshSessionService` | Exchanges a valid refresh token for a fresh session. |
 | `ResetUserPasswordService` | Resets a user's password to a new system-generated temporary password. |
 | `RevokeAllSessionsService` | Revokes every refresh-token family belonging to one user. |
 | `RevokeUserSessionsService` | Ends every session belonging to one user at an administrator's request. |
 | `RotateRefreshTokenService` | Exchanges a refresh token for its successor, detecting reuse. |
-| `SignInService` | Turns valid credentials into an authenticated session. |
+| `SignInService` | Turns valid credentials into an authenticated session or an MFA challenge. |
 | `SignOutService` | Ends the session belonging to a presented refresh token. |
 | `StartSessionService` | Opens a new refresh-token family for a user who has just authenticated. |
 | `UpdateUserService` | Applies an administrator's edit to one user's username. |
+| `UseTwoFactorRecoveryService` | Burns one recovery code in lieu of the TOTP second factor. |
+| `VerifyTwoFactorService` | Verifies a TOTP second factor to complete the authenticated session. |
 
 ## Acl
 
