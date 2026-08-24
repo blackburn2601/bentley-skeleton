@@ -19,9 +19,7 @@ final readonly class MeResponse
      */
     private function __construct(
         public string $id,
-        public string $email,
-        public bool $emailVerified,
-        public bool $mfaEnabled,
+        public string $username,
         public array $roles,
         public array $permissions,
     ) {
@@ -33,12 +31,10 @@ final readonly class MeResponse
      */
     public static function from(
         string $id,
-        string $email,
-        bool $emailVerified,
-        bool $mfaEnabled,
+        string $username,
         array $roles,
         array $permissions,
     ): self {
-        return new self($id, $email, $emailVerified, $mfaEnabled, $roles, $permissions);
+        return new self($id, $username, $roles, $permissions);
     }
 }

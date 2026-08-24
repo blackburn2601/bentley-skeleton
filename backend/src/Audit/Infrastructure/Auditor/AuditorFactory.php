@@ -44,13 +44,12 @@ final readonly class AuditorFactory
      * Columns never written to the audit store.
      *
      * An audit trail is read by more people than the user table is, and a password hash or a
-     * TOTP secret copied into it is the same secret in a second, less-guarded place.
+     * token hash copied into it is the same secret in a second, less-guarded place.
      *
      * @var list<string>
      */
     private const array IGNORED_COLUMNS = [
         'password_hash',
-        'totp_secret_encrypted',
         'token_hash',
     ];
 

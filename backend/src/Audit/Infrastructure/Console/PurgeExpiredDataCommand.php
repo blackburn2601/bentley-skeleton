@@ -43,9 +43,8 @@ final class PurgeExpiredDataCommand extends Command
         $result = ($this->purge)($cutoff);
 
         $io->success(\sprintf(
-            'Purged %d refresh token(s) and %d single-use token(s).',
+            'Purged %d expired refresh token(s).',
             $result['refreshTokens'],
-            $result['singleUseTokens'],
         ));
 
         $io->note(

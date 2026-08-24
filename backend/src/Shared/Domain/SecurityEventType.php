@@ -37,15 +37,9 @@ enum SecurityEventType: string
     case RefreshTokenReuse = 'refresh_token_reuse';
 
     // --- credentials
-    case RegistrationCompleted = 'registration_completed';
-    case EmailVerified = 'email_verified';
-    case PasswordResetRequested = 'password_reset_requested';
+    case UserCreated = 'user_created';
+    case PasswordReset = 'password_reset';
     case PasswordChanged = 'password_changed';
-
-    // --- MFA
-    case MfaEnabled = 'mfa_enabled';
-    case MfaDisabled = 'mfa_disabled';
-    case MfaChallengeFailed = 'mfa_challenge_failed';
 
     // --- authorization
     case PermissionGranted = 'permission_granted';

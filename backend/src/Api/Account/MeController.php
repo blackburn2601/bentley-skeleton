@@ -31,9 +31,7 @@ final readonly class MeController
 
         return new JsonResponse(MeResponse::from(
             $profile['id'],
-            $profile['email'],
-            $profile['emailVerified'],
-            $profile['mfaEnabled'],
+            $profile['username'],
             $profile['roles'],
             $profile['permissions'],
         ));

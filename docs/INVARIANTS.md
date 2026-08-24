@@ -188,7 +188,7 @@ one — split this into two services.`
 ### INV-12 — Interfaces only at real port boundaries
 
 Introduce an interface when there is a second implementation or a genuine port
-(a mailer, a clock, an HTTP egress). **Do not** generate an interface per service.
+(a clock, an HTTP egress). **Do not** generate an interface per service.
 
 **Why:** an interface with exactly one implementer adds a file, a layer of indirection and a
 navigation step, and buys nothing. This is stated explicitly because code generators produce

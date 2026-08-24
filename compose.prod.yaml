@@ -143,8 +143,6 @@ services:
         condition: service_healthy
 
   # Development-only services must not exist in production.
-  mailpit:
-    profiles: ["never"]
   node:
     profiles: ["never"]
 

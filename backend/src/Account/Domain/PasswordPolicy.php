@@ -29,7 +29,7 @@ final readonly class PasswordPolicy
     /**
      * @return list<string> the reasons it is unacceptable; empty means acceptable
      */
-    public function violations(string $password, string $email): array
+    public function violations(string $password, string $username): array
     {
         $violations = [];
         $length = mb_strlen($password);
@@ -42,8 +42,8 @@ final readonly class PasswordPolicy
             $violations[] = \sprintf('It must be at most %d characters long.', self::MAXIMUM_LENGTH);
         }
 
-        if ($this->resemblesEmail($password, $email)) {
-            $violations[] = 'It must not contain your email address or the part before the @.';
+        if ($this->resemblesUsername($password, $username)) {
+            $violations[] = 'It must not contain your username.';
         }
 
         if ($this->isTooRepetitive($password)) {
@@ -53,17 +53,13 @@ final readonly class PasswordPolicy
         return $violations;
     }
 
-    private function resemblesEmail(string $password, string $email): bool
+    private function resemblesUsername(string $password, string $username): bool
     {
-        $lowerPassword = mb_strtolower($password);
-        $lowerEmail = mb_strtolower($email);
-        $localPart = strstr($lowerEmail, '@', true);
-
-        if (str_contains($lowerPassword, $lowerEmail)) {
-            return true;
+        if (mb_strlen($username) < 3) {
+            return false;
         }
 
-        return \is_string($localPart) && mb_strlen($localPart) >= 3 && str_contains($lowerPassword, $localPart);
+        return str_contains(mb_strtolower($password), mb_strtolower($username));
     }
 
     /**

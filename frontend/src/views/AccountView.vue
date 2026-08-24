@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { eraseMyAccount, exportMyData } from '@/api/auth'
+import { changePassword, eraseMyAccount, exportMyData } from '@/api/auth'
 import { ApiError } from '@/api/problem'
 import { useAuthStore } from '@/stores/auth'
 
@@ -13,6 +13,46 @@ const busy = ref<string | null>(null)
 const error = ref<string | null>(null)
 const notice = ref<string | null>(null)
 const confirmErase = ref('')
+
+const currentPassword = ref('')
+const newPassword = ref('')
+const confirmNewPassword = ref('')
+const passwordError = ref<string | null>(null)
+const passwordNotice = ref<string | null>(null)
+
+const newPasswordMismatch = computed(
+  () => confirmNewPassword.value !== '' && newPassword.value !== confirmNewPassword.value,
+)
+
+const canChangePassword = computed(
+  () =>
+    currentPassword.value !== '' &&
+    newPassword.value !== '' &&
+    newPassword.value === confirmNewPassword.value,
+)
+
+async function submitChangePassword(): Promise<void> {
+  passwordError.value = null
+  passwordNotice.value = null
+
+  if (newPassword.value !== confirmNewPassword.value) {
+    passwordError.value = 'The new passwords do not match.'
+    return
+  }
+
+  busy.value = 'password'
+  try {
+    await changePassword(currentPassword.value, newPassword.value)
+    passwordNotice.value = 'Your password has been changed. This session stays signed in.'
+    currentPassword.value = ''
+    newPassword.value = ''
+    confirmNewPassword.value = ''
+  } catch (caught) {
+    passwordError.value = caught instanceof ApiError ? caught.message : 'The request failed.'
+  } finally {
+    busy.value = null
+  }
+}
 
 async function download(): Promise<void> {
   busy.value = 'export'
@@ -75,15 +115,62 @@ async function erase(): Promise<void> {
     <p v-if="error" class="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">{{ error }}</p>
 
     <dl class="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 text-sm">
-      <dt>Email</dt>
-      <dd>{{ auth.user?.email }}</dd>
-      <dt>Email confirmed</dt>
-      <dd>{{ auth.user?.emailVerified ? 'Yes' : 'No' }}</dd>
-      <dt>Two-factor</dt>
-      <dd>{{ auth.user?.mfaEnabled ? 'Enabled' : 'Not enabled' }}</dd>
+      <dt>Username</dt>
+      <dd>{{ auth.user?.username }}</dd>
       <dt>Roles</dt>
       <dd>{{ auth.user?.roles.join(', ') || 'None' }}</dd>
     </dl>
+
+    <h2>Change password</h2>
+    <form class="max-w-sm space-y-3" novalidate @submit.prevent="submitChangePassword">
+      <p v-if="passwordNotice" class="rounded-md border border-success/40 bg-success/10 px-3 py-2 text-sm text-success" role="status">
+        {{ passwordNotice }}
+      </p>
+      <p v-if="passwordError" class="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
+        {{ passwordError }}
+      </p>
+      <div class="space-y-1.5">
+        <label for="current-password" class="text-sm font-medium">Current password</label>
+        <input
+          id="current-password"
+          v-model="currentPassword"
+          type="password"
+          autocomplete="current-password"
+          class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+        />
+      </div>
+      <div class="space-y-1.5">
+        <label for="new-password" class="text-sm font-medium">New password</label>
+        <input
+          id="new-password"
+          v-model="newPassword"
+          type="password"
+          autocomplete="new-password"
+          class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+        />
+      </div>
+      <div class="space-y-1.5">
+        <label for="confirm-new-password" class="text-sm font-medium">Confirm new password</label>
+        <input
+          id="confirm-new-password"
+          v-model="confirmNewPassword"
+          type="password"
+          autocomplete="new-password"
+          class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+          :aria-invalid="newPasswordMismatch ? 'true' : undefined"
+        />
+        <p v-if="newPasswordMismatch" class="text-xs text-destructive" role="alert">
+          The new passwords do not match.
+        </p>
+      </div>
+      <button
+        type="submit"
+        class="inline-flex h-9 cursor-pointer items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+        :disabled="busy !== null || !canChangePassword"
+      >
+        {{ busy === 'password' ? 'Working…' : 'Change password' }}
+      </button>
+    </form>
 
     <h2>Sessions</h2>
     <p>

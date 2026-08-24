@@ -30,7 +30,7 @@ final readonly class AuthenticatedUser implements UserInterface
      */
     public function __construct(
         private Uuid $id,
-        private string $email,
+        private string $username,
         private array $roles = [],
         private int $aclVersion = 1,
     ) {
@@ -41,9 +41,9 @@ final readonly class AuthenticatedUser implements UserInterface
         return $this->id;
     }
 
-    public function email(): string
+    public function username(): string
     {
-        return $this->email;
+        return $this->username;
     }
 
     public function aclVersion(): int

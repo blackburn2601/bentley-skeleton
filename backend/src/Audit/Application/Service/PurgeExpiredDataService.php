@@ -31,7 +31,7 @@ final readonly class PurgeExpiredDataService
      * Expired tokens carry an IP address and a user agent, so purging them is a genuine
      * data-minimisation obligation and not just housekeeping.
      *
-     * @return array{refreshTokens: int, singleUseTokens: int}
+     * @return array{refreshTokens: int}
      */
     public function __invoke(?DateTimeImmutable $before = null): array
     {

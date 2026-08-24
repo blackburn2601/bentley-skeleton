@@ -149,7 +149,7 @@ final class GroupWriteControllerTest extends ApiTestCase
         $this->json('GET', "/api/v1/admin/groups/{$id}/members");
 
         self::assertResponseIsSuccessful();
-        self::assertSame([$member->email()], $this->column($this->pageJson()['items'], 'email'));
+        self::assertSame([$member->username()], $this->column($this->pageJson()['items'], 'username'));
     }
 
     public function testItRefusesAMemberThatDoesNotExist(): void

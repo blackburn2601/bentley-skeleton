@@ -8,14 +8,16 @@ use Symfony\Component\Validator\Constraints as Assert;
 
 /**
  * The body of PATCH /api/v1/admin/users/{id}.
+ *
+ * The username charset (`[A-Za-z0-9._-]`) is the workforce identity policy recorded in ADR-0024.
  */
 final readonly class UpdateUserRequest
 {
     public function __construct(
         #[Assert\NotBlank]
-        #[Assert\Email(mode: Assert\Email::VALIDATION_MODE_STRICT)]
-        #[Assert\Length(max: 254)]
-        public string $email = '',
+        #[Assert\Length(min: 3, max: 64)]
+        #[Assert\Regex('/^[A-Za-z0-9._-]+$/')]
+        public string $username = '',
     ) {
     }
 }

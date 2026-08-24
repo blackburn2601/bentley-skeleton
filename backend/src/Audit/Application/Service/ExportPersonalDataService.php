@@ -27,8 +27,8 @@ final readonly class ExportPersonalDataService
      *
      * Deliberately assembled from named fields rather than by serializing entities. An export
      * that walks the object graph publishes whatever the schema happens to contain today —
-     * including the password hash and the TOTP secret, which are precisely the two things that
-     * must never leave. Listing the fields makes each one a decision.
+     * including the password hash, which is precisely the thing that must never leave. Listing
+     * the fields makes each one a decision.
      *
      * The request is itself audited: someone asking for a copy of their data is a
      * security-relevant event, and so is somebody else asking on their behalf.
@@ -48,12 +48,10 @@ final readonly class ExportPersonalDataService
         return [
             'subject' => [
                 'id' => $user->id()->toRfc4122(),
-                'email' => $user->email(),
+                'username' => $user->username(),
                 'status' => $user->status()->value,
-                'emailVerified' => $user->isEmailVerified(),
-                'mfaEnabled' => $user->hasMfaEnabled(),
                 'passwordChangedAt' => $user->passwordChangedAt()->format(\DATE_ATOM),
-                // Absent on purpose: passwordHash, totpSecretEncrypted.
+                // Absent on purpose: passwordHash.
             ],
             'securityEvents' => array_map(
                 static fn (SecurityEvent $event): array => [

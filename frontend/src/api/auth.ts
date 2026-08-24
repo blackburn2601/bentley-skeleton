@@ -4,9 +4,7 @@ import { api } from './client'
 
 export interface Me {
   id: string
-  email: string
-  emailVerified: boolean
-  mfaEnabled: boolean
+  username: string
   roles: string[]
   permissions: string[]
 }
@@ -19,8 +17,11 @@ export interface Session {
   current: boolean
 }
 
-export const login = (email: string, password: string) =>
-  api.post<{ id: string; email: string; roles: string[] }>('/api/v1/auth/login', { email, password })
+export const login = (username: string, password: string) =>
+  api.post<{ id: string; username: string; roles: string[] }>('/api/v1/auth/login', {
+    username,
+    password,
+  })
 
 export const logout = () => api.post<void>('/api/v1/auth/logout')
 
@@ -29,17 +30,15 @@ export const logoutEverywhere = () =>
 
 export const me = () => api.get<Me>('/api/v1/auth/me')
 
-export const register = (email: string, password: string) =>
-  api.post<{ message: string }>('/api/v1/auth/register', { email, password })
-
-export const verifyEmail = (token: string) =>
-  api.post<{ message: string }>('/api/v1/auth/verify-email', { token })
-
-export const requestPasswordReset = (email: string) =>
-  api.post<{ message: string }>('/api/v1/auth/password/forgot', { email })
-
-export const resetPassword = (token: string, password: string) =>
-  api.post<{ message: string }>('/api/v1/auth/password/reset', { token, password })
+/**
+ * Change the signed-in user's own password.
+ *
+ * The current session stays valid — this is not a recovery flow, just a self-service password
+ * change. Requires the CSRF header (double-submit), which `client.ts` attaches for every
+ * mutating request.
+ */
+export const changePassword = (currentPassword: string, newPassword: string) =>
+  api.post<void>('/api/v1/auth/change-password', { currentPassword, newPassword })
 
 export const listSessions = () => api.get<{ sessions: Session[] }>('/api/v1/auth/sessions')
 

@@ -57,7 +57,7 @@ final class ListUsersControllerTest extends ApiTestCase
 
         $row = $body['items'][0];
         self::assertSame(
-            ['id', 'email', 'status', 'emailVerified', 'mfaEnabled', 'lockedUntil', 'createdAt'],
+            ['id', 'username', 'status', 'lockedUntil', 'createdAt'],
             array_keys($row),
         );
 
@@ -81,7 +81,7 @@ final class ListUsersControllerTest extends ApiTestCase
         $this->logIn($caller);
         $this->json('GET', '/api/v1/admin/users?perPage=100');
         $before = $this->pageJson();
-        self::assertContains($hidden->email(), $this->column($before['items'], 'email'));
+        self::assertContains($hidden->username(), $this->column($before['items'], 'username'));
 
         $this->grantOnObject($caller, User::class, $hidden->id(), PermissionCatalog::USER_READ, AclEffect::Deny);
 
@@ -90,7 +90,7 @@ final class ListUsersControllerTest extends ApiTestCase
         $this->json('GET', '/api/v1/admin/users?perPage=100');
         $after = $this->pageJson();
 
-        self::assertNotContains($hidden->email(), $this->column($after['items'], 'email'));
+        self::assertNotContains($hidden->username(), $this->column($after['items'], 'username'));
         self::assertSame(
             $before['total'] - 1,
             $after['total'],
@@ -98,16 +98,16 @@ final class ListUsersControllerTest extends ApiTestCase
         );
     }
 
-    public function testItSearchesByEmail(): void
+    public function testItSearchesByUsername(): void
     {
         $caller = $this->permittedCaller();
         $needle = $this->createUser('findme');
 
         $this->logIn($caller);
-        $this->json('GET', '/api/v1/admin/users?q='.urlencode($needle->email()));
+        $this->json('GET', '/api/v1/admin/users?q='.urlencode($needle->username()));
 
         self::assertResponseIsSuccessful();
-        self::assertSame([$needle->email()], $this->column($this->pageJson()['items'], 'email'));
+        self::assertSame([$needle->username()], $this->column($this->pageJson()['items'], 'username'));
     }
 
     public function testItRefusesAPageSizeAboveTheCap(): void

@@ -18,17 +18,7 @@ class User
     private Uuid $id;
 
     #[ORM\Column(type: 'string', enumType: UserStatus::class)]
-    private UserStatus $status = UserStatus::PendingVerification;
-
-    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
-    private ?DateTimeImmutable $emailVerifiedAt = null;
-
-    /**
-     * Encrypted at rest, not merely hashed: TOTP verification needs the original secret
-     * back, so it cannot be one-way.
-     */
-    #[ORM\Column(type: 'text', nullable: true)]
-    private ?string $totpSecretEncrypted = null;
+    private UserStatus $status = UserStatus::Active;
 
     #[ORM\Column(type: 'integer')]
     private int $failedLoginCount = 0;
@@ -70,11 +60,11 @@ class User
      * citext, so uniqueness is case-insensitive in the database.
      *
      * Lowercasing in PHP would work right up until the one query that forgets, which then
-     * creates a second account differing only in capitalisation — and now a password reset
-     * is ambiguous. The database is the only place this can be enforced once.
+     * creates a second account differing only in capitalisation. The database is the only place
+     * this can be enforced once.
      */
         #[ORM\Column(type: 'citext', unique: true)]
-        private string $email,
+        private string $username,
         #[ORM\Column(type: 'string')]
         private string $passwordHash,
         #[ORM\Column(type: 'datetime_immutable')]
@@ -89,9 +79,9 @@ class User
         return $this->id;
     }
 
-    public function email(): string
+    public function username(): string
     {
-        return $this->email;
+        return $this->username;
     }
 
     public function passwordHash(): string
@@ -124,21 +114,6 @@ class User
         return $this->passwordChangedAt;
     }
 
-    public function isEmailVerified(): bool
-    {
-        return null !== $this->emailVerifiedAt;
-    }
-
-    public function hasMfaEnabled(): bool
-    {
-        return null !== $this->totpSecretEncrypted;
-    }
-
-    public function totpSecretEncrypted(): ?string
-    {
-        return $this->totpSecretEncrypted;
-    }
-
     public function isLockedAt(DateTimeImmutable $now): bool
     {
         return $this->lockedUntil instanceof DateTimeImmutable && $this->lockedUntil > $now;
@@ -155,32 +130,18 @@ class User
     }
 
     /**
-     * Move the account to a different address, at an administrator's request.
-     *
-     * Verification is deliberately reset. The new address is unproven — nobody has
-     * demonstrated they can receive mail there — and leaving the old `emailVerifiedAt` in place
-     * would let a typo silently become a "verified" address that password resets are sent to.
+     * Move the account to a different username, at an administrator's request.
      *
      * The status is left alone: an Active account stays Active, so this does not become a way
      * to lock someone out by editing their profile.
      */
-    public function changeEmail(string $email): void
+    public function changeUsername(string $username): void
     {
-        if ($email === $this->email) {
+        if ($username === $this->username) {
             return;
         }
 
-        $this->email = $email;
-        $this->emailVerifiedAt = null;
-    }
-
-    public function verifyEmail(DateTimeImmutable $now): void
-    {
-        $this->emailVerifiedAt = $now;
-
-        if (UserStatus::PendingVerification === $this->status) {
-            $this->status = UserStatus::Active;
-        }
+        $this->username = $username;
     }
 
     public function recordFailedLogin(DateTimeImmutable $lockedUntil): void
@@ -199,16 +160,6 @@ class User
     {
         $this->passwordHash = $passwordHash;
         $this->passwordChangedAt = $now;
-    }
-
-    public function enableMfa(string $totpSecretEncrypted): void
-    {
-        $this->totpSecretEncrypted = $totpSecretEncrypted;
-    }
-
-    public function disableMfa(): void
-    {
-        $this->totpSecretEncrypted = null;
     }
 
     public function suspend(): void
@@ -232,11 +183,10 @@ class User
         ++$this->aclVersion;
     }
 
-    public function anonymise(string $placeholderEmail, DateTimeImmutable $now): void
+    public function anonymise(string $placeholderUsername, DateTimeImmutable $now): void
     {
-        $this->email = $placeholderEmail;
+        $this->username = $placeholderUsername;
         $this->passwordHash = '';
-        $this->totpSecretEncrypted = null;
         $this->status = UserStatus::Anonymised;
         $this->deletedAt = $now;
     }

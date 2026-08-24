@@ -47,9 +47,9 @@ final class AccountException extends RuntimeException implements DomainProblem
     public static function invalidCredentials(): self
     {
         // Deliberately identical whether the account exists, the password is wrong, or the
-        // address was never registered. Distinguishing them turns the login form into an
+        // username was never registered. Distinguishing them turns the login form into an
         // account-enumeration oracle.
-        return new self('The email address or password is incorrect.', ProblemKind::Unauthenticated);
+        return new self('The username or password is incorrect.', ProblemKind::Unauthenticated);
     }
 
     public static function accountLocked(DateTimeImmutable $until): self
@@ -63,24 +63,14 @@ final class AccountException extends RuntimeException implements DomainProblem
     public static function accountNotActive(): self
     {
         return new self(
-            'This account cannot sign in. Verify your email address, or contact an administrator.',
+            'This account cannot sign in. Contact an administrator.',
             ProblemKind::Forbidden,
         );
     }
 
     public static function invalidToken(): self
     {
-        return new self('This link is invalid or has expired. Request a new one.', ProblemKind::Unauthenticated);
-    }
-
-    public static function mfaRequired(): self
-    {
-        return new self('A second factor is required.', ProblemKind::Unauthenticated, ['mfaRequired' => true]);
-    }
-
-    public static function invalidMfaCode(): self
-    {
-        return new self('That code is not valid.', ProblemKind::Unauthenticated);
+        return new self('This token is invalid or has expired.', ProblemKind::Unauthenticated);
     }
 
     /** @param list<string> $violations */
@@ -102,9 +92,9 @@ final class AccountException extends RuntimeException implements DomainProblem
         );
     }
 
-    public static function emailAlreadyRegistered(): self
+    public static function usernameAlreadyRegistered(): self
     {
-        return new self('That email address cannot be registered.', ProblemKind::Conflict);
+        return new self('That username cannot be registered.', ProblemKind::Conflict);
     }
 
     public static function noSuchAccount(): self
@@ -140,15 +130,15 @@ final class AccountException extends RuntimeException implements DomainProblem
     /**
      * The same conflict, said plainly.
      *
-     * emailAlreadyRegistered() is deliberately vague because it can reach an anonymous caller,
+     * usernameAlreadyRegistered() is deliberately vague because it can reach an anonymous caller,
      * where naming the reason turns the form into an account-enumeration oracle. An
      * administrator is already authorized to list every account, so withholding it from them
      * protects nothing and only leaves them waiting for an account that will never arrive.
      */
-    public static function emailAlreadyInUse(string $email): self
+    public static function usernameAlreadyInUse(string $username): self
     {
         return new self(
-            \sprintf('An account already exists for %s.', $email),
+            \sprintf('An account already exists for %s.', $username),
             ProblemKind::Conflict,
         );
     }

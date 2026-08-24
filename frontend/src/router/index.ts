@@ -18,7 +18,7 @@ declare module 'vue-router' {
   interface RouteMeta {
     /** Redirect to sign-in when nobody is signed in. */
     requiresAuth?: boolean
-    /** Redirect signed-in users away — sign-in and register pages. */
+    /** Redirect signed-in users away — the sign-in page. */
     guestOnly?: boolean
     /**
      * Class-level permission this screen needs.
@@ -47,30 +47,6 @@ const routes: RouteRecordRaw[] = [
         name: 'sign-in',
         component: () => import('@/views/SignInView.vue'),
         meta: { guestOnly: true, title: 'Sign in' },
-      },
-      {
-        path: 'register',
-        name: 'register',
-        component: () => import('@/views/RegisterView.vue'),
-        meta: { guestOnly: true, title: 'Create an account' },
-      },
-      {
-        path: 'verify-email',
-        name: 'verify-email',
-        component: () => import('@/views/VerifyEmailView.vue'),
-        meta: { title: 'Confirm your email' },
-      },
-      {
-        path: 'forgot-password',
-        name: 'forgot-password',
-        component: () => import('@/views/ForgotPasswordView.vue'),
-        meta: { guestOnly: true, title: 'Reset your password' },
-      },
-      {
-        path: 'reset-password',
-        name: 'reset-password',
-        component: () => import('@/views/ResetPasswordView.vue'),
-        meta: { title: 'Choose a new password' },
       },
     ],
   },

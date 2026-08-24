@@ -9,6 +9,7 @@ import {
   listUsers,
   USER_STATUSES,
   type AdminUser,
+  type CreatedUser,
   type UserStatus,
 } from '@/api/admin/users'
 import ConfirmDialog from '@/components/data/ConfirmDialog.vue'
@@ -62,24 +63,36 @@ const { items, page, perPage, total, loading, error, load } = usePaginatedResour
 onMounted(() => void load())
 
 const createOpen = ref(false)
-const newEmail = ref('')
+const newUsername = ref('')
+const createdUser = ref<CreatedUser | null>(null)
+const copied = ref(false)
 
 async function submitCreate(): Promise<void> {
-  const created = await run(
-    () => createUser(newEmail.value.trim()),
-    `Invited ${newEmail.value.trim()}. They have been emailed a link to set a password.`,
-  )
+  const created = await run(() => createUser(newUsername.value.trim()), '')
 
   if (created.ok) {
     createOpen.value = false
-    newEmail.value = ''
+    newUsername.value = ''
+    createdUser.value = created.value
+    copied.value = false
     await load()
+  }
+}
+
+async function copyTemporaryPassword(): Promise<void> {
+  if (!createdUser.value) return
+  try {
+    await navigator.clipboard.writeText(createdUser.value.temporaryPassword)
+    copied.value = true
+  } catch {
+    // Clipboard may be unavailable (e.g. insecure context); leave the value visible for manual copy.
+    copied.value = false
   }
 }
 
 async function setStatus(user: AdminUser, status: UserStatus): Promise<void> {
   const verb = status === 'suspended' ? 'Suspended' : 'Reinstated'
-  if ((await run(() => changeUserStatus(user.id, status), `${verb} ${user.email}.`)).ok) {
+  if ((await run(() => changeUserStatus(user.id, status), `${verb} ${user.username}.`)).ok) {
     await load()
   }
 }
@@ -90,24 +103,21 @@ async function confirmErase(): Promise<void> {
   const target = eraseTarget.value
   if (!target) return
 
-  if ((await run(() => eraseUser(target.id), `Erased ${target.email}.`)).ok) {
+  if ((await run(() => eraseUser(target.id), `Erased ${target.username}.`)).ok) {
     eraseTarget.value = null
     await load()
   }
 }
 
 const columns = computed<Column[]>(() => [
-  { key: 'email', label: 'Email' },
+  { key: 'username', label: 'Username' },
   { key: 'status', label: 'Status' },
-  { key: 'verified', label: 'Verified' },
-  { key: 'mfa', label: 'MFA' },
   { key: 'createdAt', label: 'Created', class: 'text-muted-foreground' },
   { key: 'actions', label: '', class: 'w-12 text-right' },
 ])
 
 const statusVariant: Record<UserStatus, 'success' | 'warning' | 'destructive' | 'secondary'> = {
   active: 'success',
-  pending_verification: 'warning',
   suspended: 'destructive',
   anonymised: 'secondary',
 }
@@ -149,8 +159,8 @@ const actionable = (user: AdminUser): boolean =>
         <Input
           v-model="filters.q"
           class="pl-8"
-          placeholder="Search by email"
-          aria-label="Search users by email"
+          placeholder="Search by username"
+          aria-label="Search users by username"
         />
       </div>
 
@@ -175,34 +185,24 @@ const actionable = (user: AdminUser): boolean =>
       empty-description="Try a different search term, or clear the status filter."
       @retry="load()"
     >
-      <template #cell:email="{ row }">
+      <template #cell:username="{ row }">
         <RouterLink
           :to="{ name: 'admin-user', params: { id: row.id } }"
           class="font-medium hover:underline"
         >
-          {{ row.email }}
+          {{ row.username }}
         </RouterLink>
         <span v-if="isSelf(row)" class="ml-2 text-xs text-muted-foreground">(you)</span>
       </template>
       <template #cell:status="{ row }">
         <Badge :variant="statusVariant[row.status]">{{ statusLabel(row.status) }}</Badge>
       </template>
-      <template #cell:verified="{ row }">
-        <Badge :variant="row.emailVerified ? 'outline' : 'warning'">
-          {{ row.emailVerified ? 'Yes' : 'No' }}
-        </Badge>
-      </template>
-      <template #cell:mfa="{ row }">
-        <Badge :variant="row.mfaEnabled ? 'outline' : 'secondary'">
-          {{ row.mfaEnabled ? 'On' : 'Off' }}
-        </Badge>
-      </template>
       <template #cell:createdAt="{ row }">{{ formatDate(row.createdAt) }}</template>
 
       <template #cell:actions="{ row }">
         <DropdownMenu>
           <DropdownMenuTrigger as-child>
-            <Button variant="ghost" size="icon" :aria-label="`Actions for ${row.email}`">
+            <Button variant="ghost" size="icon" :aria-label="`Actions for ${row.username}`">
               <MoreHorizontal />
             </Button>
           </DropdownMenuTrigger>
@@ -251,34 +251,65 @@ const actionable = (user: AdminUser): boolean =>
         <DialogHeader>
           <DialogTitle>New user</DialogTitle>
           <DialogDescription>
-            The account is created immediately. They choose their own password through a link
-            we email — nobody here ever sees it.
+            The account is created immediately with a one-time temporary password. It is shown
+            once, right after creating — nobody here ever sees it again, so hand it to the user
+            now.
           </DialogDescription>
         </DialogHeader>
 
         <form id="create-user" class="space-y-1.5" @submit.prevent="submitCreate">
-          <Label for="new-user-email">Email address</Label>
+          <Label for="new-user-username">Username</Label>
           <Input
-            id="new-user-email"
-            v-model="newEmail"
-            type="email"
+            id="new-user-username"
+            v-model="newUsername"
+            type="text"
             autocomplete="off"
-            placeholder="person@example.com"
+            placeholder="jdoe"
           />
         </form>
 
         <DialogFooter>
           <Button variant="outline" :disabled="busy" @click="createOpen = false">Cancel</Button>
-          <Button type="submit" form="create-user" :disabled="busy || newEmail.trim() === ''">
+          <Button type="submit" form="create-user" :disabled="busy || newUsername.trim() === ''">
             {{ busy ? 'Working…' : 'Create user' }}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
 
+    <!--
+      The one-time temporary password. The API returns it exactly once and never again; it is
+      not persisted server-side. Closing this dialog without copying it means only an admin
+      reset can recover it.
+    -->
+    <Dialog :open="createdUser !== null" @update:open="(o: boolean) => !o && (createdUser = null)">
+      <DialogContent class="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Temporary password for {{ createdUser?.username }}</DialogTitle>
+          <DialogDescription>
+            Shown only once — hand it to the user now. It cannot be retrieved again.
+          </DialogDescription>
+        </DialogHeader>
+        <div class="space-y-3">
+          <div class="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning">
+            This password will not be shown again. Copy it now.
+          </div>
+          <code class="block break-all rounded-md border bg-muted px-3 py-2 text-sm">
+            {{ createdUser?.temporaryPassword }}
+          </code>
+          <Button class="w-full" @click="copyTemporaryPassword">
+            {{ copied ? 'Copied' : 'Copy to clipboard' }}
+          </Button>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" @click="createdUser = null">Done</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
     <ConfirmDialog
       :open="eraseTarget !== null"
-      :title="`Erase ${eraseTarget?.email}?`"
+      :title="`Erase ${eraseTarget?.username}?`"
       description="This anonymises the account and ends every session it has. It cannot be undone — the audit trail is kept, but the person's details are gone."
       confirm-label="Erase account"
       confirm-phrase="ERASE"

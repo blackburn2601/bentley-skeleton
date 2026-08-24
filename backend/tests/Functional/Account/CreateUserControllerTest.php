@@ -19,7 +19,7 @@ final class CreateUserControllerTest extends ApiTestCase
 
     public function testItRejectsAnAnonymousCaller(): void
     {
-        $this->json('POST', '/api/v1/admin/users', ['email' => 'nobody@functional.test']);
+        $this->json('POST', '/api/v1/admin/users', ['username' => 'nobody']);
 
         self::assertResponseStatusCodeSame(401);
     }
@@ -28,54 +28,75 @@ final class CreateUserControllerTest extends ApiTestCase
     {
         $this->logIn($this->createUser('nobody'));
 
-        $this->json('POST', '/api/v1/admin/users', ['email' => 'nobody@functional.test'], $this->csrfHeader());
+        $this->json('POST', '/api/v1/admin/users', ['username' => 'someone'], $this->csrfHeader());
 
         self::assertResponseStatusCodeSame(403);
     }
 
-    public function testItCreatesAnActiveAccountWithoutEverReturningAPassword(): void
+    public function testItCreatesAnActiveAccountAndReturnsTheTemporaryPasswordOnce(): void
     {
         $this->logIn($this->creator());
-        $email = 'created-'.bin2hex(random_bytes(4)).'@functional.test';
+        $username = 'created-'.bin2hex(random_bytes(4));
 
-        $this->json('POST', '/api/v1/admin/users', ['email' => $email], $this->csrfHeader());
+        $this->json('POST', '/api/v1/admin/users', ['username' => $username], $this->csrfHeader());
 
         self::assertResponseStatusCodeSame(201);
         $body = $this->responseJson();
 
-        self::assertSame($email, $body['email']);
+        self::assertSame($username, $body['username']);
         self::assertSame(UserStatus::Active->value, $body['status']);
-        self::assertTrue($body['passwordSetupEmailed']);
+        // The one-time temporary password is in the body so the administrator can hand it over
+        // out-of-band. It is never persisted, never logged, and never returned again (ADR-0024).
+        self::assertIsString($body['temporaryPassword']);
+        self::assertNotSame('', $body['temporaryPassword']);
+        self::assertSame(['id', 'username', 'status', 'temporaryPassword'], array_keys($body));
 
-        // The whole point of the design: nobody, including the administrator who made the
-        // account, is ever shown a password for it.
-        self::assertSame(['id', 'email', 'status', 'passwordSetupEmailed'], array_keys($body));
-
-        $created = self::getContainer()->get(UserRepository::class)->findByEmail($email);
+        // The account exists and is active.
+        $created = self::getContainer()->get(UserRepository::class)->findByUsername($username);
         self::assertInstanceOf(User::class, $created);
-        self::assertTrue($created->isEmailVerified(), 'the reset link proves address control');
+        self::assertSame(UserStatus::Active, $created->status());
+
+        // The temp password the administrator was handed actually authenticates the new account.
+        // That round-trip through hash+verify is the real proof the row stores a hash *of this
+        // password — the plaintext-vs-hash distinction is not observable under the test env's
+        // passthrough hasher (security.yaml `when@test`); it holds under the production argon2id
+        // hasher, which is what matters.
+        $this->logOut();
+        $this->json('POST', '/api/v1/auth/login', [
+            'username' => $username,
+            'password' => $body['temporaryPassword'],
+        ]);
+        self::assertResponseIsSuccessful();
     }
 
     /**
-     * Unlike registration, which hides duplicates to avoid an enumeration oracle, an admin
-     * form must say so — otherwise the operator waits for an account that never appears.
+     * An admin form must say so — otherwise the operator waits for an account that never appears.
      */
-    public function testItRefusesADuplicateEmailExplicitly(): void
+    public function testItRefusesADuplicateUsernameExplicitly(): void
     {
         $existing = $this->createUser('taken');
         $this->logIn($this->creator());
 
-        $this->json('POST', '/api/v1/admin/users', ['email' => $existing->email()], $this->csrfHeader());
+        $this->json('POST', '/api/v1/admin/users', ['username' => $existing->username()], $this->csrfHeader());
 
         self::assertResponseStatusCodeSame(409);
-        self::assertStringContainsString($existing->email(), $this->responseString('detail'));
+        self::assertStringContainsString($existing->username(), $this->responseString('detail'));
     }
 
-    public function testItRefusesAMalformedEmail(): void
+    public function testItRefusesAUsernameOutsideTheCharset(): void
     {
         $this->logIn($this->creator());
 
-        $this->json('POST', '/api/v1/admin/users', ['email' => 'not-an-email'], $this->csrfHeader());
+        $this->json('POST', '/api/v1/admin/users', ['username' => 'has space'], $this->csrfHeader());
+
+        self::assertResponseStatusCodeSame(422);
+    }
+
+    public function testItRefusesAUsernameThatIsTooShort(): void
+    {
+        $this->logIn($this->creator());
+
+        $this->json('POST', '/api/v1/admin/users', ['username' => 'ab'], $this->csrfHeader());
 
         self::assertResponseStatusCodeSame(422);
     }

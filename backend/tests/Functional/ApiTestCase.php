@@ -185,11 +185,11 @@ abstract class ApiTestCase extends WebTestCase
     final protected function logIn(User $user): void
     {
         $this->json('POST', '/api/v1/auth/login', [
-            'email' => $user->email(),
+            'username' => $user->username(),
             'password' => self::PASSWORD,
         ]);
 
-        self::assertResponseIsSuccessful('Fixture login should succeed; check the user is Active and verified.');
+        self::assertResponseIsSuccessful('Fixture login should succeed; check the user is Active.');
     }
 
     final protected function logOut(): void
@@ -231,20 +231,19 @@ abstract class ApiTestCase extends WebTestCase
         return $fresh;
     }
 
-    final protected function createUser(string $label, bool $verified = true): User
+    final protected function createUser(string $label): User
     {
         $hasher = static::getContainer()->get(PasswordHasherFactoryInterface::class)
             ->getPasswordHasher('app_account_password');
 
+        // Workforce identity: the username is the login identifier. The charset is the policy
+        // recorded in ADR-0024 — letters, digits, dot, underscore, hyphen — so the label and the
+        // random suffix stay within it.
         $user = new User(
-            \sprintf('%s-%s@functional.test', $label, bin2hex(random_bytes(5))),
+            \sprintf('%s-%s', $label, bin2hex(random_bytes(5))),
             $hasher->hash(self::PASSWORD),
             $this->clock->now(),
         );
-
-        if ($verified) {
-            $user->verifyEmail($this->clock->now());
-        }
 
         $this->em->persist($user);
         $this->em->flush();

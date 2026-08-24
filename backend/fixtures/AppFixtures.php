@@ -51,9 +51,9 @@ final class AppFixtures extends Fixture
         $permissions = $this->permissions($manager, $now);
         $roles = $this->roles($manager, $now, $permissions);
 
-        $admin = $this->user($manager, $hasher, 'admin@bentley.localhost', $now);
-        $editor = $this->user($manager, $hasher, 'editor@bentley.localhost', $now);
-        $viewer = $this->user($manager, $hasher, 'viewer@bentley.localhost', $now);
+        $admin = $this->user($manager, $hasher, 'admin', $now);
+        $editor = $this->user($manager, $hasher, 'editor', $now);
+        $viewer = $this->user($manager, $hasher, 'viewer', $now);
 
         $manager->flush();
 
@@ -165,11 +165,12 @@ final class AppFixtures extends Fixture
     private function user(
         ObjectManager $manager,
         PasswordHasherInterface $hasher,
-        string $email,
+        string $username,
         DateTimeImmutable $now,
     ): User {
-        $user = new User($email, $hasher->hash(self::DEMO_PASSWORD), $now);
-        $user->verifyEmail($now);
+        // Workforce model (ADR-0024): the account is Active on creation — there is no email
+        // verification step, so the demo user can sign in immediately with the password below.
+        $user = new User($username, $hasher->hash(self::DEMO_PASSWORD), $now);
 
         $manager->persist($user);
 

@@ -11,9 +11,9 @@ interface UserRepository
     public function findById(Uuid $id): ?User;
 
     /** Case-insensitive by virtue of the citext column, not by lowercasing here. */
-    public function findByEmail(string $email): ?User;
+    public function findByUsername(string $username): ?User;
 
-    public function existsByEmail(string $email): bool;
+    public function existsByUsername(string $username): bool;
 
     public function save(User $user): void;
 

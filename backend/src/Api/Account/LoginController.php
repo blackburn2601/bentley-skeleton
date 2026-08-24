@@ -22,7 +22,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  */
 #[Route('/api/v1/auth/login', name: 'auth_login', methods: ['POST'])]
 #[IsGranted('PUBLIC_ACCESS')]
-#[RateLimit('login', keyedBy: 'ip+payload', payloadField: 'email')]
+#[RateLimit('login', keyedBy: 'ip+payload', payloadField: 'username')]
 final readonly class LoginController
 {
     public function __construct(
@@ -37,14 +37,14 @@ final readonly class LoginController
         Request $request,
     ): JsonResponse {
         $session = ($this->signIn)(
-            $payload->email,
+            $payload->username,
             $payload->password,
             $request->getClientIp(),
             $request->headers->get('User-Agent'),
         );
 
         $response = new JsonResponse(
-            SessionResponse::authenticated($session->userId, $session->email, $session->roles),
+            SessionResponse::authenticated($session->userId, $session->username, $session->roles),
         );
 
         $response->headers->setCookie($this->cookies->access($session->accessToken, $session->accessTtlSeconds));

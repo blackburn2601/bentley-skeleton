@@ -11,10 +11,10 @@ How the pieces fit and why they are arranged this way. Read `CLAUDE.md` and
 
 | Directory | Owns |
 |---|---|
-| `Account/` | registration, email verification, password reset, MFA, sessions and devices, token issuing and rotation |
+| `Account/` | authentication, admin-issued user provisioning and password reset, sessions and devices, token issuing and rotation |
 | `Acl/` | the permission model, `PermissionResolver`, `AclCriteriaBuilder`, the permission catalog |
 | `Audit/` | the append-only security event log, entity change history, GDPR export and erasure |
-| `Platform/` | cross-cutting infrastructure: health checks, observability, rate limiting, request ids, mail |
+| `Platform/` | cross-cutting infrastructure: health checks, observability, rate limiting, request ids |
 | `Shared/` | domain primitives every context may use — value objects, `Clock`, `IdGenerator` |
 | `Api/` | **all** HTTP: controllers, request DTOs, response views, listeners, voters |
 | `Maker/` | dev-time code generators |
@@ -61,7 +61,7 @@ Dotted edges are facade calls — the only legal cross-context path.
 | `Api` | controllers, request DTOs, response views, HTTP listeners, voters | `Application`, `Domain` |
 | `Application` | service classes, ports (interfaces) | `Domain` |
 | `Domain` | entities, value objects, enums, domain exceptions, repository *interfaces* | nothing |
-| `Infrastructure` | Doctrine repositories, mailer / Redis / HTTP / JWT adapters | `Domain`, `Application` ports |
+| `Infrastructure` | Doctrine repositories, Redis / HTTP / JWT adapters | `Domain`, `Application` ports |
 
 Enforced by `backend/deptrac.yaml`. The Domain layer's empty dependency list is the load-
 bearing part: it is the only code here that survives a framework change.
@@ -153,20 +153,16 @@ sequenceDiagram
     participant R as Redis
 
     SPA->>API: POST /api/v1/auth/login
-    API->>R: rate limit "login" (IP + email)
+    API->>R: rate limit "login" (IP + username)
     alt over limit
         API-->>SPA: 429 problem+json + Retry-After
     end
-    API->>DB: load user by citext email
+    API->>DB: load user by citext username
     API->>API: argon2id verify (constant work even if user is absent)
     alt bad credentials
         API->>DB: failed_login_count++, maybe locked_until
         API->>DB: SecurityEvent(login_failed)
         API-->>SPA: 401 problem+json (no hint whether the account exists)
-    end
-    alt MFA enabled
-        API-->>SPA: 200 {mfaRequired: true, challenge}
-        SPA->>API: POST /api/v1/auth/mfa/verify
     end
     API->>DB: store refresh token HASH (new family)
     API->>DB: SecurityEvent(login_succeeded)

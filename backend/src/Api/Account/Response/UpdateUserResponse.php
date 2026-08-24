@@ -7,20 +7,18 @@ namespace App\Api\Account\Response;
 use App\Account\Domain\User;
 
 /**
- * `emailVerified` is returned so the UI can say what just happened: a changed address is
- * unverified until its owner proves they can receive mail there.
+ * The username an administrator just set on one user.
  */
 final readonly class UpdateUserResponse
 {
     private function __construct(
         public string $id,
-        public string $email,
-        public bool $emailVerified,
+        public string $username,
     ) {
     }
 
     public static function from(User $user): self
     {
-        return new self($user->id()->toRfc4122(), $user->email(), $user->isEmailVerified());
+        return new self($user->id()->toRfc4122(), $user->username());
     }
 }

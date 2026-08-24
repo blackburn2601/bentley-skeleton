@@ -1,6 +1,6 @@
 # 0010. Synchronous mail, no Messenger in the skeleton
 
-- **Status:** accepted
+- **Status:** superseded by 0024
 - **Date:** 2026-08-22
 
 ## Context

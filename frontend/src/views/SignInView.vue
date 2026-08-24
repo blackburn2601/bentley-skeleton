@@ -11,7 +11,7 @@ const auth = useAuthStore()
 const router = useRouter()
 const route = useRoute()
 
-const email = ref('')
+const username = ref('')
 const password = ref('')
 const busy = ref(false)
 const error = ref<ApiError | Error | null>(null)
@@ -21,7 +21,7 @@ async function submit(): Promise<void> {
   error.value = null
 
   try {
-    await auth.signIn(email.value, password.value)
+    await auth.signIn(username.value, password.value)
 
     // Back to wherever the guard interrupted, or the account page.
     const redirect = route.query.redirect
@@ -36,7 +36,13 @@ async function submit(): Promise<void> {
 
 <template>
   <AppForm title="Sign in" submit-label="Sign in" :busy="busy" :error="error" @submit="submit">
-    <FormField id="email" v-model="email" label="Email" type="email" autocomplete="username" />
+    <FormField
+      id="username"
+      v-model="username"
+      label="Username"
+      type="text"
+      autocomplete="username"
+    />
     <FormField
       id="password"
       v-model="password"
@@ -44,12 +50,5 @@ async function submit(): Promise<void> {
       type="password"
       autocomplete="current-password"
     />
-
-    <template #footer>
-      <p class="flex flex-wrap justify-between gap-3 text-sm">
-        <RouterLink :to="{ name: 'forgot-password' }">Forgotten your password?</RouterLink>
-        <RouterLink :to="{ name: 'register' }">Create an account</RouterLink>
-      </p>
-    </template>
   </AppForm>
 </template>

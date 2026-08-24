@@ -6,7 +6,6 @@ namespace App\Account\Application;
 
 use App\Account\Application\Service\RevokeAllSessionsService;
 use App\Account\Domain\RefreshTokenRepository;
-use App\Account\Domain\SingleUseTokenRepository;
 use App\Account\Domain\User;
 use App\Account\Domain\UserRepository;
 use DateTimeImmutable;
@@ -25,7 +24,6 @@ final readonly class AccountFacade
     public function __construct(
         private UserRepository $users,
         private RefreshTokenRepository $refreshTokens,
-        private SingleUseTokenRepository $singleUseTokens,
         private RevokeAllSessionsService $revokeAllSessions,
     ) {
     }
@@ -35,9 +33,9 @@ final readonly class AccountFacade
         return $this->users->findById($userId);
     }
 
-    public function emailOf(Uuid $userId): ?string
+    public function usernameOf(Uuid $userId): ?string
     {
-        return $this->users->findById($userId)?->email();
+        return $this->users->findById($userId)?->username();
     }
 
     public function exists(Uuid $userId): bool
@@ -64,13 +62,12 @@ final readonly class AccountFacade
      * data-minimisation obligation rather than housekeeping — which is why the Audit context
      * schedules it, and why the deletion itself happens here.
      *
-     * @return array{refreshTokens: int, singleUseTokens: int}
+     * @return array{refreshTokens: int}
      */
     public function purgeExpiredTokens(DateTimeImmutable $before): array
     {
         return [
             'refreshTokens' => $this->refreshTokens->deleteExpired($before),
-            'singleUseTokens' => $this->singleUseTokens->deleteExpired($before),
         ];
     }
 }

@@ -22,38 +22,15 @@ final class UserTest extends TestCase
 {
     private const string PASSWORD_HASH = '$argon2id$fake';
 
-    public function testANewUserCannotAuthenticateUntilVerified(): void
+    public function testANewUserIsActiveAndCanAuthenticate(): void
     {
         $user = $this->user();
 
-        self::assertSame(UserStatus::PendingVerification, $user->status());
-        self::assertFalse($user->status()->canAuthenticate());
-        self::assertFalse($user->isEmailVerified());
-    }
-
-    public function testVerifyingActivatesTheAccount(): void
-    {
-        $user = $this->user();
-        $user->verifyEmail($this->now());
-
-        self::assertTrue($user->isEmailVerified());
+        // Workforce model (ADR-0024): accounts are Active on creation. There is no email
+        // verification step, so a freshly created account can sign in immediately with the
+        // temporary password the administrator was handed.
+        self::assertSame(UserStatus::Active, $user->status());
         self::assertTrue($user->status()->canAuthenticate());
-    }
-
-    public function testVerifyingDoesNotResurrectASuspendedAccount(): void
-    {
-        $user = $this->user();
-        $user->verifyEmail($this->now());
-        $user->suspend();
-
-        $user->verifyEmail($this->now());
-
-        self::assertSame(
-            UserStatus::Suspended,
-            $user->status(),
-            'Confirming an email address must not undo an administrative suspension — that '
-            .'would make "verify your email" a way out of being suspended.',
-        );
     }
 
     public function testLockoutIsTimeBoundedNotPermanent(): void
@@ -91,18 +68,19 @@ final class UserTest extends TestCase
         self::assertSame($later, $user->passwordChangedAt());
     }
 
-    public function testMfaIsOffUntilASecretIsStored(): void
+    public function testChangingTheUsernameDoesNotChangeTheStatus(): void
     {
         $user = $this->user();
 
-        self::assertFalse($user->hasMfaEnabled());
+        $user->changeUsername('renamed');
 
-        $user->enableMfa('encrypted-secret');
-        self::assertTrue($user->hasMfaEnabled());
-
-        $user->disableMfa();
-        self::assertFalse($user->hasMfaEnabled());
-        self::assertNull($user->totpSecretEncrypted());
+        self::assertSame('renamed', $user->username());
+        self::assertSame(
+            UserStatus::Active,
+            $user->status(),
+            'Renaming is an administrative edit, not a way to lock someone out by editing their '
+            .'profile.',
+        );
     }
 
     public function testTheAclVersionRisesOnEveryBump(): void
@@ -121,17 +99,28 @@ final class UserTest extends TestCase
         );
     }
 
+    public function testSuspensionPreventsAuthenticationAndCanBeReinstated(): void
+    {
+        $user = $this->user();
+        $user->suspend();
+
+        self::assertSame(UserStatus::Suspended, $user->status());
+        self::assertFalse($user->status()->canAuthenticate());
+
+        $user->reinstate();
+
+        self::assertSame(UserStatus::Active, $user->status());
+        self::assertTrue($user->status()->canAuthenticate());
+    }
+
     public function testAnonymisingClearsTheCredentialsAndIsTerminal(): void
     {
         $user = $this->user();
-        $user->verifyEmail($this->now());
-        $user->enableMfa('encrypted-secret');
 
-        $user->anonymise('erased-1@example.invalid', $this->now());
+        $user->anonymise('erased-1', $this->now());
 
-        self::assertSame('erased-1@example.invalid', $user->email());
+        self::assertSame('erased-1', $user->username());
         self::assertSame('', $user->passwordHash());
-        self::assertNull($user->totpSecretEncrypted());
         self::assertSame(UserStatus::Anonymised, $user->status());
         self::assertFalse(
             $user->status()->canAuthenticate(),
@@ -141,7 +130,7 @@ final class UserTest extends TestCase
 
     private function user(): User
     {
-        return new User('someone@example.test', self::PASSWORD_HASH, $this->now());
+        return new User('someone', self::PASSWORD_HASH, $this->now());
     }
 
     private function now(): DateTimeImmutable

@@ -10,12 +10,11 @@ const auth = useAuthStore()
     <p>A headless Symfony API with a Vue SPA, built to be extended safely.</p>
 
     <p v-if="auth.isAuthenticated">
-      Signed in as <strong>{{ auth.user?.email }}</strong> —
+      Signed in as <strong>{{ auth.user?.username }}</strong> —
       <RouterLink :to="{ name: 'account' }">your account</RouterLink>
     </p>
     <p v-else>
-      <RouterLink :to="{ name: 'sign-in' }">Sign in</RouterLink> or
-      <RouterLink :to="{ name: 'register' }">create an account</RouterLink>.
+      <RouterLink :to="{ name: 'sign-in' }">Sign in</RouterLink>.
     </p>
   </section>
 </template>

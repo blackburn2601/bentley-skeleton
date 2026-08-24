@@ -56,10 +56,9 @@ fetch, which is the failure this whole design exists to prevent.
 | Control | Test |
 |---|---|
 | argon2id, 64 MiB / 4 passes | `config/packages/security.yaml`; upgraded on login via `needsRehash` |
-| Refresh, verification and reset tokens stored **hashed only** | `TokenHash`; the schema has no plaintext column to store one in |
+| Refresh tokens stored **hashed only** | `TokenHash`; the schema has no plaintext column to store one in |
 | Access tokens RS256 — only the issuer holds the private key | `JwtAccessTokenIssuer` |
 | Cookies `__Host-`, `HttpOnly`, `Secure`, `SameSite=Strict` | Header snapshot test |
-| TOTP secrets encrypted at rest, not hashed — verification needs them back | `User::$totpSecretEncrypted` |
 
 ### A03 Injection
 
@@ -75,9 +74,9 @@ fetch, which is the failure this whole design exists to prevent.
 | Control | Test |
 |---|---|
 | Rate limits on every credential-touching endpoint | Six rapid bad logins → 429 + `Retry-After` (verified) |
-| `login` keyed on IP **and** email | Verified: a different email from the same IP is not blocked; a case variant of the same email is |
+| `login` keyed on IP **and** username | Verified: a different username from the same IP is not blocked; a case variant of the same username is |
 | Lockout with exponential backoff, capped | `AuthenticateUserService`; the cap stops it becoming a denial of service against the account's owner |
-| Anti-enumeration on register, login and password reset | Identical responses; login verifies against a dummy argon2id hash when the account does not exist, so timing matches |
+| Anti-enumeration on login | Identical response whether or not the account exists; login verifies against a dummy argon2id hash when the account does not, so timing matches |
 | Refresh-token reuse detection | Verified: replaying a rotated token revokes the family, and the successor dies too |
 
 ### A05 Security Misconfiguration
@@ -104,12 +103,11 @@ fetch, which is the failure this whole design exists to prevent.
 
 | Control | Test |
 |---|---|
-| TOTP MFA with recovery codes | Account context |
 | Rotation with reuse detection | Verified end to end |
 | Password policy: length and breach checks, no composition rules | `PasswordPolicy` unit tests |
 | HIBP via k-anonymity — the password never leaves the process | `HibpBreachedPasswordChecker`; only a 5-character SHA-1 prefix is sent |
-| Breach check fails **open** | Deliberate: a third party's outage must not become an outage of registration |
-| Password change ends every session | `ResetPasswordService` revokes all refresh tokens |
+| Breach check fails **open** | Deliberate: a third party's outage must not become an outage of account creation or password changes |
+| Admin password reset ends every session | `ResetUserPasswordService` revokes all refresh tokens; self-service change-password leaves the *current* session intact (ADR-0024) |
 
 ### A08 Software and Data Integrity Failures
 
@@ -124,7 +122,7 @@ fetch, which is the failure this whole design exists to prevent.
 | Control | Test |
 |---|---|
 | Append-only `security_event` log | INSERT-only grant; an integration test asserts UPDATE is refused |
-| Every auth event recorded with actor, IP, user agent, request id | Verified: register, verify, login success and failure, rotation and reuse all present |
+| Every auth event recorded with actor, IP, user agent, request id | Verified: login success and failure, password change and reset, rotation and reuse all present |
 | Audit writes flush immediately | Found the hard way — persisted-but-unflushed events were being silently dropped |
 | Request id correlates log, error body and audit row | `RequestIdSubscriber` |
 | High-severity events flagged on the event type itself | `SecurityEventType::isHighSeverity()` |
@@ -156,9 +154,8 @@ under-weights and that matter most for a JSON API:
 
 | Data | Where | Retention |
 |---|---|---|
-| Email address | `user.email` (citext) | Until erasure; replaced with a placeholder on anonymisation |
+| Username | `user.username` (citext) | Until erasure; replaced with a placeholder on anonymisation |
 | Password hash | `user.password_hash` | Until erasure; cleared on anonymisation |
-| TOTP secret | `user.totp_secret_encrypted` | Until MFA is disabled or the account is erased |
 | Session metadata (IP, user agent) | `refresh_token` | Until the token expires or is revoked |
 | Security events | `security_event` | Retention policy; append-only, never edited |
 | Audit entity history | `*_audit` tables | Retention policy — **currently disabled**, see ADR-0017 |

@@ -102,7 +102,7 @@ final class AuthenticationFlowTest extends ApiTestCase
         self::assertResponseIsSuccessful();
         $body = $this->responseJson();
 
-        self::assertSame($user->email(), $body['email'] ?? null);
+        self::assertSame($user->username(), $body['username'] ?? null);
 
         $permissions = $body['permissions'] ?? [];
         self::assertIsArray($permissions);
@@ -115,51 +115,18 @@ final class AuthenticationFlowTest extends ApiTestCase
     {
         $user = $this->createUser('enum');
 
-        $this->json('POST', '/api/v1/auth/login', ['email' => $user->email(), 'password' => 'definitely-not-the-password']);
+        $this->json('POST', '/api/v1/auth/login', ['username' => $user->username(), 'password' => 'definitely-not-the-password']);
         $wrongPassword = [$this->client->getResponse()->getStatusCode(), $this->responseJson()['detail'] ?? null];
 
-        $this->json('POST', '/api/v1/auth/login', ['email' => 'no-such-account@functional.test', 'password' => 'definitely-not-the-password']);
+        $this->json('POST', '/api/v1/auth/login', ['username' => 'no-such-account', 'password' => 'definitely-not-the-password']);
         $unknownAccount = [$this->client->getResponse()->getStatusCode(), $this->responseJson()['detail'] ?? null];
 
         self::assertSame(
             $wrongPassword,
             $unknownAccount,
             'These must be byte-identical. Any difference turns the login form into an oracle '
-            .'for which email addresses have accounts here.',
+            .'for which usernames have accounts here.',
         );
-    }
-
-    public function testRegisteringAnExistingAddressDoesNotRevealThatItExists(): void
-    {
-        $user = $this->createUser('dupe');
-
-        $this->json('POST', '/api/v1/auth/register', ['email' => $user->email(), 'password' => 'a-perfectly-fine-passphrase-42']);
-        $existing = [$this->client->getResponse()->getStatusCode(), $this->responseJson()];
-
-        $this->json('POST', '/api/v1/auth/register', ['email' => 'brand-new-'.bin2hex(random_bytes(4)).'@functional.test', 'password' => 'a-perfectly-fine-passphrase-42']);
-        $fresh = [$this->client->getResponse()->getStatusCode(), $this->responseJson()];
-
-        self::assertSame($fresh, $existing, 'Registration must not reveal whether an address is already taken.');
-    }
-
-    // ------------------------------------------------------------------ password rules
-
-    public function testAWeakPasswordIsRefusedWithTheReasons(): void
-    {
-        $this->json('POST', '/api/v1/auth/register', ['email' => 'weak@functional.test', 'password' => 'aaaaaaaaaaaaaa']);
-
-        self::assertResponseStatusCodeSame(422);
-        $detail = $this->responseJson()['detail'] ?? '';
-        self::assertIsString($detail);
-        self::assertStringContainsString('repeated', $detail);
-    }
-
-    public function testAMalformedBodyIsRejectedBeforeReachingTheController(): void
-    {
-        $this->json('POST', '/api/v1/auth/register', ['email' => 'not-an-email', 'password' => 'short']);
-
-        self::assertResponseStatusCodeSame(422);
-        self::assertArrayHasKey('errors', $this->responseJson());
     }
 
     // ------------------------------------------------------------------ sessions

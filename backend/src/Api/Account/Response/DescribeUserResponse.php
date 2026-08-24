@@ -12,9 +12,8 @@ namespace App\Api\Account\Response;
  * "why can this person not sign in?" and "what may this person do?" are two different
  * questions, and the answer to each is now one object rather than a handful of siblings.
  *
- * Still absent, and this is where it matters most: `passwordHash` and `totpSecretEncrypted`.
- * A detail view is exactly the endpoint where "just return the entity" is most tempting and
- * most dangerous (INV-05).
+ * Still absent, and this is where it matters most: `passwordHash`. A detail view is exactly
+ * the endpoint where "just return the entity" is most tempting and most dangerous (INV-05).
  */
 final readonly class DescribeUserResponse
 {
@@ -24,10 +23,8 @@ final readonly class DescribeUserResponse
      */
     private function __construct(
         public string $id,
-        public string $email,
+        public string $username,
         public string $status,
-        public bool $emailVerified,
-        public bool $mfaEnabled,
         public string $createdAt,
         /**
          * The counter behind ADR-0011: any grant change bumps it, and the next request
@@ -42,7 +39,7 @@ final readonly class DescribeUserResponse
 
     /**
      * @param array{
-     *     id: string, email: string, status: string, emailVerified: bool, mfaEnabled: bool,
+     *     id: string, username: string, status: string,
      *     failedLoginCount: int, lockedUntil: string|null, passwordChangedAt: string,
      *     createdAt: string, aclVersion: int,
      *     roles: list<string>, groups: list<string>, effectivePermissions: list<string>
@@ -52,10 +49,8 @@ final readonly class DescribeUserResponse
     {
         return new self(
             $profile['id'],
-            $profile['email'],
+            $profile['username'],
             $profile['status'],
-            $profile['emailVerified'],
-            $profile['mfaEnabled'],
             $profile['createdAt'],
             $profile['aclVersion'],
             [

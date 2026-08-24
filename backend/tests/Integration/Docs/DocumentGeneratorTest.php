@@ -97,7 +97,7 @@ final class DocumentGeneratorTest extends KernelTestCase
         // The sentence is the whole point of the file; a table of bare class names would
         // satisfy "lists every service" while being useless for finding a topic.
         self::assertMatchesRegularExpression(
-            '/\| `RegisterUserService` \| [A-Z][^|]{10,} \|/',
+            '/\| `CreateUserService` \| [A-Z][^|]{10,} \|/',
             $content,
             'Each row must pair the class with its @responsibility.',
         );

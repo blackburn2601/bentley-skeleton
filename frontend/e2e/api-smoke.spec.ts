@@ -44,7 +44,7 @@ test.describe('API smoke', () => {
 
   test('login sets HttpOnly cookies and never returns a token in the body', async ({ request }) => {
     const response = await request.post('/api/v1/auth/login', {
-      data: { email: 'admin@bentley.localhost', password: 'demo-password-not-for-real-use' },
+      data: { username: 'admin', password: 'demo-password-not-for-real-use' },
     })
 
     expect(response.status()).toBe(200)
@@ -63,7 +63,7 @@ test.describe('API smoke', () => {
   test('repeated bad logins are rate limited with Retry-After', async ({ request }) => {
     const attempt = () =>
       request.post('/api/v1/auth/login', {
-        data: { email: 'e2e-ratelimit@bentley.localhost', password: 'definitely-wrong-password' },
+        data: { username: 'e2e-ratelimit', password: 'definitely-wrong-password' },
       })
 
     let limited: Awaited<ReturnType<typeof attempt>> | null = null

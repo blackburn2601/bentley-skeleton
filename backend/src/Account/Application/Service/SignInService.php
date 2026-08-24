@@ -27,9 +27,9 @@ final readonly class SignInService
     ) {
     }
 
-    public function __invoke(string $email, string $password, ?string $ipAddress, ?string $userAgent): IssuedSession
+    public function __invoke(string $username, string $password, ?string $ipAddress, ?string $userAgent): IssuedSession
     {
-        $user = ($this->authenticate)($email, $password);
+        $user = ($this->authenticate)($username, $password);
 
         // Roles come from the Acl context through its facade (INV-02) — Account does not own
         // them and must not read acl tables directly.
@@ -39,7 +39,7 @@ final readonly class SignInService
 
         $accessToken = $this->accessTokens->issue(
             $user->id(),
-            $user->email(),
+            $user->username(),
             $roles,
             $user->aclVersion(),
         );
@@ -48,7 +48,7 @@ final readonly class SignInService
 
         return new IssuedSession(
             userId: $user->id()->toRfc4122(),
-            email: $user->email(),
+            username: $user->username(),
             roles: $roles,
             accessToken: $accessToken,
             accessTtlSeconds: $this->accessTokens->ttlSeconds(),

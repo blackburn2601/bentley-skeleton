@@ -35,7 +35,7 @@ final class EraseUserControllerTest extends ApiTestCase
     public function testItAnonymisesRatherThanDeletes(): void
     {
         $target = $this->createUser('target');
-        $originalEmail = $target->email();
+        $originalUsername = $target->username();
         $this->logIn($this->eraser());
 
         $this->json('DELETE', $this->url($target), [], $this->csrfHeader());
@@ -47,7 +47,7 @@ final class EraseUserControllerTest extends ApiTestCase
         // erasure it records (ADR-0012).
         $erased = $this->reload($target);
         self::assertSame(UserStatus::Anonymised, $erased->status());
-        self::assertNotSame($originalEmail, $erased->email());
+        self::assertNotSame($originalUsername, $erased->username());
     }
 
     public function testItRefusesToEraseYourOwnAccount(): void

@@ -34,7 +34,7 @@ export const setGroupMembers = (id: string, members: string[]) =>
 
 export interface GroupMember {
   id: string
-  email: string
+  username: string
 }
 
 /** The current membership, so the members picker opens with the right boxes ticked. */

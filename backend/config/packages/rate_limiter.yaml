@@ -8,26 +8,17 @@ framework:
         # per-process limiter silently multiplies every limit by the replica count.
 
         # Credential stuffing. Sliding window so a burst at the boundary cannot double the
-        # allowance. Keyed on IP *and* email by the subscriber: IP alone lets an attacker
-        # rotate addresses, email alone lets them spray many accounts from one host.
+        # allowance. Keyed on IP *and* username by the subscriber: IP alone lets an attacker
+        # rotate addresses, username alone lets them spray many accounts from one host.
         login:
             policy: 'sliding_window'
             limit: 5
             interval: '15 minutes'
 
-        # Email-sending endpoints are rate-limited to protect the RECIPIENT, not just us:
-        # an unlimited reset endpoint is a way to flood someone else's inbox.
-        password_reset:
-            policy: 'sliding_window'
-            limit: 3
-            interval: '1 hour'
-
-        verify_resend:
-            policy: 'sliding_window'
-            limit: 3
-            interval: '1 hour'
-
-        register:
+        # Self-service password change. Sliding window keyed on the signed-in user: a caller
+        # who just proved they know the current password can change it, but not hammer the
+        # verification path that re-checks it.
+        change_password:
             policy: 'sliding_window'
             limit: 10
             interval: '1 hour'

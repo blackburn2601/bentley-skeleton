@@ -10,7 +10,7 @@ namespace App\Api\Acl\Response;
 final readonly class ListGroupMembersResponse
 {
     /**
-     * @param list<array{id: string, email: string}> $items
+     * @param list<array{id: string, username: string}> $items
      */
     private function __construct(
         public array $items,
@@ -21,7 +21,7 @@ final readonly class ListGroupMembersResponse
     }
 
     /**
-     * @param list<array{id: string, email: string}> $members
+     * @param list<array{id: string, username: string}> $members
      */
     public static function from(array $members): self
     {

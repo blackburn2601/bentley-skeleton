@@ -17,26 +17,22 @@ it, extend that one. If none does, `make service` generates a conforming skeleto
 | `AccountFacade` | Exposes the Account context to other contexts as a single narrow surface. |
 | `AssertPasswordAcceptableService` | Refuses a password that this system will not accept. |
 | `AuthenticateUserService` | Decides whether a set of credentials identifies a user who may sign in. |
+| `ChangePasswordService` | Changes the signed-in user's password after verifying the current one. |
 | `ChangeUserStatusService` | Moves a user account to a new administrative status. |
-| `CreateUserService` | Creates a user account on an administrator's behalf. |
+| `CreateUserService` | Creates a user account with a system-generated temporary password. |
 | `DescribeCurrentUserService` | Assembles the profile the signed-in user's own client needs. |
 | `DescribeUserService` | Assembles the administrative profile of one user account. |
-| `IssueSingleUseTokenService` | Mints a one-time secret for an email-delivered action. |
 | `ListActiveSessionsService` | Lists the sessions a user currently has open. |
 | `ListUsersService` | Lists the user accounts a caller is permitted to read. |
 | `RefreshSessionService` | Exchanges a valid refresh token for a fresh session. |
-| `RegisterUserService` | Creates an unverified account for a new email address. |
-| `RequestPasswordResetService` | Emails a password-reset link to an address that has an account. |
-| `ResetPasswordService` | Sets a new password from a valid reset token. |
+| `ResetUserPasswordService` | Resets a user's password to a new system-generated temporary password. |
 | `RevokeAllSessionsService` | Revokes every refresh-token family belonging to one user. |
 | `RevokeUserSessionsService` | Ends every session belonging to one user at an administrator's request. |
 | `RotateRefreshTokenService` | Exchanges a refresh token for its successor, detecting reuse. |
-| `SendAccountEmailService` | Sends the transactional emails the account lifecycle depends on. |
 | `SignInService` | Turns valid credentials into an authenticated session. |
 | `SignOutService` | Ends the session belonging to a presented refresh token. |
 | `StartSessionService` | Opens a new refresh-token family for a user who has just authenticated. |
-| `UpdateUserService` | Applies an administrator's edits to one user's email address. |
-| `VerifyEmailService` | Confirms that a user controls the email address they registered. |
+| `UpdateUserService` | Applies an administrator's edit to one user's username. |
 
 ## Acl
 
