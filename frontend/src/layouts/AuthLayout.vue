@@ -24,8 +24,8 @@ import AppThemeToggle from '@/components/app/AppThemeToggle.vue'
     <aside class="hidden bg-muted lg:flex lg:flex-col lg:justify-end lg:p-10">
       <blockquote class="space-y-2">
         <p class="text-lg leading-relaxed">
-          A headless Symfony API with a per-object ACL, where the architecture is enforced by
-          tooling rather than by convention.
+          Eine headless Symfony-API mit objektbezogener ACL, deren Architektur durch Werkzeuge
+          erzwungen wird statt durch Konvention.
         </p>
         <footer class="text-sm text-muted-foreground">bentley-skeleton</footer>
       </blockquote>

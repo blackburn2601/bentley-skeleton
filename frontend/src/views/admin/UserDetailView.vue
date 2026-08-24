@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeft, KeyRound, LogOut, Pencil, ShieldCheck, ShieldOff, Trash2 } from 'lucide-vue-next'
+import { ArrowLeft, Copy, KeyRound, LogOut, Pencil, ShieldCheck, ShieldOff, Trash2 } from 'lucide-vue-next'
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -34,6 +34,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAsyncAction } from '@/composables/useAsyncAction'
+import { useCopyToClipboard } from '@/composables/useCopyToClipboard'
 import { usePermission } from '@/composables/usePermission'
 import { useAuthStore } from '@/stores/auth'
 
@@ -41,6 +42,7 @@ const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const { busy, run } = useAsyncAction()
+const { copy } = useCopyToClipboard()
 
 const canUpdate = usePermission('user.update')
 const canDelete = usePermission('user.delete')
@@ -79,6 +81,9 @@ onMounted(async () => {
 
 const isSelf = (): boolean => user.value?.id === auth.user?.id
 
+const copyId = (id: string): Promise<boolean> =>
+  copy(id, 'ID kopiert.', 'Der Wert steht vollständig auf dieser Seite und lässt sich markieren.')
+
 const editOpen = ref(false)
 const usernameDraft = ref('')
 
@@ -90,7 +95,7 @@ function startEdit(): void {
 async function submitEdit(): Promise<void> {
   const saved = await run(
     () => updateUser(id, usernameDraft.value.trim()),
-    'Username changed.',
+    'Der Benutzername wurde geändert.',
   )
 
   if (saved.ok) {
@@ -100,8 +105,12 @@ async function submitEdit(): Promise<void> {
 }
 
 async function setStatus(status: UserStatus): Promise<void> {
-  const verb = status === 'suspended' ? 'Suspended' : 'Reinstated'
-  if ((await run(() => changeUserStatus(id, status), `${verb} this account.`)).ok) {
+  // A whole sentence per outcome rather than a verb slotted into a template: German puts the
+  // participle at the end, so an assembled `${verb} this account` cannot be made to read.
+  const message =
+    status === 'suspended' ? 'Dieses Konto wurde gesperrt.' : 'Dieses Konto wurde entsperrt.'
+
+  if ((await run(() => changeUserStatus(id, status), message)).ok) {
     await load()
   }
 }
@@ -111,7 +120,7 @@ async function toggleRole(role: string, held: boolean): Promise<void> {
     ? async () => void (await revokeRole(id, role))
     : async () => void (await assignRole(id, role))
 
-  if ((await run(action, held ? `Revoked ${role}.` : `Assigned ${role}.`)).ok) {
+  if ((await run(action, held ? `${role} wurde entzogen.` : `${role} wurde zugewiesen.`)).ok) {
     // Reload rather than patching locally: the effective permission list is computed by the
     // resolver, and roles inherited through a group would not follow a local edit.
     await load()
@@ -119,7 +128,7 @@ async function toggleRole(role: string, held: boolean): Promise<void> {
 }
 
 async function endSessions(): Promise<void> {
-  const result = await run(() => revokeUserSessions(id), 'Signed this user out everywhere.')
+  const result = await run(() => revokeUserSessions(id), 'Dieser Benutzer wurde überall abgemeldet.')
 
   if (result.ok) {
     await load()
@@ -129,7 +138,7 @@ async function endSessions(): Promise<void> {
 const eraseOpen = ref(false)
 
 async function confirmErase(): Promise<void> {
-  if ((await run(() => eraseUser(id), 'Account erased.')).ok) {
+  if ((await run(() => eraseUser(id), 'Das Konto wurde gelöscht.')).ok) {
     eraseOpen.value = false
     await router.push({ name: 'admin-users' })
   }
@@ -176,13 +185,13 @@ const statusLabel = (value: UserStatus): string =>
   USER_STATUSES.find((s) => s.value === value)?.label ?? value
 
 const formatDateTime = (iso: string | null): string =>
-  iso === null ? '—' : new Date(iso).toLocaleString()
+  iso === null ? '—' : new Date(iso).toLocaleString('de-DE')
 </script>
 
 <template>
   <div class="space-y-6">
     <Button variant="ghost" size="sm" class="-ml-2" @click="router.push({ name: 'admin-users' })">
-      <ArrowLeft /> Back to users
+      <ArrowLeft /> Zurück zu den Benutzern
     </Button>
 
     <ErrorState v-if="error" :error="error" @retry="load()" />
@@ -198,13 +207,13 @@ const formatDateTime = (iso: string | null): string =>
           <h1 class="text-2xl font-semibold tracking-tight">{{ user.username }}</h1>
           <div class="flex flex-wrap items-center gap-2 pt-1">
             <Badge :variant="statusVariant[user.status]">{{ statusLabel(user.status) }}</Badge>
-            <span v-if="isSelf()" class="text-xs text-muted-foreground">This is your account</span>
+            <span v-if="isSelf()" class="text-xs text-muted-foreground">Das ist Ihr eigenes Konto</span>
           </div>
         </div>
 
         <div class="flex flex-wrap gap-2">
           <Button v-if="canUpdate && !isSelf()" variant="outline" @click="startEdit">
-            <Pencil /> Edit username
+            <Pencil /> Benutzername ändern
           </Button>
           <Button
             v-if="canUpdate && !isSelf()"
@@ -212,10 +221,10 @@ const formatDateTime = (iso: string | null): string =>
             :disabled="busy"
             @click="resetOpen = true"
           >
-            <KeyRound /> Reset password
+            <KeyRound /> Passwort zurücksetzen
           </Button>
           <Button v-if="canUpdate && !isSelf()" variant="outline" :disabled="busy" @click="endSessions">
-            <LogOut /> Sign out everywhere
+            <LogOut /> Überall abmelden
           </Button>
           <Button
             v-if="canUpdate && !isSelf() && user.status !== 'suspended' && user.status !== 'anonymised'"
@@ -223,7 +232,7 @@ const formatDateTime = (iso: string | null): string =>
             :disabled="busy"
             @click="setStatus('suspended')"
           >
-            <ShieldOff /> Suspend
+            <ShieldOff /> Sperren
           </Button>
           <Button
             v-if="canUpdate && !isSelf() && user.status === 'suspended'"
@@ -231,14 +240,14 @@ const formatDateTime = (iso: string | null): string =>
             :disabled="busy"
             @click="setStatus('active')"
           >
-            <ShieldCheck /> Reinstate
+            <ShieldCheck /> Entsperren
           </Button>
           <Button
             v-if="canDelete && !isSelf() && user.status !== 'anonymised'"
             variant="destructive"
             @click="eraseOpen = true"
           >
-            <Trash2 /> Erase
+            <Trash2 /> Löschen
           </Button>
         </div>
       </div>
@@ -246,24 +255,42 @@ const formatDateTime = (iso: string | null): string =>
       <div class="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Account</CardTitle>
+            <CardTitle>Konto</CardTitle>
           </CardHeader>
           <CardContent>
             <dl class="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 text-sm">
-              <dt class="text-muted-foreground">Created</dt>
+              <!--
+                In full, unlike the list, which abbreviates to fit a column. This is the page
+                someone opens to quote the id into a ticket or a query, so the whole value has
+                to be selectable by hand as well as copyable by button.
+              -->
+              <dt class="text-muted-foreground">ID</dt>
+              <dd>
+                <button
+                  type="button"
+                  class="group inline-flex cursor-pointer items-start gap-1.5 text-left hover:text-foreground"
+                  :aria-label="`ID von ${user.username} kopieren`"
+                  title="Zum Kopieren klicken"
+                  @click="copyId(user.id)"
+                >
+                  <code class="break-words leading-5">{{ user.id }}</code>
+                  <Copy class="mt-0.5 size-3.5 shrink-0 text-muted-foreground group-hover:text-foreground" />
+                </button>
+              </dd>
+              <dt class="text-muted-foreground">Erstellt</dt>
               <dd>{{ formatDateTime(user.createdAt) }}</dd>
-              <dt class="text-muted-foreground">Password changed</dt>
+              <dt class="text-muted-foreground">Passwort geändert</dt>
               <dd>{{ formatDateTime(user.security.passwordChangedAt) }}</dd>
-              <dt class="text-muted-foreground">Failed logins</dt>
+              <dt class="text-muted-foreground">Fehlgeschlagene Anmeldungen</dt>
               <dd>{{ user.security.failedLoginCount }}</dd>
-              <dt class="text-muted-foreground">Locked until</dt>
+              <dt class="text-muted-foreground">Gesperrt bis</dt>
               <dd>{{ formatDateTime(user.security.lockedUntil) }}</dd>
-              <dt class="text-muted-foreground">ACL version</dt>
+              <dt class="text-muted-foreground">ACL-Version</dt>
               <dd>
                 {{ user.aclVersion }}
                 <span class="text-xs text-muted-foreground">
-                  — increments on every grant change, which is what makes it take effect on
-                  their next request
+                  — zählt bei jeder Änderung an Berechtigungen hoch; genau das lässt sie ab der
+                  nächsten Anfrage wirken
                 </span>
               </dd>
             </dl>
@@ -272,26 +299,26 @@ const formatDateTime = (iso: string | null): string =>
 
         <Card>
           <CardHeader>
-            <CardTitle>Groups</CardTitle>
+            <CardTitle>Gruppen</CardTitle>
             <CardDescription>
-              Managed from the group screen. Roles carried by a group are inherited by everyone
-              in it.
+              Wird auf der Gruppenseite verwaltet. Rollen, die eine Gruppe trägt, erbt jedes ihrer
+              Mitglieder.
             </CardDescription>
           </CardHeader>
           <CardContent class="flex flex-wrap gap-1">
             <Badge v-for="group in user.access.groups" :key="group" variant="secondary">{{ group }}</Badge>
             <span v-if="user.access.groups.length === 0" class="text-sm text-muted-foreground">
-              Not in any group
+              In keiner Gruppe
             </span>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Roles</CardTitle>
+            <CardTitle>Rollen</CardTitle>
             <CardDescription>
-              Assigned directly to this account. Roles inherited through a group are not listed
-              here — they appear in the effective permissions.
+              Direkt diesem Konto zugewiesen. Über eine Gruppe geerbte Rollen stehen nicht hier —
+              sie tauchen in den effektiven Berechtigungen auf.
             </CardDescription>
           </CardHeader>
           <CardContent class="space-y-1">
@@ -311,20 +338,21 @@ const formatDateTime = (iso: string | null): string =>
               <code>{{ role.name }}</code>
             </label>
             <p v-if="roles.length === 0" class="text-sm text-muted-foreground">
-              No roles could be loaded. This needs the <code>role.read</code> permission.
+              Es konnten keine Rollen geladen werden. Dafür wird die Berechtigung
+              <code>role.read</code> benötigt.
             </p>
             <p v-else-if="isSelf()" class="pt-1 text-xs text-muted-foreground">
-              You cannot change your own roles.
+              Sie können Ihre eigenen Rollen nicht ändern.
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Effective permissions</CardTitle>
+            <CardTitle>Effektive Berechtigungen</CardTitle>
             <CardDescription>
-              What this person can actually do — direct roles plus everything inherited through
-              their groups. Computed by the same resolver the server authorizes with.
+              Was diese Person tatsächlich darf — direkte Rollen plus alles, was sie über ihre
+              Gruppen erbt. Ermittelt von demselben Resolver, mit dem der Server autorisiert.
             </CardDescription>
           </CardHeader>
           <CardContent class="flex flex-wrap gap-1">
@@ -336,7 +364,7 @@ const formatDateTime = (iso: string | null): string =>
               {{ permission }}
             </Badge>
             <span v-if="user.access.effectivePermissions.length === 0" class="text-sm text-muted-foreground">
-              No class-level permissions
+              Keine klassenweiten Berechtigungen
             </span>
           </CardContent>
         </Card>
@@ -346,19 +374,20 @@ const formatDateTime = (iso: string | null): string =>
     <Dialog v-model:open="editOpen">
       <DialogContent class="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Change username</DialogTitle>
+          <DialogTitle>Benutzernamen ändern</DialogTitle>
           <DialogDescription>
-            The username is the account's identity. It is case-insensitive on the server.
+            Der Benutzername ist die Identität des Kontos. Auf dem Server wird er ohne Rücksicht
+            auf Groß- und Kleinschreibung verglichen.
           </DialogDescription>
         </DialogHeader>
         <form id="edit-user" class="space-y-1.5" @submit.prevent="submitEdit">
-          <Label for="user-username">Username</Label>
+          <Label for="user-username">Benutzername</Label>
           <Input id="user-username" v-model="usernameDraft" type="text" autocomplete="off" />
         </form>
         <DialogFooter>
-          <Button variant="outline" :disabled="busy" @click="editOpen = false">Cancel</Button>
+          <Button variant="outline" :disabled="busy" @click="editOpen = false">Abbrechen</Button>
           <Button type="submit" form="edit-user" :disabled="busy || usernameDraft.trim() === ''">
-            {{ busy ? 'Working…' : 'Save' }}
+            {{ busy ? 'Bitte warten…' : 'Speichern' }}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -371,17 +400,17 @@ const formatDateTime = (iso: string | null): string =>
     <Dialog :open="resetOpen" @update:open="(o: boolean) => !o && (resetOpen = false)">
       <DialogContent class="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Reset password for {{ user?.username }}</DialogTitle>
+          <DialogTitle>Passwort für {{ user?.username }} zurücksetzen</DialogTitle>
           <DialogDescription>
-            This generates a new one-time temporary password. The current password stops working
-            immediately. The temporary password is shown once afterwards — have the user ready to
-            receive it.
+            Dabei wird ein neues, einmaliges Übergangspasswort erzeugt. Das bisherige Passwort
+            funktioniert sofort nicht mehr. Das Übergangspasswort wird danach genau einmal
+            angezeigt — die Person sollte also bereitstehen, um es entgegenzunehmen.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" :disabled="busy" @click="resetOpen = false">Cancel</Button>
+          <Button variant="outline" :disabled="busy" @click="resetOpen = false">Abbrechen</Button>
           <Button variant="destructive" :disabled="busy" @click="submitResetPassword">
-            {{ busy ? 'Working…' : 'Reset password' }}
+            {{ busy ? 'Bitte warten…' : 'Passwort zurücksetzen' }}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -398,34 +427,35 @@ const formatDateTime = (iso: string | null): string =>
     >
       <DialogContent class="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Temporary password for {{ resetResult?.username }}</DialogTitle>
+          <DialogTitle>Übergangspasswort für {{ resetResult?.username }}</DialogTitle>
           <DialogDescription>
-            Shown only once — hand it to the user now. It cannot be retrieved again.
+            Wird nur dieses eine Mal angezeigt — geben Sie es jetzt weiter. Es lässt sich später
+            nicht erneut abrufen.
           </DialogDescription>
         </DialogHeader>
         <div class="space-y-3">
           <div class="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning">
-            This password will not be shown again. Copy it now.
+            Dieses Passwort wird nicht erneut angezeigt. Kopieren Sie es jetzt.
           </div>
           <code class="block break-all rounded-md border bg-muted px-3 py-2 text-sm">
             {{ resetResult?.temporaryPassword }}
           </code>
           <Button class="w-full" @click="copyTemporaryPassword">
-            {{ copied ? 'Copied' : 'Copy to clipboard' }}
+            {{ copied ? 'Kopiert' : 'In die Zwischenablage kopieren' }}
           </Button>
         </div>
         <DialogFooter>
-          <Button variant="outline" @click="resetResult = null">Done</Button>
+          <Button variant="outline" @click="resetResult = null">Fertig</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
 
     <ConfirmDialog
       v-model:open="eraseOpen"
-      :title="`Erase ${user?.username}?`"
-      description="This anonymises the account and ends every session it has. It cannot be undone — the audit trail is kept, but the person's details are gone."
-      confirm-label="Erase account"
-      confirm-phrase="ERASE"
+      :title="`${user?.username} löschen?`"
+      description="Das Konto wird anonymisiert und jede seiner Sitzungen beendet. Das lässt sich nicht rückgängig machen — das Audit-Protokoll bleibt erhalten, die persönlichen Daten sind aber fort."
+      confirm-label="Konto löschen"
+      confirm-phrase="LÖSCHEN"
       :busy="busy"
       @confirm="confirmErase"
     />

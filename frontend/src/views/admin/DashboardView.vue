@@ -26,7 +26,7 @@ const permissionCount = computed(() => auth.user?.permissions.length ?? 0)
     <div>
       <h1 class="text-2xl font-semibold tracking-tight">Administration</h1>
       <p class="text-sm text-muted-foreground">
-        Signed in as {{ auth.user?.username }} with {{ permissionCount }} permissions.
+        Angemeldet als {{ auth.user?.username }} mit {{ permissionCount }} Berechtigungen.
       </p>
     </div>
 
@@ -41,7 +41,7 @@ const permissionCount = computed(() => auth.user?.permissions.length ?? 0)
           <CardHeader>
             <component :is="item.icon" class="size-5 text-muted-foreground" />
             <CardTitle>{{ item.label }}</CardTitle>
-            <CardDescription>Requires {{ item.permission ?? 'no permission' }}</CardDescription>
+            <CardDescription>Erfordert {{ item.permission ?? 'keine Berechtigung' }}</CardDescription>
           </CardHeader>
         </Card>
       </RouterLink>
@@ -56,10 +56,10 @@ const permissionCount = computed(() => auth.user?.permissions.length ?? 0)
     -->
     <Card v-if="unavailable.length > 0">
       <CardHeader>
-        <CardTitle>Not available to you</CardTitle>
+        <CardTitle>Für Sie nicht verfügbar</CardTitle>
         <CardDescription>
-          These areas exist but your account does not hold the permission they need. A grant
-          takes effect on your next request — you will not need to sign in again.
+          Diese Bereiche existieren, Ihrem Konto fehlt aber die dafür nötige Berechtigung. Eine
+          Erteilung wirkt ab Ihrer nächsten Anfrage — Sie müssen sich dafür nicht neu anmelden.
         </CardDescription>
       </CardHeader>
       <CardContent>

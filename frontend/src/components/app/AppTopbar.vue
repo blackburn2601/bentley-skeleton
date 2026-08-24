@@ -30,7 +30,7 @@ const crumbs = computed<string[]>(() => {
       variant="ghost"
       size="icon"
       class="md:hidden"
-      aria-label="Open navigation"
+      aria-label="Navigation öffnen"
       @click="ui.sidebarOpen = true"
     >
       <Menu />
@@ -39,13 +39,13 @@ const crumbs = computed<string[]>(() => {
       variant="ghost"
       size="icon"
       class="hidden md:inline-flex"
-      aria-label="Toggle sidebar"
+      aria-label="Seitenleiste ein-/ausklappen"
       @click="ui.toggleSidebar()"
     >
       <PanelLeft />
     </Button>
 
-    <nav aria-label="Breadcrumb" class="min-w-0">
+    <nav aria-label="Navigationspfad" class="min-w-0">
       <ol class="flex items-center gap-1.5 text-sm">
         <li v-for="(crumb, index) in crumbs" :key="crumb" class="flex items-center gap-1.5">
           <span v-if="index > 0" class="text-muted-foreground">/</span>

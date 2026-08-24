@@ -23,31 +23,31 @@ const { items, page, perPage, total, loading, error, load } =
 onMounted(() => void load())
 
 const columns: Column[] = [
-  { key: 'occurredAt', label: 'When' },
-  { key: 'type', label: 'Event' },
-  { key: 'actorId', label: 'Actor' },
+  { key: 'occurredAt', label: 'Zeitpunkt' },
+  { key: 'type', label: 'Ereignis' },
+  { key: 'actorId', label: 'Auslöser' },
   { key: 'ipAddress', label: 'IP' },
-  { key: 'requestId', label: 'Request' },
+  { key: 'requestId', label: 'Anfrage' },
 ]
 
-const formatDateTime = (iso: string): string => new Date(iso).toLocaleString()
+const formatDateTime = (iso: string): string => new Date(iso).toLocaleString('de-DE')
 </script>
 
 <template>
   <div class="space-y-4">
     <div>
-      <h1 class="text-2xl font-semibold tracking-tight">Audit log</h1>
+      <h1 class="text-2xl font-semibold tracking-tight">Audit-Protokoll</h1>
       <p class="text-sm text-muted-foreground">
-        Append-only, enforced by the database grant rather than by convention — the application
-        role holds INSERT and SELECT, not UPDATE or DELETE.
+        Ausschließlich anhängend, erzwungen über die Datenbankrechte statt über Konvention — die
+        Anwendungsrolle hält INSERT und SELECT, nicht UPDATE oder DELETE.
       </p>
     </div>
 
     <Input
       v-model="filters.type"
       class="max-w-sm"
-      placeholder="Filter by event type, e.g. login_failed"
-      aria-label="Filter by event type"
+      placeholder="Nach Ereignistyp filtern, z. B. login_failed"
+      aria-label="Nach Ereignistyp filtern"
     />
 
     <DataTable
@@ -55,8 +55,8 @@ const formatDateTime = (iso: string): string => new Date(iso).toLocaleString()
       :rows="items"
       :loading="loading"
       :error="error"
-      empty-title="No events match this filter"
-      empty-description="Event types are exact, like login_succeeded or permission_granted."
+      empty-title="Keine Ereignisse passen zu diesem Filter"
+      empty-description="Ereignistypen werden exakt verglichen, etwa login_succeeded oder permission_granted."
       @retry="load()"
     >
       <template #cell:occurredAt="{ row }">
@@ -73,7 +73,7 @@ const formatDateTime = (iso: string): string => new Date(iso).toLocaleString()
         <code v-if="row.actorId" class="text-xs text-muted-foreground">
           {{ row.actorId.slice(0, 8) }}
         </code>
-        <span v-else class="text-xs text-muted-foreground">system</span>
+        <span v-else class="text-xs text-muted-foreground">System</span>
       </template>
       <template #cell:ipAddress="{ row }">
         <span class="text-muted-foreground">{{ row.ipAddress ?? '—' }}</span>

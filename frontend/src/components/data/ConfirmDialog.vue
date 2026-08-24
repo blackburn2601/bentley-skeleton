@@ -51,19 +51,19 @@ watch(open, (isOpen) => {
 
       <div v-if="props.confirmPhrase" class="space-y-1.5">
         <Label for="confirm-phrase">
-          Type <code class="font-semibold">{{ props.confirmPhrase }}</code> to confirm
+          Tippen Sie <code class="font-semibold">{{ props.confirmPhrase }}</code> zur Bestätigung
         </Label>
         <Input id="confirm-phrase" v-model="typed" autocomplete="off" />
       </div>
 
       <DialogFooter>
-        <Button variant="outline" :disabled="props.busy" @click="open = false">Cancel</Button>
+        <Button variant="outline" :disabled="props.busy" @click="open = false">Abbrechen</Button>
         <Button
           variant="destructive"
           :disabled="props.busy || (!!props.confirmPhrase && typed !== props.confirmPhrase)"
           @click="emit('confirm')"
         >
-          {{ props.busy ? 'Working…' : props.confirmLabel }}
+          {{ props.busy ? 'Bitte warten…' : props.confirmLabel }}
         </Button>
       </DialogFooter>
     </DialogContent>

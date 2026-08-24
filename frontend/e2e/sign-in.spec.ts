@@ -17,9 +17,9 @@ test.describe('sign in', () => {
   test('a fixture user can sign in, see their account, and sign out', async ({ page }) => {
     await page.goto(`${SPA}/sign-in`)
 
-    await page.getByLabel('Username').fill('admin')
-    await page.getByLabel('Password').fill('demo-password-not-for-real-use')
-    await page.getByRole('button', { name: 'Sign in' }).click()
+    await page.getByLabel('Benutzername').fill('admin')
+    await page.getByLabel('Passwort').fill('demo-password-not-for-real-use')
+    await page.getByRole('button', { name: 'Anmelden' }).click()
 
     await expect(page).toHaveURL(/\/account$/)
     await expect(page.getByText('admin').first()).toBeVisible()
@@ -37,13 +37,14 @@ test.describe('sign in', () => {
     expect(readable).not.toContain('__Host-bentley_at')
 
     // Sign out now lives in the account menu in the shell's top bar, so the menu has to be
-    // opened first. exact: true — the account page also has a "Sign out everywhere" button.
-    await page.getByRole('button', { name: 'Account menu' }).click()
-    await page.getByRole('menuitem', { name: 'Sign out', exact: true }).click()
+    // opened first. exact: true — the account page also has an "Überall abmelden" button, and
+    // "Abmelden" is a prefix of it.
+    await page.getByRole('button', { name: 'Kontomenü' }).click()
+    await page.getByRole('menuitem', { name: 'Abmelden', exact: true }).click()
 
     // Signed out lands on the sign-in page, which is the one place a signed-out visitor can be.
     await expect(page).toHaveURL(/\/sign-in$/)
-    await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Anmelden' })).toBeVisible()
 
     const afterSignOut = await page.context().cookies()
     const stillThere = afterSignOut.find(
@@ -62,10 +63,12 @@ test.describe('sign in', () => {
   test('wrong credentials show the error without revealing whether the account exists', async ({ page }) => {
     await page.goto(`${SPA}/sign-in`)
 
-    await page.getByLabel('Username').fill('admin')
-    await page.getByLabel('Password').fill('definitely-not-the-password')
-    await page.getByRole('button', { name: 'Sign in' }).click()
+    await page.getByLabel('Benutzername').fill('admin')
+    await page.getByLabel('Passwort').fill('definitely-not-the-password')
+    await page.getByRole('button', { name: 'Anmelden' }).click()
 
+    // Deliberately still an English fragment: the SPA is German, but this text is the API's
+    // problem+json `detail`, which is passed through untranslated by design.
     await expect(page.getByRole('alert')).toContainText('incorrect')
   })
 })

@@ -36,17 +36,18 @@ const routes: RouteRecordRaw[] = [
     path: '/',
     component: () => import('@/layouts/AuthLayout.vue'),
     children: [
+      // There is no landing page: the root address *is* the sign-in screen. Signed-in visitors
+      // do not stop here either — `sign-in` is `guestOnly`, so the guard below moves them on to
+      // their account. One address, one answer, whoever is asking.
       {
         path: '',
-        name: 'home',
-        component: () => import('@/views/HomeView.vue'),
-        meta: { title: 'Home' },
+        redirect: { name: 'sign-in' },
       },
       {
         path: 'sign-in',
         name: 'sign-in',
         component: () => import('@/views/SignInView.vue'),
-        meta: { guestOnly: true, title: 'Sign in' },
+        meta: { guestOnly: true, title: 'Anmelden' },
       },
     ],
   },
@@ -59,13 +60,13 @@ const routes: RouteRecordRaw[] = [
         path: 'account',
         name: 'account',
         component: () => import('@/views/AccountView.vue'),
-        meta: { title: 'Your account', breadcrumb: ['Account'] },
+        meta: { title: 'Ihr Konto', breadcrumb: ['Konto'] },
       },
       {
         path: 'account/sessions',
         name: 'sessions',
         component: () => import('@/views/SessionsView.vue'),
-        meta: { title: 'Active sessions', breadcrumb: ['Account', 'Sessions'] },
+        meta: { title: 'Aktive Sitzungen', breadcrumb: ['Konto', 'Sitzungen'] },
       },
       {
         path: 'admin',
@@ -78,9 +79,9 @@ const routes: RouteRecordRaw[] = [
         name: 'admin-users',
         component: () => import('@/views/admin/UsersListView.vue'),
         meta: {
-          title: 'Users',
+          title: 'Benutzer',
           permission: 'user.read',
-          breadcrumb: ['Administration', 'Users'],
+          breadcrumb: ['Administration', 'Benutzer'],
         },
       },
       {
@@ -88,9 +89,9 @@ const routes: RouteRecordRaw[] = [
         name: 'admin-user',
         component: () => import('@/views/admin/UserDetailView.vue'),
         meta: {
-          title: 'User',
+          title: 'Benutzer',
           permission: 'user.read',
-          breadcrumb: ['Administration', 'Users', 'Detail'],
+          breadcrumb: ['Administration', 'Benutzer', 'Details'],
         },
       },
       {
@@ -98,9 +99,9 @@ const routes: RouteRecordRaw[] = [
         name: 'admin-groups',
         component: () => import('@/views/admin/GroupsListView.vue'),
         meta: {
-          title: 'Groups',
+          title: 'Gruppen',
           permission: 'group.read',
-          breadcrumb: ['Administration', 'Groups'],
+          breadcrumb: ['Administration', 'Gruppen'],
         },
       },
       {
@@ -108,9 +109,9 @@ const routes: RouteRecordRaw[] = [
         name: 'admin-roles',
         component: () => import('@/views/admin/RolesListView.vue'),
         meta: {
-          title: 'Roles',
+          title: 'Rollen',
           permission: 'role.read',
-          breadcrumb: ['Administration', 'Roles'],
+          breadcrumb: ['Administration', 'Rollen'],
         },
       },
       {
@@ -118,9 +119,9 @@ const routes: RouteRecordRaw[] = [
         name: 'admin-permissions',
         component: () => import('@/views/admin/PermissionsListView.vue'),
         meta: {
-          title: 'Permissions',
+          title: 'Berechtigungen',
           permission: 'permission.read',
-          breadcrumb: ['Administration', 'Permissions'],
+          breadcrumb: ['Administration', 'Berechtigungen'],
         },
       },
       {
@@ -128,16 +129,16 @@ const routes: RouteRecordRaw[] = [
         name: 'admin-audit',
         component: () => import('@/views/admin/AuditLogView.vue'),
         meta: {
-          title: 'Audit log',
+          title: 'Audit-Protokoll',
           permission: 'audit.read',
-          breadcrumb: ['Administration', 'Audit log'],
+          breadcrumb: ['Administration', 'Audit-Protokoll'],
         },
       },
       {
         path: 'admin/forbidden',
         name: 'admin-forbidden',
         component: () => import('@/views/admin/ForbiddenView.vue'),
-        meta: { title: 'No access', breadcrumb: ['Administration', 'No access'] },
+        meta: { title: 'Kein Zugriff', breadcrumb: ['Administration', 'Kein Zugriff'] },
       },
     ],
   },
@@ -145,7 +146,7 @@ const routes: RouteRecordRaw[] = [
     path: '/:pathMatch(.*)*',
     name: 'not-found',
     component: () => import('@/views/NotFoundView.vue'),
-    meta: { title: 'Not found' },
+    meta: { title: 'Nicht gefunden' },
   },
 ]
 

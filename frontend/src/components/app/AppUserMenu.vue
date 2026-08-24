@@ -28,7 +28,7 @@ async function signOut(): Promise<void> {
     await auth.signOut()
   } catch {
     // signOut() clears local state in a finally, so the user is signed out either way.
-    toast.info('Signed out locally', 'The server could not be reached.')
+    toast.info('Lokal abgemeldet', 'Der Server war nicht erreichbar.')
   }
 
   await router.push({ name: 'sign-in' })
@@ -38,7 +38,7 @@ async function signOut(): Promise<void> {
 <template>
   <DropdownMenu>
     <DropdownMenuTrigger as-child>
-      <Button variant="ghost" class="gap-2 px-2" aria-label="Account menu">
+      <Button variant="ghost" class="gap-2 px-2" aria-label="Kontomenü">
         <Avatar>{{ initials }}</Avatar>
         <span class="hidden max-w-40 truncate text-sm sm:block">{{ username }}</span>
       </Button>
@@ -50,15 +50,15 @@ async function signOut(): Promise<void> {
       </DropdownMenuLabel>
       <DropdownMenuSeparator />
       <DropdownMenuItem as-child>
-        <RouterLink to="/account"><UserIcon /> Your account</RouterLink>
+        <RouterLink to="/account"><UserIcon /> Ihr Konto</RouterLink>
       </DropdownMenuItem>
       <DropdownMenuItem as-child>
-        <RouterLink to="/account/sessions"><MonitorSmartphone /> Active sessions</RouterLink>
+        <RouterLink to="/account/sessions"><MonitorSmartphone /> Aktive Sitzungen</RouterLink>
       </DropdownMenuItem>
       <DropdownMenuSeparator />
-      <!-- Exactly "Sign out": e2e/sign-in.spec.ts matches this label with { exact: true } to
-           tell it apart from "Sign out everywhere" on the account page. -->
-      <DropdownMenuItem @select="signOut"><LogOut /> Sign out</DropdownMenuItem>
+      <!-- Exactly "Abmelden": e2e/sign-in.spec.ts matches this label with { exact: true } to
+           tell it apart from "Überall abmelden" on the account page. -->
+      <DropdownMenuItem @select="signOut"><LogOut /> Abmelden</DropdownMenuItem>
     </DropdownMenuContent>
   </DropdownMenu>
 </template>

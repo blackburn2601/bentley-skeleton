@@ -35,12 +35,14 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useAsyncAction } from '@/composables/useAsyncAction'
+import { useCopyToClipboard } from '@/composables/useCopyToClipboard'
 import { usePermission } from '@/composables/usePermission'
 import { usePaginatedResource } from '@/composables/usePaginatedResource'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
 const { busy, run } = useAsyncAction()
+const { copy } = useCopyToClipboard()
 
 // Display only (INV-16). Every one of these endpoints re-checks server-side.
 const canCreate = usePermission('user.create')
@@ -91,8 +93,14 @@ async function copyTemporaryPassword(): Promise<void> {
 }
 
 async function setStatus(user: AdminUser, status: UserStatus): Promise<void> {
-  const verb = status === 'suspended' ? 'Suspended' : 'Reinstated'
-  if ((await run(() => changeUserStatus(user.id, status), `${verb} ${user.username}.`)).ok) {
+  // A whole sentence per outcome rather than a verb slotted into a template: German puts the
+  // participle at the end, so an assembled `${verb} ${username}` cannot be made to read.
+  const message =
+    status === 'suspended'
+      ? `${user.username} wurde gesperrt.`
+      : `${user.username} wurde entsperrt.`
+
+  if ((await run(() => changeUserStatus(user.id, status), message)).ok) {
     await load()
   }
 }
@@ -103,16 +111,17 @@ async function confirmErase(): Promise<void> {
   const target = eraseTarget.value
   if (!target) return
 
-  if ((await run(() => eraseUser(target.id), `Erased ${target.username}.`)).ok) {
+  if ((await run(() => eraseUser(target.id), `${target.username} wurde gelöscht.`)).ok) {
     eraseTarget.value = null
     await load()
   }
 }
 
 const columns = computed<Column[]>(() => [
-  { key: 'username', label: 'Username' },
+  { key: 'id', label: 'ID', class: 'w-36' },
+  { key: 'username', label: 'Benutzername' },
   { key: 'status', label: 'Status' },
-  { key: 'createdAt', label: 'Created', class: 'text-muted-foreground' },
+  { key: 'createdAt', label: 'Erstellt', class: 'text-muted-foreground' },
   { key: 'actions', label: '', class: 'w-12 text-right' },
 ])
 
@@ -125,7 +134,24 @@ const statusVariant: Record<UserStatus, 'success' | 'warning' | 'destructive' | 
 const statusLabel = (value: UserStatus): string =>
   USER_STATUSES.find((s) => s.value === value)?.label ?? value
 
-const formatDate = (iso: string): string => new Date(iso).toLocaleDateString()
+const formatDate = (iso: string): string => new Date(iso).toLocaleDateString('de-DE')
+
+/**
+ * The TAIL of the UUID, not the head.
+ *
+ * These ids are UUIDv7, whose leading bytes are a timestamp: accounts created in the same
+ * moment share them. The demo fixtures all begin `01a0346c-0`, so a leading-8 abbreviation
+ * rendered three identical-looking rows — precisely the thing this column exists to prevent.
+ * The final group is the random part and differs per row.
+ *
+ * The full value is on the `title` and one click away in the clipboard. Rendering all 36
+ * characters would squeeze every other column for an identifier read far less often than it
+ * is copied.
+ */
+const shortId = (id: string): string => `…${id.slice(-12)}`
+
+const copyId = (id: string): Promise<boolean> =>
+  copy(id, 'ID kopiert.', 'Der vollständige Wert steht im Tooltip und auf der Detailseite.')
 
 const isSelf = (user: AdminUser): boolean => user.id === auth.user?.id
 
@@ -144,13 +170,13 @@ const actionable = (user: AdminUser): boolean =>
   <div class="space-y-4">
     <div class="flex flex-wrap items-start justify-between gap-3">
       <div>
-        <h1 class="text-2xl font-semibold tracking-tight">Users</h1>
+        <h1 class="text-2xl font-semibold tracking-tight">Benutzer</h1>
         <p class="text-sm text-muted-foreground">
-          Every account you are permitted to read. The list is filtered by the same rules as a
-          direct lookup, so what is missing here would also be refused there.
+          Jedes Konto, das Sie lesen dürfen. Die Liste filtert nach denselben Regeln wie ein
+          direkter Aufruf — was hier fehlt, würde dort ebenfalls abgelehnt.
         </p>
       </div>
-      <Button v-if="canCreate" @click="createOpen = true"><Plus /> New user</Button>
+      <Button v-if="canCreate" @click="createOpen = true"><Plus /> Neuer Benutzer</Button>
     </div>
 
     <div class="flex flex-wrap items-center gap-2">
@@ -159,17 +185,17 @@ const actionable = (user: AdminUser): boolean =>
         <Input
           v-model="filters.q"
           class="pl-8"
-          placeholder="Search by username"
-          aria-label="Search users by username"
+          placeholder="Nach Benutzername oder ID suchen"
+          aria-label="Benutzer nach Benutzername oder ID durchsuchen"
         />
       </div>
 
       <select
         v-model="filters.status"
-        aria-label="Filter by status"
+        aria-label="Nach Status filtern"
         class="h-9 rounded-md border border-input bg-background px-3 text-sm"
       >
-        <option :value="undefined">All statuses</option>
+        <option :value="undefined">Alle Status</option>
         <option v-for="status in USER_STATUSES" :key="status.value" :value="status.value">
           {{ status.label }}
         </option>
@@ -181,10 +207,22 @@ const actionable = (user: AdminUser): boolean =>
       :rows="items"
       :loading="loading"
       :error="error"
-      empty-title="No users match this filter"
-      empty-description="Try a different search term, or clear the status filter."
+      empty-title="Keine Benutzer passen zu diesem Filter"
+      empty-description="Gesucht wird in Benutzername und ID — auch ein Teil der ID genügt. Versuchen Sie einen anderen Suchbegriff oder setzen Sie den Statusfilter zurück."
       @retry="load()"
     >
+      <template #cell:id="{ row }">
+        <button
+          type="button"
+          class="cursor-pointer font-mono text-xs text-muted-foreground hover:text-foreground hover:underline"
+          :title="`${row.id} — zum Kopieren klicken`"
+          :aria-label="`ID von ${row.username} kopieren`"
+          @click="copyId(row.id)"
+        >
+          {{ shortId(row.id) }}
+        </button>
+      </template>
+
       <template #cell:username="{ row }">
         <RouterLink
           :to="{ name: 'admin-user', params: { id: row.id } }"
@@ -192,7 +230,7 @@ const actionable = (user: AdminUser): boolean =>
         >
           {{ row.username }}
         </RouterLink>
-        <span v-if="isSelf(row)" class="ml-2 text-xs text-muted-foreground">(you)</span>
+        <span v-if="isSelf(row)" class="ml-2 text-xs text-muted-foreground">(Sie)</span>
       </template>
       <template #cell:status="{ row }">
         <Badge :variant="statusVariant[row.status]">{{ statusLabel(row.status) }}</Badge>
@@ -202,14 +240,14 @@ const actionable = (user: AdminUser): boolean =>
       <template #cell:actions="{ row }">
         <DropdownMenu>
           <DropdownMenuTrigger as-child>
-            <Button variant="ghost" size="icon" :aria-label="`Actions for ${row.username}`">
+            <Button variant="ghost" size="icon" :aria-label="`Aktionen für ${row.username}`">
               <MoreHorizontal />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent>
             <DropdownMenuItem as-child>
               <RouterLink :to="{ name: 'admin-user', params: { id: row.id } }">
-                <Pencil /> Open
+                <Pencil /> Öffnen
               </RouterLink>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
@@ -217,13 +255,13 @@ const actionable = (user: AdminUser): boolean =>
               v-if="canUpdate && actionable(row) && row.status !== 'suspended'"
               @select="setStatus(row, 'suspended')"
             >
-              <ShieldOff /> Suspend
+              <ShieldOff /> Sperren
             </DropdownMenuItem>
             <DropdownMenuItem
               v-if="canUpdate && actionable(row) && row.status === 'suspended'"
               @select="setStatus(row, 'active')"
             >
-              <ShieldCheck /> Reinstate
+              <ShieldCheck /> Entsperren
             </DropdownMenuItem>
             <template v-if="canDelete && actionable(row)">
               <DropdownMenuSeparator />
@@ -231,7 +269,7 @@ const actionable = (user: AdminUser): boolean =>
                 class="text-destructive data-highlighted:text-destructive"
                 @select="eraseTarget = row"
               >
-                <Trash2 /> Erase…
+                <Trash2 /> Löschen…
               </DropdownMenuItem>
             </template>
           </DropdownMenuContent>
@@ -249,16 +287,16 @@ const actionable = (user: AdminUser): boolean =>
     <Dialog v-model:open="createOpen">
       <DialogContent class="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>New user</DialogTitle>
+          <DialogTitle>Neuer Benutzer</DialogTitle>
           <DialogDescription>
-            The account is created immediately with a one-time temporary password. It is shown
-            once, right after creating — nobody here ever sees it again, so hand it to the user
-            now.
+            Das Konto wird sofort mit einem einmaligen Übergangspasswort angelegt. Es wird genau
+            einmal angezeigt, direkt nach dem Anlegen — danach sieht es hier niemand mehr wieder.
+            Geben Sie es der Person also jetzt weiter.
           </DialogDescription>
         </DialogHeader>
 
         <form id="create-user" class="space-y-1.5" @submit.prevent="submitCreate">
-          <Label for="new-user-username">Username</Label>
+          <Label for="new-user-username">Benutzername</Label>
           <Input
             id="new-user-username"
             v-model="newUsername"
@@ -269,9 +307,9 @@ const actionable = (user: AdminUser): boolean =>
         </form>
 
         <DialogFooter>
-          <Button variant="outline" :disabled="busy" @click="createOpen = false">Cancel</Button>
+          <Button variant="outline" :disabled="busy" @click="createOpen = false">Abbrechen</Button>
           <Button type="submit" form="create-user" :disabled="busy || newUsername.trim() === ''">
-            {{ busy ? 'Working…' : 'Create user' }}
+            {{ busy ? 'Bitte warten…' : 'Benutzer anlegen' }}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -285,34 +323,35 @@ const actionable = (user: AdminUser): boolean =>
     <Dialog :open="createdUser !== null" @update:open="(o: boolean) => !o && (createdUser = null)">
       <DialogContent class="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Temporary password for {{ createdUser?.username }}</DialogTitle>
+          <DialogTitle>Übergangspasswort für {{ createdUser?.username }}</DialogTitle>
           <DialogDescription>
-            Shown only once — hand it to the user now. It cannot be retrieved again.
+            Wird nur dieses eine Mal angezeigt — geben Sie es jetzt weiter. Es lässt sich später
+            nicht erneut abrufen.
           </DialogDescription>
         </DialogHeader>
         <div class="space-y-3">
           <div class="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning">
-            This password will not be shown again. Copy it now.
+            Dieses Passwort wird nicht erneut angezeigt. Kopieren Sie es jetzt.
           </div>
           <code class="block break-all rounded-md border bg-muted px-3 py-2 text-sm">
             {{ createdUser?.temporaryPassword }}
           </code>
           <Button class="w-full" @click="copyTemporaryPassword">
-            {{ copied ? 'Copied' : 'Copy to clipboard' }}
+            {{ copied ? 'Kopiert' : 'In die Zwischenablage kopieren' }}
           </Button>
         </div>
         <DialogFooter>
-          <Button variant="outline" @click="createdUser = null">Done</Button>
+          <Button variant="outline" @click="createdUser = null">Fertig</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
 
     <ConfirmDialog
       :open="eraseTarget !== null"
-      :title="`Erase ${eraseTarget?.username}?`"
-      description="This anonymises the account and ends every session it has. It cannot be undone — the audit trail is kept, but the person's details are gone."
-      confirm-label="Erase account"
-      confirm-phrase="ERASE"
+      :title="`${eraseTarget?.username} löschen?`"
+      description="Das Konto wird anonymisiert und jede seiner Sitzungen beendet. Das lässt sich nicht rückgängig machen — das Audit-Protokoll bleibt erhalten, die persönlichen Daten sind aber fort."
+      confirm-label="Konto löschen"
+      confirm-phrase="LÖSCHEN"
       :busy="busy"
       @update:open="(open: boolean) => !open && (eraseTarget = null)"
       @confirm="confirmErase"

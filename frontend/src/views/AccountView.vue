@@ -36,19 +36,20 @@ async function submitChangePassword(): Promise<void> {
   passwordNotice.value = null
 
   if (newPassword.value !== confirmNewPassword.value) {
-    passwordError.value = 'The new passwords do not match.'
+    passwordError.value = 'Die neuen Passwörter stimmen nicht überein.'
     return
   }
 
   busy.value = 'password'
   try {
     await changePassword(currentPassword.value, newPassword.value)
-    passwordNotice.value = 'Your password has been changed. This session stays signed in.'
+    passwordNotice.value = 'Ihr Passwort wurde geändert. Diese Sitzung bleibt angemeldet.'
     currentPassword.value = ''
     newPassword.value = ''
     confirmNewPassword.value = ''
   } catch (caught) {
-    passwordError.value = caught instanceof ApiError ? caught.message : 'The request failed.'
+    passwordError.value =
+      caught instanceof ApiError ? caught.message : 'Die Anfrage ist fehlgeschlagen.'
   } finally {
     busy.value = null
   }
@@ -72,9 +73,9 @@ async function download(): Promise<void> {
     link.click()
     URL.revokeObjectURL(url)
 
-    notice.value = 'Your data has been downloaded.'
+    notice.value = 'Ihre Daten wurden heruntergeladen.'
   } catch (caught) {
-    error.value = caught instanceof ApiError ? caught.message : 'The export failed.'
+    error.value = caught instanceof ApiError ? caught.message : 'Der Export ist fehlgeschlagen.'
   } finally {
     busy.value = null
   }
@@ -84,7 +85,8 @@ async function signOutEverywhere(): Promise<void> {
   busy.value = 'sessions'
   try {
     const revoked = await auth.signOutEverywhere()
-    notice.value = `Ended ${revoked} session(s).`
+    notice.value =
+      revoked === 1 ? 'Eine Sitzung wurde beendet.' : `${revoked} Sitzungen wurden beendet.`
     await router.push({ name: 'sign-in' })
   } finally {
     busy.value = null
@@ -98,9 +100,9 @@ async function erase(): Promise<void> {
   try {
     await eraseMyAccount()
     auth.onSessionLost()
-    await router.push({ name: 'home' })
+    await router.push({ name: 'sign-in' })
   } catch (caught) {
-    error.value = caught instanceof ApiError ? caught.message : 'The request failed.'
+    error.value = caught instanceof ApiError ? caught.message : 'Die Anfrage ist fehlgeschlagen.'
   } finally {
     busy.value = null
   }
@@ -109,19 +111,19 @@ async function erase(): Promise<void> {
 
 <template>
   <section class="space-y-4">
-    <h1>Your account</h1>
+    <h1>Ihr Konto</h1>
 
     <p v-if="notice" class="rounded-md border border-success/40 bg-success/10 px-3 py-2 text-sm text-success" role="status">{{ notice }}</p>
     <p v-if="error" class="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">{{ error }}</p>
 
     <dl class="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 text-sm">
-      <dt>Username</dt>
+      <dt>Benutzername</dt>
       <dd>{{ auth.user?.username }}</dd>
-      <dt>Roles</dt>
-      <dd>{{ auth.user?.roles.join(', ') || 'None' }}</dd>
+      <dt>Rollen</dt>
+      <dd>{{ auth.user?.roles.join(', ') || 'Keine' }}</dd>
     </dl>
 
-    <h2>Change password</h2>
+    <h2>Passwort ändern</h2>
     <form class="max-w-sm space-y-3" novalidate @submit.prevent="submitChangePassword">
       <p v-if="passwordNotice" class="rounded-md border border-success/40 bg-success/10 px-3 py-2 text-sm text-success" role="status">
         {{ passwordNotice }}
@@ -130,7 +132,7 @@ async function erase(): Promise<void> {
         {{ passwordError }}
       </p>
       <div class="space-y-1.5">
-        <label for="current-password" class="text-sm font-medium">Current password</label>
+        <label for="current-password" class="text-sm font-medium">Aktuelles Passwort</label>
         <input
           id="current-password"
           v-model="currentPassword"
@@ -140,7 +142,7 @@ async function erase(): Promise<void> {
         />
       </div>
       <div class="space-y-1.5">
-        <label for="new-password" class="text-sm font-medium">New password</label>
+        <label for="new-password" class="text-sm font-medium">Neues Passwort</label>
         <input
           id="new-password"
           v-model="newPassword"
@@ -150,7 +152,7 @@ async function erase(): Promise<void> {
         />
       </div>
       <div class="space-y-1.5">
-        <label for="confirm-new-password" class="text-sm font-medium">Confirm new password</label>
+        <label for="confirm-new-password" class="text-sm font-medium">Neues Passwort bestätigen</label>
         <input
           id="confirm-new-password"
           v-model="confirmNewPassword"
@@ -160,7 +162,7 @@ async function erase(): Promise<void> {
           :aria-invalid="newPasswordMismatch ? 'true' : undefined"
         />
         <p v-if="newPasswordMismatch" class="text-xs text-destructive" role="alert">
-          The new passwords do not match.
+          Die neuen Passwörter stimmen nicht überein.
         </p>
       </div>
       <button
@@ -168,42 +170,43 @@ async function erase(): Promise<void> {
         class="inline-flex h-9 cursor-pointer items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
         :disabled="busy !== null || !canChangePassword"
       >
-        {{ busy === 'password' ? 'Working…' : 'Change password' }}
+        {{ busy === 'password' ? 'Bitte warten…' : 'Passwort ändern' }}
       </button>
     </form>
 
-    <h2>Sessions</h2>
+    <h2>Sitzungen</h2>
     <p>
-      <RouterLink :to="{ name: 'sessions' }">See where you are signed in</RouterLink>
+      <RouterLink :to="{ name: 'sessions' }">Sehen, wo Sie angemeldet sind</RouterLink>
     </p>
     <button type="button" :disabled="busy !== null" @click="signOutEverywhere">
-      Sign out everywhere
+      Überall abmelden
     </button>
 
-    <h2>Your data</h2>
+    <h2>Ihre Daten</h2>
     <button type="button" :disabled="busy !== null" @click="download">
-      {{ busy === 'export' ? 'Preparing…' : 'Download a copy of my data' }}
+      {{ busy === 'export' ? 'Wird vorbereitet…' : 'Kopie meiner Daten herunterladen' }}
     </button>
 
-    <h2>Delete your account</h2>
+    <h2>Konto löschen</h2>
     <p class="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
-      This anonymises your account and ends every session. Security records are kept as
-      required and no longer identify you. It cannot be undone.
+      Ihr Konto wird anonymisiert und jede Sitzung beendet. Sicherheitsrelevante Aufzeichnungen
+      bleiben wie vorgeschrieben erhalten, lassen sich Ihnen aber nicht mehr zuordnen. Das lässt
+      sich nicht rückgängig machen.
     </p>
     <!--
       A typed confirmation rather than a confirm() dialog. Modal dialogs get dismissed by
       reflex; typing the word is a deliberate act, and it cannot be triggered by a stray
       Enter key on a focused button.
     -->
-    <label for="confirm-erase">Type <code>DELETE</code> to confirm</label>
+    <label for="confirm-erase">Tippen Sie <code>LÖSCHEN</code> zur Bestätigung</label>
     <input id="confirm-erase" v-model="confirmErase" autocomplete="off" />
     <button
       type="button"
       class="inline-flex h-9 cursor-pointer items-center justify-center rounded-md bg-destructive px-4 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 disabled:pointer-events-none disabled:opacity-50"
-      :disabled="confirmErase !== 'DELETE' || busy !== null"
+      :disabled="confirmErase !== 'LÖSCHEN' || busy !== null"
       @click="erase"
     >
-      Delete my account
+      Mein Konto löschen
     </button>
   </section>
 </template>

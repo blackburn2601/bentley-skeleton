@@ -70,10 +70,10 @@ onMounted(async () => {
 })
 
 const columns: Column[] = [
-  { key: 'name', label: 'Group' },
-  { key: 'description', label: 'Description' },
-  { key: 'roles', label: 'Roles carried' },
-  { key: 'memberCount', label: 'Members' },
+  { key: 'name', label: 'Gruppe' },
+  { key: 'description', label: 'Beschreibung' },
+  { key: 'roles', label: 'Getragene Rollen' },
+  { key: 'memberCount', label: 'Mitglieder' },
   { key: 'actions', label: '', class: 'w-12 text-right' },
 ]
 
@@ -83,7 +83,7 @@ const form = ref({ name: '', description: '' })
 async function submitCreate(): Promise<void> {
   const created = await run(
     () => createGroup(form.value.name.trim(), form.value.description.trim() || null),
-    `Created ${form.value.name.trim()}.`,
+    `${form.value.name.trim()} wurde angelegt.`,
   )
 
   if (created.ok) {
@@ -107,7 +107,7 @@ async function submitEdit(): Promise<void> {
 
   const saved = await run(
     () => updateGroup(group.id, editForm.value.name.trim(), editForm.value.description.trim() || null),
-    'Group saved.',
+    'Die Gruppe wurde gespeichert.',
   )
 
   if (saved.ok) {
@@ -134,7 +134,7 @@ async function submitRoles(): Promise<void> {
   const group = editingRoles.value
   if (!group) return
 
-  if ((await run(() => setGroupRoles(group.id, selectedRoles.value), `Updated ${group.name}.`)).ok) {
+  if ((await run(() => setGroupRoles(group.id, selectedRoles.value), `${group.name} wurde aktualisiert.`)).ok) {
     editingRoles.value = null
     await load()
   }
@@ -168,7 +168,7 @@ async function startMembers(group: AdminGroup): Promise<void> {
   } catch (error) {
     // Never leave the dialog open with an empty selection it might save over the top of.
     editingMembers.value = null
-    toast.fromError(error, 'Could not load the current members.')
+    toast.fromError(error, 'Die aktuellen Mitglieder konnten nicht geladen werden.')
   } finally {
     membersLoading.value = false
   }
@@ -186,7 +186,7 @@ async function submitMembers(): Promise<void> {
 
   const saved = await run(
     () => setGroupMembers(group.id, selectedMembers.value),
-    `Membership of ${group.name} saved.`,
+    `Die Mitglieder von ${group.name} wurden gespeichert.`,
   )
 
   if (saved.ok) {
@@ -201,7 +201,7 @@ async function confirmDelete(): Promise<void> {
   const group = deleting.value
   if (!group) return
 
-  if ((await run(() => deleteGroup(group.id), `Deleted ${group.name}.`)).ok) {
+  if ((await run(() => deleteGroup(group.id), `${group.name} wurde gelöscht.`)).ok) {
     deleting.value = null
     await load()
   }
@@ -212,13 +212,14 @@ async function confirmDelete(): Promise<void> {
   <div class="space-y-4">
     <div class="flex flex-wrap items-start justify-between gap-3">
       <div>
-        <h1 class="text-2xl font-semibold tracking-tight">Groups</h1>
+        <h1 class="text-2xl font-semibold tracking-tight">Gruppen</h1>
         <p class="text-sm text-muted-foreground">
-          A group makes "the people on this team" one subject. Roles attached here are inherited
-          by every member, so adding someone to a group grants them everything it carries.
+          Eine Gruppe macht „die Leute in diesem Team“ zu einem einzigen Subjekt. Hier angehängte
+          Rollen erbt jedes Mitglied — wer einer Gruppe hinzugefügt wird, erhält also alles, was
+          sie trägt.
         </p>
       </div>
-      <Button v-if="canCreate" @click="createOpen = true"><Plus /> New group</Button>
+      <Button v-if="canCreate" @click="createOpen = true"><Plus /> Neue Gruppe</Button>
     </div>
 
     <DataTable
@@ -226,8 +227,8 @@ async function confirmDelete(): Promise<void> {
       :rows="items"
       :loading="loading"
       :error="error"
-      empty-title="No groups defined"
-      empty-description="Groups let you grant access to a set of people at once."
+      empty-title="Keine Gruppen angelegt"
+      empty-description="Mit Gruppen erteilen Sie mehreren Personen auf einmal Zugriff."
       @retry="load()"
     >
       <template #cell:name="{ row }">
@@ -237,7 +238,7 @@ async function confirmDelete(): Promise<void> {
         <span class="text-muted-foreground">{{ row.description ?? '—' }}</span>
       </template>
       <template #cell:roles="{ row }">
-        <span v-if="row.roles.length === 0" class="text-xs text-muted-foreground">None</span>
+        <span v-if="row.roles.length === 0" class="text-xs text-muted-foreground">Keine</span>
         <div v-else class="flex flex-wrap gap-1">
           <Badge v-for="role in row.roles" :key="role" variant="secondary">{{ role }}</Badge>
         </div>
@@ -247,19 +248,19 @@ async function confirmDelete(): Promise<void> {
       <template #cell:actions="{ row }">
         <DropdownMenu v-if="canUpdate || canDelete">
           <DropdownMenuTrigger as-child>
-            <Button variant="ghost" size="icon" :aria-label="`Actions for ${row.name}`">
+            <Button variant="ghost" size="icon" :aria-label="`Aktionen für ${row.name}`">
               <MoreHorizontal />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent>
             <DropdownMenuItem v-if="canUpdate" @select="startEdit(row)">
-              <Pencil /> Edit details
+              <Pencil /> Details bearbeiten
             </DropdownMenuItem>
             <DropdownMenuItem v-if="canUpdate" @select="startRoles(row)">
-              <ShieldCheck /> Roles…
+              <ShieldCheck /> Rollen…
             </DropdownMenuItem>
             <DropdownMenuItem v-if="canUpdate" @select="startMembers(row)">
-              <UsersRound /> Members…
+              <UsersRound /> Mitglieder…
             </DropdownMenuItem>
             <template v-if="canDelete">
               <DropdownMenuSeparator />
@@ -267,7 +268,7 @@ async function confirmDelete(): Promise<void> {
                 class="text-destructive data-highlighted:text-destructive"
                 @select="deleting = row"
               >
-                <Trash2 /> Delete…
+                <Trash2 /> Löschen…
               </DropdownMenuItem>
             </template>
           </DropdownMenuContent>
@@ -278,24 +279,24 @@ async function confirmDelete(): Promise<void> {
     <Dialog v-model:open="createOpen">
       <DialogContent class="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>New group</DialogTitle>
-          <DialogDescription>Attach roles and members after creating it.</DialogDescription>
+          <DialogTitle>Neue Gruppe</DialogTitle>
+          <DialogDescription>Rollen und Mitglieder hängen Sie nach dem Anlegen an.</DialogDescription>
         </DialogHeader>
         <form id="create-group" class="space-y-3" @submit.prevent="submitCreate">
           <div class="space-y-1.5">
             <Label for="group-name">Name</Label>
             <Input id="group-name" v-model="form.name" placeholder="platform-team" />
-            <p class="text-xs text-muted-foreground">Lowercase letters, digits and hyphens.</p>
+            <p class="text-xs text-muted-foreground">Kleinbuchstaben, Ziffern und Bindestriche.</p>
           </div>
           <div class="space-y-1.5">
-            <Label for="group-description">Description</Label>
+            <Label for="group-description">Beschreibung</Label>
             <Input id="group-description" v-model="form.description" placeholder="Optional" />
           </div>
         </form>
         <DialogFooter>
-          <Button variant="outline" :disabled="busy" @click="createOpen = false">Cancel</Button>
+          <Button variant="outline" :disabled="busy" @click="createOpen = false">Abbrechen</Button>
           <Button type="submit" form="create-group" :disabled="busy || form.name.trim() === ''">
-            {{ busy ? 'Working…' : 'Create group' }}
+            {{ busy ? 'Bitte warten…' : 'Gruppe anlegen' }}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -304,9 +305,10 @@ async function confirmDelete(): Promise<void> {
     <Dialog :open="editing !== null" @update:open="(o: boolean) => !o && (editing = null)">
       <DialogContent class="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Edit {{ editing?.name }}</DialogTitle>
+          <DialogTitle>{{ editing?.name }} bearbeiten</DialogTitle>
           <DialogDescription>
-            A group name may be corrected — unlike a role name, nothing in the code matches on it.
+            Ein Gruppenname darf korrigiert werden — anders als bei einem Rollennamen gleicht
+            nichts im Code darauf ab.
           </DialogDescription>
         </DialogHeader>
         <form id="edit-group" class="space-y-3" @submit.prevent="submitEdit">
@@ -315,14 +317,14 @@ async function confirmDelete(): Promise<void> {
             <Input id="edit-group-name" v-model="editForm.name" />
           </div>
           <div class="space-y-1.5">
-            <Label for="edit-group-description">Description</Label>
+            <Label for="edit-group-description">Beschreibung</Label>
             <Input id="edit-group-description" v-model="editForm.description" />
           </div>
         </form>
         <DialogFooter>
-          <Button variant="outline" :disabled="busy" @click="editing = null">Cancel</Button>
+          <Button variant="outline" :disabled="busy" @click="editing = null">Abbrechen</Button>
           <Button type="submit" form="edit-group" :disabled="busy">
-            {{ busy ? 'Working…' : 'Save' }}
+            {{ busy ? 'Bitte warten…' : 'Speichern' }}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -331,10 +333,10 @@ async function confirmDelete(): Promise<void> {
     <Dialog :open="editingRoles !== null" @update:open="(o: boolean) => !o && (editingRoles = null)">
       <DialogContent class="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Roles for {{ editingRoles?.name }}</DialogTitle>
+          <DialogTitle>Rollen von {{ editingRoles?.name }}</DialogTitle>
           <DialogDescription>
-            Every member inherits these. You can only attach a role whose permissions you hold
-            yourself.
+            Jedes Mitglied erbt diese Rollen. Sie können nur eine Rolle anhängen, deren
+            Berechtigungen Sie selbst besitzen.
           </DialogDescription>
         </DialogHeader>
         <div class="max-h-80 space-y-1 overflow-y-auto">
@@ -352,13 +354,14 @@ async function confirmDelete(): Promise<void> {
             <code>{{ role.name }}</code>
           </label>
           <p v-if="roles.length === 0" class="text-sm text-muted-foreground">
-            No roles could be loaded. This needs the <code>role.read</code> permission.
+            Es konnten keine Rollen geladen werden. Dafür wird die Berechtigung
+            <code>role.read</code> benötigt.
           </p>
         </div>
         <DialogFooter>
-          <Button variant="outline" :disabled="busy" @click="editingRoles = null">Cancel</Button>
+          <Button variant="outline" :disabled="busy" @click="editingRoles = null">Abbrechen</Button>
           <Button :disabled="busy" @click="submitRoles">
-            {{ busy ? 'Working…' : 'Save roles' }}
+            {{ busy ? 'Bitte warten…' : 'Rollen speichern' }}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -370,17 +373,17 @@ async function confirmDelete(): Promise<void> {
     >
       <DialogContent class="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Members of {{ editingMembers?.name }}</DialogTitle>
+          <DialogTitle>Mitglieder von {{ editingMembers?.name }}</DialogTitle>
           <DialogDescription>
-            Saving replaces the whole membership. Anyone not ticked is removed, and loses
-            whatever the group granted them on their next request.
+            Beim Speichern wird die gesamte Mitgliedschaft ersetzt. Wer nicht angehakt ist, wird
+            entfernt und verliert ab der nächsten Anfrage alles, was die Gruppe ihm erteilt hat.
           </DialogDescription>
         </DialogHeader>
 
         <Input
           v-model="memberFilter"
-          placeholder="Filter by username"
-          aria-label="Filter members"
+          placeholder="Nach Benutzername filtern"
+          aria-label="Mitglieder filtern"
           :disabled="membersLoading"
         />
 
@@ -399,14 +402,15 @@ async function confirmDelete(): Promise<void> {
             {{ user.username }}
           </label>
           <p v-if="users.length === 0" class="text-sm text-muted-foreground">
-            No users could be loaded. This needs the <code>user.read</code> permission.
+            Es konnten keine Benutzer geladen werden. Dafür wird die Berechtigung
+            <code>user.read</code> benötigt.
           </p>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" :disabled="busy" @click="editingMembers = null">Cancel</Button>
+          <Button variant="outline" :disabled="busy" @click="editingMembers = null">Abbrechen</Button>
           <Button :disabled="busy" @click="submitMembers">
-            {{ busy ? 'Working…' : 'Save members' }}
+            {{ busy ? 'Bitte warten…' : 'Mitglieder speichern' }}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -414,9 +418,9 @@ async function confirmDelete(): Promise<void> {
 
     <ConfirmDialog
       :open="deleting !== null"
-      :title="`Delete ${deleting?.name}?`"
-      description="Members lose everything this group granted them, immediately. This cannot be undone."
-      confirm-label="Delete group"
+      :title="`${deleting?.name} löschen?`"
+      description="Die Mitglieder verlieren sofort alles, was diese Gruppe ihnen erteilt hat. Das lässt sich nicht rückgängig machen."
+      confirm-label="Gruppe löschen"
       :busy="busy"
       @update:open="(o: boolean) => !o && (deleting = null)"
       @confirm="confirmDelete"

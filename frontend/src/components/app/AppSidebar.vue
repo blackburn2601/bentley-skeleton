@@ -38,7 +38,7 @@ const ACTIVE = 'bg-sidebar-accent font-medium text-sidebar-accent-foreground'
         variant="ghost"
         size="icon"
         class="ml-auto md:hidden"
-        aria-label="Close navigation"
+        aria-label="Navigation schließen"
         @click="ui.sidebarOpen = false"
       >
         <X />

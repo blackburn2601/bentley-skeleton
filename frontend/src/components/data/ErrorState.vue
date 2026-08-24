@@ -9,7 +9,7 @@ const props = defineProps<{ error: unknown }>()
 defineEmits<{ retry: [] }>()
 
 const message = computed(() =>
-  props.error instanceof ApiError ? props.error.message : 'Something went wrong.',
+  props.error instanceof ApiError ? props.error.message : 'Etwas ist schiefgelaufen.',
 )
 
 /**
@@ -29,8 +29,8 @@ const requestId = computed(() =>
     <TriangleAlert class="size-8 text-destructive" />
     <p class="font-medium">{{ message }}</p>
     <p v-if="requestId" class="text-xs text-muted-foreground">
-      Reference: <code>{{ requestId }}</code>
+      Referenz: <code>{{ requestId }}</code>
     </p>
-    <Button variant="outline" size="sm" class="mt-2" @click="$emit('retry')">Try again</Button>
+    <Button variant="outline" size="sm" class="mt-2" @click="$emit('retry')">Erneut versuchen</Button>
   </div>
 </template>
