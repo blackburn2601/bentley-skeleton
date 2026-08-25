@@ -7,8 +7,10 @@ namespace App\Tests\Functional\Account;
 use App\Account\Domain\User;
 use App\Acl\Domain\PermissionCatalog;
 use App\Api\Security\AuthCookies;
+use App\Shared\Infrastructure\Security\SodiumSecretBox;
 use App\Tests\Functional\ApiTestCase;
 use OTPHP\TOTP;
+use ReflectionProperty;
 
 /**
  * The TOTP second-factor flow, through the real kernel (ADR-0026).
@@ -125,6 +127,38 @@ final class TwoFactorFlowTest extends ApiTestCase
 
         $this->json('POST', '/api/v1/auth/mfa/verify', ['code' => $wrong]);
         self::assertResponseStatusCodeSame(401);
+        self::assertResponseHeaderSame('Content-Type', 'application/problem+json');
+        self::assertSame(
+            'The authentication code is incorrect or has expired.',
+            $this->responseJson()['detail'] ?? null,
+        );
+    }
+
+    public function testVerifyWithAnUndecryptableSecretIsRefusedAs401Not500(): void
+    {
+        // Simulates a TOTP_SECRET_KEY rotation after enrolment: the stored ciphertext was
+        // encrypted under a key the decryptor no longer holds, so sodium_crypto_secretbox_open
+        // returns false and VerifyTwoFactorService hits SecretDecryptionFailed. That must
+        // surface as the identical 401 — the same anti-enumeration invariant as a wrong code —
+        // never a 500. A 500 would both leak a server-side condition to an unauthenticated
+        // caller and lock the user out with a crash instead of a clean refusal.
+        $user = $this->createUser('rotated');
+        $this->enrolAndConfirm($user);
+        $this->logOut();
+
+        // Replace the live ciphertext with one encrypted under a foreign 32-byte key.
+        $foreignCipher = (new SodiumSecretBox(base64_encode(random_bytes(32))))->encrypt('not-the-real-secret');
+        $fresh = $this->em->find(User::class, $user->id());
+        \assert($fresh instanceof User);
+        $this->em->refresh($fresh);
+        (new ReflectionProperty(User::class, 'totpSecretEncrypted'))->setValue($fresh, $foreignCipher);
+        $this->em->flush();
+
+        $this->json('POST', '/api/v1/auth/login', ['username' => $user->username(), 'password' => self::PASSWORD]);
+        self::assertSame('pending', $this->responseJson()['mfaRequired'] ?? null);
+
+        $this->json('POST', '/api/v1/auth/mfa/verify', ['code' => '000000']);
+        self::assertResponseStatusCodeSame(401, 'An undecryptable secret must look like a wrong code, not a server error.');
         self::assertResponseHeaderSame('Content-Type', 'application/problem+json');
         self::assertSame(
             'The authentication code is incorrect or has expired.',
