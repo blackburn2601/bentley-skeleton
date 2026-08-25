@@ -43,3 +43,4 @@ New decision? `make adr TITLE="..."`. See [../cookbook/add-adr.md](../cookbook/a
 | 0025 | [Search users by id fragment via a narrow TEXT() DQL cast](0025-search-users-by-id-fragment-via-a-narrow-text-dql-cast.md) | accepted |
 | 0026 | [Optional TOTP MFA with authenticator app, superseding the no-MFA workforce floor](0026-optional-totp-mfa-with-authenticator-app-superseding-the-no-mfa-workforce-floor.md) | accepted |
 | 0027 | [Free-text search over the audit log](0027-free-text-search-over-the-audit-log.md) | accepted |
+| 0028 | [Environment via .env.example, never a committed .env](0028-environment-via-env-example-never-committed-env.md) | accepted |

@@ -37,20 +37,19 @@ done
 # PLAN.md documents how the skeleton was built, not how the new project works.
 rm -f PLAN.md
 
-echo "==> regenerating APP_SECRET"
-NEW_SECRET="$(openssl rand -hex 16)"
-# Every env file that defines it, not just .env: Symfony loads .env.<environment> after
-# .env, so a stale APP_SECRET in .env.dev silently overrides the fresh one and the new
-# project runs on the template's shared secret. .env.test is deliberately left alone — its
-# value is a visible non-secret literal and tests should stay reproducible.
-for env_file in backend/.env backend/.env.dev backend/.env.local; do
-  [ -f "$env_file" ] || continue
-  perl -pi -e "s/^APP_SECRET=.*/APP_SECRET=$NEW_SECRET/" "$env_file"
-done
+echo "==> generating backend/.env with fresh secrets"
+# The rename above rewrote backend/.env.example (tracked) with the new project name in
+# DATABASE_URL and friends. The local backend/.env is gitignored, so the rename never
+# touched it — regenerate it from the renamed template so it carries the new identity and
+# fresh per-machine secrets (APP_SECRET, JWT_PASSPHRASE, TOTP_SECRET_KEY). .env.test is left
+# alone: its values are visible non-secret literals and tests must stay reproducible.
+rm -f backend/.env
+./bin/generate-env
 
 echo "==> regenerating the JWT keypair"
-NEW_PASSPHRASE="$(openssl rand -hex 32)"
-perl -pi -e "s/^JWT_PASSPHRASE=.*/JWT_PASSPHRASE=$NEW_PASSPHRASE/" backend/.env
+# Reads JWT_PASSPHRASE from the freshly generated backend/.env and writes the keypair into
+# the gitignored config/jwt/. prod does not run this: it provisions a real keypair out of
+# band (see docs/adr/0028-environment-via-env-example-never-committed-env.md).
 rm -f backend/config/jwt/private.pem backend/config/jwt/public.pem
 (cd backend && php bin/console lexik:jwt:generate-keypair --skip-if-exists --no-interaction >/dev/null) \
   && echo "    new keypair written to backend/config/jwt/ (gitignored)"

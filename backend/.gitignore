@@ -1,5 +1,9 @@
 
 ###> symfony/framework-bundle ###
+# The real environment file, generated per machine by `make env` / `bin/generate-env` from
+# .env.example (ADR-0028). Never committed. The template (.env.example) and the test fixture
+# (.env.test) stay tracked — this anchored pattern matches only the file named .env.
+/.env
 /.env.local
 /.env.local.php
 /.env.*.local

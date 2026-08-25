@@ -53,6 +53,11 @@ jobs:
         working-directory: backend
         run: php vendor/bin/php-cs-fixer check --diff
 
+      # backend/.env is gitignored and no longer committed (ADR-0028). Generate it from the
+      # committed backend/.env.example template with fresh dev secrets before anything boots
+      # the Symfony console — cache:warmup, the JWT keypair and the kernel all read it.
+      - name: Generate backend/.env from the template
+        run: ./bin/generate-env
 
       # PHPStan's Symfony extension resolves service ids against the compiled dev container.
       # Nothing else in this job builds it, and without it PHPStan aborts before analysing a
@@ -128,6 +133,13 @@ jobs:
       - name: Install dependencies
         working-directory: backend
         run: composer install --no-interaction --no-progress --no-scripts
+
+      # backend/.env is gitignored and no longer committed (ADR-0028). Generate it from the
+      # committed backend/.env.example template with fresh dev secrets before the JWT keypair
+      # step reads JWT_PASSPHRASE from it. .env.test overrides APP_SECRET/TOTP_SECRET_KEY, but
+      # JWT_PASSPHRASE is only in .env, so it must exist.
+      - name: Generate backend/.env from the template
+        run: ./bin/generate-env
 
       - name: Generate the JWT keypair
         working-directory: backend
