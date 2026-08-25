@@ -32,6 +32,7 @@ final readonly class ListSecurityEventsController
     ): JsonResponse {
         $result = ($this->listEvents)(
             null === $request->type ? [] : [SecurityEventType::from($request->type)],
+            $request->q,
             $request->offset(),
             $request->limit(),
         );

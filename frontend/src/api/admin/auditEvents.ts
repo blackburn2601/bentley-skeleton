@@ -15,6 +15,7 @@ export interface AdminSecurityEvent {
 export interface ListAuditEventsQuery {
   page?: number
   perPage?: number
+  q?: string
   type?: string
 }
 

@@ -23,7 +23,7 @@ interface SecurityEventRepository
      *
      * @return list<SecurityEvent>
      */
-    public function findRecent(array $types = [], int $offset = 0, int $limit = 50): array;
+    public function findRecent(array $types = [], ?string $query = null, int $offset = 0, int $limit = 50): array;
 
     /**
      * The total findRecent() would return unpaged, under the same type filter.
@@ -33,7 +33,7 @@ interface SecurityEventRepository
      *
      * @param list<SecurityEventType> $types
      */
-    public function countRecent(array $types = []): int;
+    public function countRecent(array $types = [], ?string $query = null): int;
 
     public function countAll(): int;
 }
