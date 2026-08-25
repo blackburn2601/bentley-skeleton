@@ -105,6 +105,14 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # backend/.env is gitignored (ADR-0028). The production image's Dockerfile runs
+      # `cache:warmup --env=prod` at build time, which boots the kernel and needs a .env to
+      # exist — so the build context must contain one. Generate it from .env.example with
+      # fresh dev secrets before the image build; the COPY backend/ /app/ step bakes it in,
+      # exactly as the committed .env did before ADR-0028.
+      - name: Generate backend/.env from the template
+        run: ./bin/generate-env
+
       - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
 
       - name: Build the production image

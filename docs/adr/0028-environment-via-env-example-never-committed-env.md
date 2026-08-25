@@ -48,11 +48,16 @@ Each of those call sites gets one idempotent generate step.
 4. **`make env` wraps `bin/generate-env`; `make up` depends on `env`**, so out-of-the-box
    `git clone && make up` still works on a fresh checkout.
 
-5. **CI runs `bin/generate-env` after checkout and `composer install`**, before any step
-   that boots the kernel: `ci-backend` (static-analysis and tests jobs), `architecture`,
-   `docs`, and `e2e`. The `security` workflow does not (gitleaks/composer-audit/semgrep/trivy
-   never boot the app). In `e2e` the host generates `.env` and the `./backend` bind mount
-   brings it into the container.
+5. **CI runs `bin/generate-env` after checkout (and `composer install` where applicable)**,
+   before any step that boots the kernel: `ci-backend` (static-analysis and tests jobs),
+   `architecture`, `docs`, `e2e`, and the `image` job of `security`. That last one is easy to
+   miss: the `trivy image` job does not run the app, but it *builds* the production image, and
+   the Dockerfile runs `cache:warmup --env=prod` at build time — which boots the kernel and
+   needs a `.env` in the build context. The other `security` jobs (gitleaks, composer-audit,
+   semgrep, trivy filesystem) genuinely never boot the app and need no `.env`. In `e2e` the
+   host generates `.env` and the `./backend` bind mount brings it into the container; in the
+   `image` job the `COPY backend/ /app/` step bakes the generated `.env` into the image, as
+   the committed `.env` did before.
 
 6. **Production does not run `generate-env`.** It provisions the secrets as real environment
    variables or Docker secrets (the existing A05 control in `docs/SECURITY.md`, "Secrets as
@@ -138,5 +143,7 @@ reversal simply stops generating.
 - `.github/workflows/architecture.yml` — `generate-env` before `cache:warmup`
 - `.github/workflows/docs.yml` — `generate-env` before `app:docs:generate --check`
 - `.github/workflows/e2e.yml` — `generate-env` on the host before `docker compose up`
+- `.github/workflows/security.yml` — `generate-env` before the production image build (the
+  `trivy image` job), so build-time `cache:warmup` has a `.env`
 - `.gitleaksignore` — pinned historical `TOTP_SECRET_KEY` at `7214e858…` (unchanged, from
   ADR-0026)
