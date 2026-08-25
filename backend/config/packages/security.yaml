@@ -1,4 +1,12 @@
 security:
+    # Unanimous, not the default affirmative (ADR-0026). A single voter denying must block a
+    # grant, because the MfaStageVoter has to deny EVERYTHING for a pending second factor —
+    # and under affirmative, an ACL grant on the same call would override that deny. With
+    # unanimous, one deny settles it. Existing decisions are unaffected: per attribute only
+    # one voter has been voting, so unanimous and affirmative agree there.
+    access_decision_manager:
+        strategy: unanimous
+
     password_hashers:
         # argon2id, memory-hard so GPU cracking gains far less than it does against bcrypt.
         # 64 MiB / 4 passes is roughly OWASP's recommendation; the cost is ~50-100ms per

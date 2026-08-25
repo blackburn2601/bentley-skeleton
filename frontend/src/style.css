@@ -122,6 +122,19 @@
     @apply border-border;
   }
 
+  /* The global loading bar's travel. Defined here rather than in the component's scoped styles
+     because Vue scopes animation names along with the rest, and an arbitrary `[animation:...]`
+     utility could not then resolve the keyframe. The bar is a quarter of the viewport wide; the
+     400% translate sweeps it fully off the right edge, so it reads as a continuous sweep. */
+  @keyframes loading-bar {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(400%);
+    }
+  }
+
   body {
     @apply bg-background text-foreground;
     font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;

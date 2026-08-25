@@ -2,12 +2,26 @@
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { changePassword, eraseMyAccount, exportMyData } from '@/api/auth'
+import { changePassword, confirmMfa, disableMfa, enrolMfa, eraseMyAccount, exportMyData, type MfaEnrollment } from '@/api/auth'
 import { ApiError } from '@/api/problem'
+import ConfirmDialog from '@/components/data/ConfirmDialog.vue'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import OtpInput from '@/components/OtpInput.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useCopyToClipboard } from '@/composables/useCopyToClipboard'
 
 const auth = useAuthStore()
 const router = useRouter()
+const { copy } = useCopyToClipboard()
 
 const busy = ref<string | null>(null)
 const error = ref<string | null>(null)
@@ -107,6 +121,104 @@ async function erase(): Promise<void> {
     busy.value = null
   }
 }
+
+// --- Zwei-Faktor-Authentifizierung (ADR-0026) -----------------------------------------------
+
+const mfaEnrolled = computed(() => auth.user?.mfaEnrolled ?? false)
+const mfaRequired = computed(() => auth.user?.mfaRequired ?? false)
+
+const enrolOpen = ref(false)
+const enrolment = ref<MfaEnrollment | null>(null)
+const confirmCode = ref('')
+const recoveryCodes = ref<string[] | null>(null)
+const mfaError = ref<string | null>(null)
+const mfaBusy = ref<string | null>(null)
+const disableOpen = ref(false)
+
+function mfaMessage(caught: unknown): string {
+  return caught instanceof ApiError ? caught.message : 'Die Anfrage ist fehlgeschlagen.'
+}
+
+async function startEnrol(): Promise<void> {
+  mfaBusy.value = 'enrol'
+  mfaError.value = null
+  enrolment.value = null
+  recoveryCodes.value = null
+  confirmCode.value = ''
+  enrolOpen.value = true
+
+  try {
+    enrolment.value = await enrolMfa()
+  } catch (caught) {
+    mfaError.value = mfaMessage(caught)
+  } finally {
+    mfaBusy.value = null
+  }
+}
+
+async function submitConfirm(): Promise<void> {
+  if (confirmCode.value.length !== 6) {
+    mfaError.value = 'Geben Sie den sechsstelligen Code aus Ihrer Authenticator-App ein.'
+    return
+  }
+
+  mfaBusy.value = 'confirm'
+  mfaError.value = null
+
+  try {
+    const result = await confirmMfa(confirmCode.value)
+    recoveryCodes.value = result.recoveryCodes
+    enrolment.value = null
+    confirmCode.value = ''
+    // The factor is live; refresh /me so the screen reflects it without a manual reload.
+    await auth.load()
+  } catch (caught) {
+    mfaError.value = mfaMessage(caught)
+  } finally {
+    mfaBusy.value = null
+  }
+}
+
+function closeEnrol(): void {
+  // A provisional secret left behind by an abandoned enrollment is harmless — it never becomes
+  // live without a confirm — so the dialog can close at any step.
+  enrolOpen.value = false
+  enrolment.value = null
+  recoveryCodes.value = null
+  confirmCode.value = ''
+  mfaError.value = null
+}
+
+async function copySecret(): Promise<void> {
+  if (enrolment.value) {
+    await copy(enrolment.value.secret, 'Secret kopiert.', 'Das Secret steht im Dialog und lässt sich markieren.')
+  }
+}
+
+async function copyRecoveryCodes(): Promise<void> {
+  if (recoveryCodes.value) {
+    await copy(
+      recoveryCodes.value.join('\n'),
+      'Wiederherstellungscodes kopiert.',
+      'Die Codes stehen im Dialog und lassen sich markieren.',
+    )
+  }
+}
+
+async function confirmDisable(): Promise<void> {
+  mfaBusy.value = 'disable'
+  mfaError.value = null
+
+  try {
+    await disableMfa()
+    disableOpen.value = false
+    await auth.load()
+  } catch (caught) {
+    mfaError.value = mfaMessage(caught)
+  } finally {
+    mfaBusy.value = null
+  }
+}
 </script>
 
 <template>
@@ -122,6 +234,23 @@ async function erase(): Promise<void> {
       <dt>Rollen</dt>
       <dd>{{ auth.user?.roles.join(', ') || 'Keine' }}</dd>
     </dl>
+
+    <h2>Zwei-Faktor-Authentifizierung</h2>
+    <div class="flex flex-wrap items-center gap-3">
+      <Badge :variant="mfaEnrolled ? 'success' : 'secondary'">
+        {{ mfaEnrolled ? 'Aktiviert' : 'Nicht aktiviert' }}
+      </Badge>
+      <Badge v-if="mfaRequired" variant="warning">Von Administration vorgeschrieben</Badge>
+      <Button v-if="!mfaEnrolled" variant="outline" size="sm" :disabled="busy !== null" @click="startEnrol">
+        Einrichten
+      </Button>
+      <Button v-else variant="outline" size="sm" :disabled="busy !== null" @click="disableOpen = true">
+        Deaktivieren
+      </Button>
+      <p v-if="mfaRequired && !mfaEnrolled" class="text-sm text-muted-foreground">
+        Eine Administration hat MFA vorgeschrieben. Richten Sie es ein, um sich weiterhin anmelden zu können.
+      </p>
+    </div>
 
     <h2>Passwort ändern</h2>
     <form class="max-w-sm space-y-3" novalidate @submit.prevent="submitChangePassword">
@@ -208,5 +337,78 @@ async function erase(): Promise<void> {
     >
       Mein Konto löschen
     </button>
+
+    <!--
+      Enrollment (ADR-0026): a provisional secret is provisioned, the user scans the QR with an
+      authenticator, proves it with a current code, and the server mints the one-time recovery
+      codes. The secret is never live until the confirm step, so closing the dialog early leaves
+      no factor behind.
+    -->
+    <Dialog :open="enrolOpen" @update:open="(o: boolean) => !o && closeEnrol()">
+      <DialogContent class="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Zwei-Faktor-Authentifizierung einrichten</DialogTitle>
+          <DialogDescription>
+            Scannen Sie den QR-Code mit Ihrer Authenticator-App (z. B. Microsoft Authenticator)
+            oder tippen Sie den Secret manuell ein.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div v-if="mfaError" class="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
+          {{ mfaError }}
+        </div>
+
+        <!-- Step 1: scan, then confirm with a live code. -->
+        <div v-if="recoveryCodes === null" class="space-y-4">
+          <div v-if="enrolment" class="space-y-3">
+            <div class="flex justify-center">
+              <img :src="enrolment.qrDataUrl" alt="QR-Code für die Authenticator-App" class="size-48" />
+            </div>
+            <div class="space-y-1">
+              <div class="flex items-center justify-between">
+                <span class="text-sm font-medium">Secret</span>
+                <Button variant="ghost" size="sm" @click="copySecret">Kopieren</Button>
+              </div>
+              <code class="block break-all rounded-md border bg-muted px-3 py-2 text-sm">{{ enrolment.secret }}</code>
+            </div>
+            <div class="space-y-1.5">
+              <label for="mfa-confirm" class="text-sm font-medium">Code bestätigen</label>
+              <OtpInput id="mfa-confirm" v-model="confirmCode" />
+            </div>
+            <Button class="w-full" :disabled="mfaBusy !== null" @click="submitConfirm">
+              {{ mfaBusy === 'confirm' ? 'Bitte warten…' : 'Bestätigen' }}
+            </Button>
+          </div>
+          <div v-else class="text-sm text-muted-foreground">Provisional-Secret wird vorbereitet…</div>
+        </div>
+
+        <!-- Step 2: the recovery codes, shown exactly once. -->
+        <div v-else class="space-y-3">
+          <div class="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning">
+            Speichern Sie diese Codes an einem sicheren Ort. Sie werden nur dieses eine Mal
+            angezeigt und lassen sich später nicht erneut abrufen.
+          </div>
+          <code class="block break-all rounded-md border bg-muted px-3 py-2 text-sm">
+            <div v-for="code in recoveryCodes" :key="code">{{ code }}</div>
+          </code>
+          <Button variant="outline" class="w-full" @click="copyRecoveryCodes">Codes kopieren</Button>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" :disabled="mfaBusy !== null" @click="closeEnrol">
+            {{ recoveryCodes === null ? 'Abbrechen' : 'Fertig' }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <ConfirmDialog
+      v-model:open="disableOpen"
+      title="Zwei-Faktor-Authentifizierung deaktivieren?"
+      description="Danach reicht wieder Ihr Passwort zur Anmeldung. Eine von der Administration vorgeschriebene MFA bleibt davon unberührt — melden Sie sich bei Ihrer Administration, falls Sie danach nicht mehr anmelden können."
+      confirm-label="Deaktivieren"
+      :busy="mfaBusy !== null"
+      @confirm="confirmDisable"
+    />
   </section>
 </template>

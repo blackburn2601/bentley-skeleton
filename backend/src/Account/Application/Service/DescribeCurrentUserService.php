@@ -21,7 +21,14 @@ final readonly class DescribeCurrentUserService
     }
 
     /**
-     * @return array{id: string, username: string, roles: list<string>, permissions: list<string>}
+     * @return array{
+     *     id: string,
+     *     username: string,
+     *     roles: list<string>,
+     *     permissions: list<string>,
+     *     mfaEnrolled: bool,
+     *     mfaRequired: bool,
+     * }
      */
     public function __invoke(Uuid $userId): array
     {
@@ -39,6 +46,8 @@ final readonly class DescribeCurrentUserService
             'username' => $user->username(),
             'roles' => $this->acl->roleNamesOf($user->id()),
             'permissions' => $this->acl->classLevelPermissionsOf($userId),
+            'mfaEnrolled' => $user->hasEnrolledTotp(),
+            'mfaRequired' => $user->isMfaRequired(),
         ];
     }
 }

@@ -34,6 +34,8 @@ final readonly class MeController
             $profile['username'],
             $profile['roles'],
             $profile['permissions'],
+            $profile['mfaEnrolled'],
+            $profile['mfaRequired'],
         ));
     }
 }

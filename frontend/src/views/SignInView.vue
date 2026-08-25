@@ -23,6 +23,18 @@ async function submit(): Promise<void> {
   try {
     await auth.signIn(username.value, password.value)
 
+    // A pending second factor is owed: off to the verify screen, not the account page. The
+    // guard would catch this on the next navigation, but routing directly avoids a flash. The
+    // original destination rides along as a query so the verify screen can honor it on success.
+    if (auth.mfaPending) {
+      const redirect = route.query.redirect
+      await router.push({
+        name: 'mfa',
+        query: typeof redirect === 'string' ? { redirect } : undefined,
+      })
+      return
+    }
+
     // Back to wherever the guard interrupted, or the account page.
     const redirect = route.query.redirect
     await router.push(typeof redirect === 'string' ? redirect : { name: 'account' })

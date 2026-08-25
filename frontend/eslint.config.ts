@@ -57,6 +57,14 @@ export default defineConfigWithVueTs(
     rules: {
       '@typescript-eslint/no-non-null-assertion': 'off',
       'no-console': 'off',
+      // Spec files mount stub components inline. The component-structure rules that protect
+      // shipped .vue files flag those stubs (a one-off "Dialog" with untyped props is fine in
+      // a test, not in the app), so they are scoped off here rather than worked around.
+      'vue/one-component-per-file': 'off',
+      'vue/multi-word-component-names': 'off',
+      'vue/no-reserved-component-names': 'off',
+      'vue/require-prop-types': 'off',
+      'vue/require-default-prop': 'off',
     },
   },
 

@@ -35,7 +35,8 @@ final readonly class DescribeUserService
      *     id: string, username: string, status: string,
      *     failedLoginCount: int, lockedUntil: string|null, passwordChangedAt: string,
      *     createdAt: string, aclVersion: int,
-     *     roles: list<string>, groups: list<string>, effectivePermissions: list<string>
+     *     roles: list<string>, groups: list<string>, effectivePermissions: list<string>,
+     *     mfaEnrolled: bool, mfaRequired: bool
      * }
      */
     public function __invoke(Uuid $userId): array
@@ -60,6 +61,8 @@ final readonly class DescribeUserService
             'roles' => $this->acl->directRoleNamesOf($userId),
             'groups' => $this->acl->groupNamesOf($userId),
             'effectivePermissions' => $this->acl->classLevelPermissionsOf($userId),
+            'mfaEnrolled' => $user->hasEnrolledTotp(),
+            'mfaRequired' => $user->isMfaRequired(),
         ];
     }
 }

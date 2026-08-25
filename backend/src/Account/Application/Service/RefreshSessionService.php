@@ -44,11 +44,15 @@ final readonly class RefreshSessionService
         // for anything resolved server-side (ADR-0011).
         $roles = $this->acl->roleNamesOf($user->id());
 
+        // The second factor, if the family had one, is preserved on refresh — MFA is not
+        // re-challenged, because it was already proved when the family started (ADR-0026).
+        $amr = $rotated['token']->amr();
+
         return new IssuedSession(
             userId: $user->id()->toRfc4122(),
             username: $user->username(),
             roles: $roles,
-            accessToken: $this->accessTokens->issue($user->id(), $user->username(), $roles, $user->aclVersion()),
+            accessToken: $this->accessTokens->issue($user->id(), $user->username(), $roles, $user->aclVersion(), $amr),
             accessTtlSeconds: $this->accessTokens->ttlSeconds(),
             refreshToken: $rotated['plaintext'],
             refreshTtlSeconds: $this->refreshTtlSeconds,

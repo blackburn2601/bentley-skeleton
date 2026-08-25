@@ -60,6 +60,8 @@ final class CookieTokenAuthenticator extends AbstractAuthenticator implements Au
             $claims['username'],
             $claims['roles'],
             $claims['perm_v'],
+            $claims['amr'],
+            $claims['mfa'],
         );
 
         // The identifier callback returns the user we already built: there is no user

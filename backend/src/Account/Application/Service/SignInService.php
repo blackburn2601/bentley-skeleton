@@ -4,61 +4,47 @@ declare(strict_types=1);
 
 namespace App\Account\Application\Service;
 
-use App\Account\Application\AccessTokenIssuer;
 use App\Account\Application\IssuedSession;
-use App\Acl\Application\AclFacade;
+use App\Account\Application\TwoFactorChallenge;
+use App\Account\Domain\AccountException;
 use App\Audit\Application\AuditFacade;
-use App\Shared\Domain\SecretGenerator;
 use App\Shared\Domain\SecurityEventType;
 
 /**
- * @responsibility Turns valid credentials into an authenticated session.
+ * @responsibility Turns valid credentials into an authenticated session or an MFA challenge.
  */
 final readonly class SignInService
 {
     public function __construct(
         private AuthenticateUserService $authenticate,
-        private StartSessionService $startSession,
-        private AccessTokenIssuer $accessTokens,
-        private AclFacade $acl,
+        private CompleteSessionService $completeSession,
         private AuditFacade $audit,
-        private SecretGenerator $secrets,
-        private int $refreshTtlSeconds = 2_592_000,
+        private IssueTwoFactorChallengeService $issueChallenge,
     ) {
     }
 
-    public function __invoke(string $username, string $password, ?string $ipAddress, ?string $userAgent): IssuedSession
+    public function __invoke(string $username, string $password, ?string $ipAddress, ?string $userAgent): IssuedSession|TwoFactorChallenge
     {
         $user = ($this->authenticate)($username, $password);
 
-        // Roles come from the Acl context through its facade (INV-02) — Account does not own
-        // them and must not read acl tables directly.
-        $roles = $this->acl->roleNamesOf($user->id());
+        // MFA branches AFTER the password check, so the anti-enumeration responses of
+        // AuthenticateUserService stay byte-identical for wrong-password vs. unknown-user.
+        // The password being correct is what makes revealing "MFA applies" safe here.
+        if ($user->mfaApplies()) {
+            if (null === $user->totpSecretEncrypted()) {
+                // Required by an admin but never enrolled. The user cannot enroll at the
+                // login prompt (that would be a phishing primitive), so this is a dead end
+                // they hand to an administrator rather than a step they complete.
+                throw AccountException::mfaRequiredNotEnrolled();
+            }
 
-        $session = ($this->startSession)($user, $ipAddress, $userAgent);
+            return ($this->issueChallenge)($user);
+        }
 
-        $accessToken = $this->accessTokens->issue(
-            $user->id(),
-            $user->username(),
-            $roles,
-            $user->aclVersion(),
-        );
+        $session = ($this->completeSession)($user, [], $ipAddress, $userAgent);
 
         $this->audit->record(SecurityEventType::LoginSucceeded, $user->id());
 
-        return new IssuedSession(
-            userId: $user->id()->toRfc4122(),
-            username: $user->username(),
-            roles: $roles,
-            accessToken: $accessToken,
-            accessTtlSeconds: $this->accessTokens->ttlSeconds(),
-            refreshToken: $session['plaintext'],
-            refreshTtlSeconds: $this->refreshTtlSeconds,
-            // The double-submit CSRF value. Cookie auth means the browser attaches
-            // credentials to cross-site requests automatically; requiring this same value in
-            // a header proves the request came from our own origin, since another site can
-            // cause the cookie to be sent but cannot read it to set the header.
-            csrfToken: $this->secrets->generate(16),
-        );
+        return $session;
     }
 }
