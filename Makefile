@@ -29,7 +29,7 @@ endif
 # docs/ — and CI runs these the same way, on the runner rather than in the image.
 HOST_BACKEND := cd backend &&
 
-.PHONY: help up down restart sh logs ps migrate migrate-down fixtures db-reset \
+.PHONY: help up down restart sh logs ps migrate migrate-down fixtures db-reset env \
         test test-db test-unit test-integration test-functional coverage \
         lint fix stan arch proof docs docs-check e2e front-lint front-test front-build front-budget \
         adr endpoint service \
@@ -42,7 +42,10 @@ help: ## Show this help
 
 ## ---------------------------------------------------------------- stack
 
-up: ## Build if needed and start the dev stack
+env: ## Generate backend/.env from backend/.env.example with fresh secrets (idempotent)
+	@./bin/generate-env
+
+up: env ## Build if needed and start the dev stack
 	# --renew-anon-volumes matters after an image rebuild: /app/vendor is an anonymous
 	# volume, and Docker keeps the OLD one when recreating a container. Without this you
 	# silently run yesterday's dependencies against today's code, and the failure looks

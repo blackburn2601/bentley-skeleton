@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Generate backend/.env from the committed backend/.env.example template, filling the
+# three secret slots with fresh per-machine values. Idempotent: an existing backend/.env is
+# left untouched, so values a developer or an operator already set are never clobbered.
+#
+# Only needs openssl + perl — no PHP, no container. Run from the repo root or anywhere under
+# it. Production does NOT run this: it provisions the secrets as real environment variables
+# or Docker secrets (see docs/adr/0028-environment-via-env-example-never-committed-env.md).
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+
+if [ -f backend/.env ]; then
+  echo "backend/.env already exists, leaving it as-is."
+  exit 0
+fi
+
+if [ ! -f backend/.env.example ]; then
+  echo "backend/.env.example is missing — cannot generate backend/.env." >&2
+  exit 1
+fi
+
+cp backend/.env.example backend/.env
+
+# Fresh per-machine secrets. openssl rand is available on macOS and every Linux CI runner.
+#
+# The secret is passed to perl through the ENVIRONMENT, never interpolated into the perl
+# source. base64 output of `openssl rand -base64` contains '/' and '+', and a '/' inside
+# `s/.../value/` would terminate the substitution early and abort perl with
+# "Unknown regexp modifier". Single-quoted perl reading $ENV{...} is immune to any character
+# the secret can contain.
+APP_SECRET="$(openssl rand -hex 16)" perl -pi -e 's/^APP_SECRET=.*/APP_SECRET=$ENV{APP_SECRET}/' backend/.env
+JWT_PASSPHRASE="$(openssl rand -hex 32)" perl -pi -e 's/^JWT_PASSPHRASE=.*/JWT_PASSPHRASE=$ENV{JWT_PASSPHRASE}/' backend/.env
+# 32 raw bytes -> base64 is the 44-char form SodiumSecretBox expects (32 bytes once decoded).
+TOTP_SECRET_KEY="$(openssl rand -base64 32)" perl -pi -e 's/^TOTP_SECRET_KEY=.*/TOTP_SECRET_KEY=$ENV{TOTP_SECRET_KEY}/' backend/.env
+
+echo "Generated backend/.env from backend/.env.example with fresh secrets."
+echo "Generate the JWT keypair next: make keys (or bin/console lexik:jwt:generate-keypair)."

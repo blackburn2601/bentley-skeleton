@@ -51,6 +51,12 @@ jobs:
           mkdir -p backend/config/jwt backend/var
           sudo chown -R 1000:1000 backend/config backend/var
 
+      # backend/.env is gitignored and no longer committed (ADR-0028). Generate it on the
+      # host from the committed backend/.env.example template with fresh dev secrets; the
+      # ./backend bind mount brings it into the container, where the app reads it.
+      - name: Generate backend/.env from the template
+        run: ./bin/generate-env
+
       - name: Start the stack
         run: |
           cp docker/secrets/.gitkeep /dev/null 2>/dev/null || true
