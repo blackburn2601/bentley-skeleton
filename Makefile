@@ -51,6 +51,10 @@ up: env ## Build if needed and start the dev stack
 	# silently run yesterday's dependencies against today's code, and the failure looks
 	# like a missing class rather than a stale volume.
 	$(COMPOSE) up -d --build --wait --renew-anon-volumes
+	# Self-heal the JWT keypair: `make env` may have removed a stale one (encrypted with a
+	# previous passphrase, ADR-0029). --skip-if-exists makes this a no-op when a matching
+	# keypair is already on disk, so it only does work after a .env regeneration.
+	$(RUN_BACKEND) $(PHP) bin/console lexik:jwt:generate-keypair --skip-if-exists
 	@echo "API      http://localhost:8080"
 	@echo "SPA      http://localhost:5173"
 

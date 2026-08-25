@@ -44,3 +44,4 @@ New decision? `make adr TITLE="..."`. See [../cookbook/add-adr.md](../cookbook/a
 | 0026 | [Optional TOTP MFA with authenticator app, superseding the no-MFA workforce floor](0026-optional-totp-mfa-with-authenticator-app-superseding-the-no-mfa-workforce-floor.md) | accepted |
 | 0027 | [Free-text search over the audit log](0027-free-text-search-over-the-audit-log.md) | accepted |
 | 0028 | [Environment via .env.example, never a committed .env](0028-environment-via-env-example-never-committed-env.md) | accepted |
+| 0029 | [MFA verify-path and JWT keypair survive env-secret rotation](0029-mfa-verify-path-and-jwt-keypair-survive-env-secret-rotation.md) | accepted |

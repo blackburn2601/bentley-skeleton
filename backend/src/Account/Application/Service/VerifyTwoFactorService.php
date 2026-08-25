@@ -10,6 +10,7 @@ use App\Account\Domain\AccountException;
 use App\Account\Domain\User;
 use App\Account\Domain\UserRepository;
 use App\Audit\Application\AuditFacade;
+use App\Shared\Domain\SecretDecryptionFailed;
 use App\Shared\Domain\SecretEncryptor;
 use App\Shared\Domain\SecurityEventType;
 use Symfony\Component\Uid\Uuid;
@@ -48,7 +49,21 @@ final readonly class VerifyTwoFactorService
             throw AccountException::invalidTwoFactorCode();
         }
 
-        if (!$this->totp->verify($this->encryptor->decrypt($secretEncrypted), $code)) {
+        try {
+            $secret = $this->encryptor->decrypt($secretEncrypted);
+        } catch (SecretDecryptionFailed) {
+            // A secret that will not open — a TOTP_SECRET_KEY rotated after this secret was
+            // enrolled, or a corrupted/tampered row — is a server-side condition, not anything
+            // the caller did. It is folded into the identical 401 so the attempt cannot reveal
+            // which kind of failure occurred (the anti-enumeration invariant above), and the
+            // audit event still records it: a sudden spike across many users is the signal that
+            // the encryption key rotated without re-enrolment.
+            $this->audit->record(SecurityEventType::MfaChallengeFailed, $user->id());
+
+            throw AccountException::invalidTwoFactorCode();
+        }
+
+        if (!$this->totp->verify($secret, $code)) {
             $this->audit->record(SecurityEventType::MfaChallengeFailed, $user->id());
 
             throw AccountException::invalidTwoFactorCode();
