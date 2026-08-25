@@ -16,6 +16,11 @@ regexes = [
   # rolled-back transaction in a throwaway test database.
   '''a-perfectly-fine-passphrase-42''',
   '''functional-test-password-9x''',
+  # The RFC 6238 TOTP test vector: base32 of the ASCII string "12345678901234567890", the
+  # canonical shared secret every TOTP test suite uses. The MFA frontend specs mock the
+  # enrolment response with it, and the provisioning URI carries it as the ?secret= param.
+  # A public, standardised non-secret — no real system would use it as a key.
+  '''GEZDGNBVGY3TQOJQ''',
 ]
 paths = [
   '''backend/tests/.*''',

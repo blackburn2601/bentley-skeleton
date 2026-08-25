@@ -10,3 +10,10 @@
 # is the owner's call rather than a build step's. `git filter-repo --replace-text` does it,
 # and this line then goes stale harmlessly.
 fa6361f35b2f73f92081cba293f7d4d49a3878be:backend/.env.dev:generic-api-key:3
+
+# The dev TOTP encryption key committed in backend/.env (ADR-0026). A DEV value, like
+# APP_SECRET and JWT_PASSPHRASE in the same file — regenerated for production and provisioned
+# from a Docker secret there. Pinned to the introducing commit: a different value at this
+# line in a later commit changes the fingerprint's commit and re-fires, so a rotated real
+# key is never silently covered.
+7214e8589e50567749b9d1e5fa9e685a3f715a67:backend/.env:generic-api-key:72
