@@ -45,3 +45,4 @@ New decision? `make adr TITLE="..."`. See [../cookbook/add-adr.md](../cookbook/a
 | 0027 | [Free-text search over the audit log](0027-free-text-search-over-the-audit-log.md) | accepted |
 | 0028 | [Environment via .env.example, never a committed .env](0028-environment-via-env-example-never-committed-env.md) | accepted |
 | 0029 | [MFA verify-path and JWT keypair survive env-secret rotation](0029-mfa-verify-path-and-jwt-keypair-survive-env-secret-rotation.md) | accepted |
+| 0030 | [Fixed-window auth lockout limiters report an accurate Retry-After](0030-fixed-window-auth-lockout-limiters-report-an-accurate-retry-after.md) | accepted |
