@@ -36,9 +36,11 @@ Then `make check` to run everything CI runs.
 make new-project NAME=acme-api
 ```
 
-Rewrites every package, compose and image name, regenerates `APP_SECRET` and the JWT
-keypair, and prints the five things you must decide before shipping. It does **not** decide
-them for you — none of them have a safe default.
+Rewrites every package, compose and image name, generates a fresh per-machine
+`backend/.env` (`APP_SECRET`, JWT passphrase, TOTP key — via `bin/generate-env`; the file is
+gitignored and never committed, see ADR-0028), regenerates the JWT keypair, and prints the
+five things you must decide before shipping. It does **not** decide them for you — none of
+them have a safe default.
 
 ---
 
