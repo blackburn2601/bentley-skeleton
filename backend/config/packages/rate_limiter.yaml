@@ -7,11 +7,17 @@ framework:
         # All Redis-backed: the production stack runs more than one app container, and a
         # per-process limiter silently multiplies every limit by the replica count.
 
-        # Credential stuffing. Sliding window so a burst at the boundary cannot double the
-        # allowance. Keyed on IP *and* username by the subscriber: IP alone lets an attacker
-        # rotate addresses, username alone lets them spray many accounts from one host.
+        # Credential stuffing. Fixed window so the lockout countdown tells the truth:
+        # Retry-After is the real seconds until the bucket resets, not a drip-rate estimate
+        # (ADR-0030). A sliding window reported ~180 s here for a ~900 s wait, so a caller who
+        # waited the advertised time was still blocked — which reads as "the limiter is broken"
+        # when only the number was wrong. The cost of fixed window is a boundary burst (up to
+        # ~2x limit in the second a window flips), acceptable because this limiter is the first
+        # line, not the only one: account lockout, MFA and audit events defend the same path.
+        # Keyed on IP *and* username by the subscriber: IP alone lets an attacker rotate
+        # addresses, username alone lets them spray many accounts from one host.
         login:
-            policy: 'sliding_window'
+            policy: 'fixed_window'
             limit: 5
             interval: '15 minutes'
 
@@ -51,14 +57,15 @@ framework:
         # TOTP second-factor verification (ADR-0026). Keyed on IP + payload, like login, so a
         # brute force of one account's 6-digit space is bounded per address rather than per
         # account; 5 attempts per 15 minutes gives a real user room to misread while keeping an
-        # online guess rate uneconomic.
+        # online guess rate uneconomic. Fixed window for the same reason as login: the lockout
+        # countdown must be accurate (ADR-0030).
         totp_verify:
-            policy: 'sliding_window'
+            policy: 'fixed_window'
             limit: 5
             interval: '15 minutes'
 
         recovery_verify:
-            policy: 'sliding_window'
+            policy: 'fixed_window'
             limit: 5
             interval: '15 minutes'
 
@@ -95,4 +102,4 @@ when@test:
         rate_limiter:
             # Tests assert limits explicitly; they must not inherit state between cases, and
             # must not need Redis. The storage is swapped, not the policies.
-            login: { policy: 'sliding_window', limit: 5, interval: '15 minutes' }
+            login: { policy: 'fixed_window', limit: 5, interval: '15 minutes' }
