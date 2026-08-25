@@ -127,8 +127,9 @@ bentley-skeleton/
 - Name applied everywhere: composer/npm package names, compose project name, image name, README,
   `docs/`, JWT key paths, cookie prefix (`__Host-bentley_at` / `__Host-bentley_rt`).
 - `Makefile`: `up down sh migrate fixtures test lint fix stan arch docs e2e new-project NAME=…`.
-  `new-project` rewrites package/compose/image names + README title, regenerates `APP_SECRET` and the
-  JWT keypair, resets the ADR log to the skeleton ADRs, and prints a "first 5 things to decide" list.
+  `new-project` rewrites package/compose/image names + README title, generates a fresh per-machine
+  `backend/.env` (via `bin/generate-env`) and the JWT keypair, resets the ADR log to the skeleton
+  ADRs, and prints a "first 5 things to decide" list.
 - `.editorconfig`, `.gitattributes`, git hooks (`core.hooksPath`) → cs-fixer + phpstan on staged PHP,
   eslint on staged TS, ADR-reminder hook on staged `src/Acl|src/Security` changes.
 
