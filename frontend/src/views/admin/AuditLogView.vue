@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Search } from 'lucide-vue-next'
 import { onMounted, ref } from 'vue'
 
 import {
@@ -12,11 +13,11 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { usePaginatedResource } from '@/composables/usePaginatedResource'
 
-const filters = ref<Record<string, string | undefined>>({ type: '' })
+const filters = ref<Record<string, string | undefined>>({ q: '' })
 
 const { items, page, perPage, total, loading, error, load } =
   usePaginatedResource<AdminSecurityEvent>(
-    ({ page, perPage }) => listAuditEvents({ page, perPage, type: filters.value.type || undefined }),
+    ({ page, perPage }) => listAuditEvents({ page, perPage, q: filters.value.q || undefined }),
     filters,
   )
 
@@ -43,20 +44,23 @@ const formatDateTime = (iso: string): string => new Date(iso).toLocaleString('de
       </p>
     </div>
 
-    <Input
-      v-model="filters.type"
-      class="max-w-sm"
-      placeholder="Nach Ereignistyp filtern, z. B. login_failed"
-      aria-label="Nach Ereignistyp filtern"
-    />
+    <div class="relative max-w-sm flex-1">
+      <Search class="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+      <Input
+        v-model="filters.q"
+        class="pl-8"
+        placeholder="Nach Ereignistyp, IP, Anfrage oder Auslöser-ID suchen"
+        aria-label="Audit-Protokoll durchsuchen"
+      />
+    </div>
 
     <DataTable
       :columns="columns"
       :rows="items"
       :loading="loading"
       :error="error"
-      empty-title="Keine Ereignisse passen zu diesem Filter"
-      empty-description="Ereignistypen werden exakt verglichen, etwa login_succeeded oder permission_granted."
+      empty-title="Keine Ereignisse passen zu diesem Suchbegriff"
+      empty-description="Gesucht wird in Ereignistyp, IP, Anfrage und Auslöser-ID — auch ein Teil genügt. Versuchen Sie einen anderen Suchbegriff."
       @retry="load()"
     >
       <template #cell:occurredAt="{ row }">

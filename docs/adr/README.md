@@ -42,3 +42,4 @@ New decision? `make adr TITLE="..."`. See [../cookbook/add-adr.md](../cookbook/a
 | 0024 | [Workforce identity: username-only, admin-issued credentials, no self-registration, no email, no MFA](0024-workforce-identity-username-only-admin-issued-credentials-no-self-registration-no-email-no-mfa.md) | partially superseded by 0026 — only its "no MFA" decision; the username-only, admin-issued, no-self-registration, no-email workforce model stands untouched |
 | 0025 | [Search users by id fragment via a narrow TEXT() DQL cast](0025-search-users-by-id-fragment-via-a-narrow-text-dql-cast.md) | accepted |
 | 0026 | [Optional TOTP MFA with authenticator app, superseding the no-MFA workforce floor](0026-optional-totp-mfa-with-authenticator-app-superseding-the-no-mfa-workforce-floor.md) | accepted |
+| 0027 | [Free-text search over the audit log](0027-free-text-search-over-the-audit-log.md) | accepted |

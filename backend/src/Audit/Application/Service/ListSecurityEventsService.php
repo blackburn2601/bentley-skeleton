@@ -28,7 +28,7 @@ final readonly class ListSecurityEventsService
      *
      * @return array{items: list<array{id: string, type: string, occurredAt: string, actorId: string|null, ipAddress: string|null, requestId: string|null, highSeverity: bool}>, total: int}
      */
-    public function __invoke(array $types, int $offset, int $limit): array
+    public function __invoke(array $types, ?string $query, int $offset, int $limit): array
     {
         $items = array_map(static fn (SecurityEvent $event): array => [
             'id' => $event->id()->toRfc4122(),
@@ -38,10 +38,10 @@ final readonly class ListSecurityEventsService
             'ipAddress' => $event->ipAddress(),
             'requestId' => $event->requestId(),
             'highSeverity' => $event->type()->isHighSeverity(),
-        ], $this->events->findRecent($types, $offset, $limit));
+        ], $this->events->findRecent($types, $query, $offset, $limit));
 
         // countRecent, not countAll: a total computed without the type filter would page the
         // caller through positions that do not exist in the filtered result.
-        return ['items' => $items, 'total' => $this->events->countRecent($types)];
+        return ['items' => $items, 'total' => $this->events->countRecent($types, $query)];
     }
 }
