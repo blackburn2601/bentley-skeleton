@@ -60,7 +60,7 @@ final class AuthenticationFlowTest extends ApiTestCase
                 $name,
             ));
             self::assertStringContainsString('secure', strtolower($header), \sprintf(
-                '%s must be Secure; the __Host- prefix requires it and browsers reject it otherwise.',
+                '%s must be Secure; a bearer cookie sent over plain HTTP is a credential leak.',
                 $name,
             ));
             self::assertStringContainsString('samesite=strict', strtolower($header), \sprintf(
@@ -73,6 +73,19 @@ final class AuthenticationFlowTest extends ApiTestCase
         // ordinary API request.
         $refresh = (string) $this->setCookieFor($setCookies, AuthCookies::REFRESH);
         self::assertStringContainsString('path=/api/v1/auth', strtolower($refresh));
+
+        // The __Host- prefix and a scoped path are mutually exclusive: a __Host- cookie MUST use
+        // Path=/, and a browser silently discards one that does not. The refresh cookie needs
+        // the scoped path, so it cannot carry __Host- — this is exactly the invariant whose
+        // absence let the bug through (a __Host- refresh cookie was never stored, so refresh
+        // always 401'd and sessions died at 10-min idle; ADR-0031). The access cookie is
+        // Path=/, so it keeps __Host- and its subdomain-fixation protection. This guard goes red
+        // if __Host- is ever re-added to the refresh cookie name.
+        self::assertStringStartsWith('__Host-', (string) $this->setCookieFor($setCookies, AuthCookies::ACCESS), 'The access cookie is Path=/, so it must carry __Host- for its subdomain-fixation protection.');
+        self::assertStringStartsNotWith('__Host-', $refresh, \sprintf(
+            '%s must not carry the __Host- prefix: __Host- requires Path=/, but the refresh cookie is scoped to /api/v1/auth. A browser discards a __Host- cookie with a non-root path, which silently breaks refresh.',
+            AuthCookies::REFRESH,
+        ));
 
         // The CSRF value is deliberately readable: the SPA has to echo it in a header, and
         // possession of it alone proves nothing without the HttpOnly cookies.

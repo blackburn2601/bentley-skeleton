@@ -1,6 +1,6 @@
 # 0002. JWT access token + rotating opaque refresh token, both in `__Host-` cookies
 
-- **Status:** accepted
+- **Status:** accepted (refresh-cookie clause corrected by ADR-0031)
 - **Date:** 2026-08-22
 
 ## Context
@@ -18,6 +18,9 @@ log in every ten minutes, and we need a stolen token to be worth as little as po
   family and writes a `refresh_token_reuse` security event.
 - Both tokens live in `__Host-` prefixed, `HttpOnly`, `Secure`, `SameSite=Strict` cookies
   with scoped paths. A double-submit CSRF token guards `refresh` and `logout`.
+  > **Corrected in ADR-0031:** `__Host-` requires `Path=/`, which is incompatible with a scoped
+  > path. The refresh cookie drops `__Host-` and keeps the scoped path; the access and CSRF
+  > cookies keep `__Host-` (both `Path=/`).
 - A Bearer-header mode exists behind a config flag for machine clients.
 
 ## Consequences
