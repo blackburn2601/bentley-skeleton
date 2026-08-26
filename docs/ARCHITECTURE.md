@@ -166,7 +166,7 @@ sequenceDiagram
     end
     API->>DB: store refresh token HASH (new family)
     API->>DB: SecurityEvent(login_succeeded)
-    API-->>SPA: 204 + Set-Cookie __Host-bentley_at, __Host-bentley_rt
+    API-->>SPA: 204 + Set-Cookie __Host-bentley_at, bentley_rt
 ```
 
 The anti-enumeration property is deliberate: the same work and the same response shape

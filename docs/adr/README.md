@@ -17,7 +17,7 @@ New decision? `make adr TITLE="..."`. See [../cookbook/add-adr.md](../cookbook/a
 | # | Decision | Status |
 |---|---|---|
 | 0001 | [Headless API on plain Symfony with DTOs, not API Platform](0001-headless-api-plain-symfony-instead-of-api-platform.md) | accepted |
-| 0002 | [JWT access token + rotating opaque refresh token, both in `__Host-` cookies](0002-jwt-access-plus-rotating-refresh-token-in-host-cookies.md) | accepted |
+| 0002 | [JWT access token + rotating opaque refresh token, both in `__Host-` cookies](0002-jwt-access-plus-rotating-refresh-token-in-host-cookies.md) | accepted (refresh-cookie clause corrected by ADR-0031) |
 | 0003 | [A purpose-built per-object ACL, not RBAC-only and not `symfony/acl-bundle`](0003-per-object-acl-instead-of-rbac-only-or-acl-bundle.md) | accepted |
 | 0004 | [FrankenPHP instead of nginx + php-fpm](0004-frankenphp-instead-of-nginx-php-fpm.md) | accepted |
 | 0005 | [Symfony 7.4 LTS on PHP 8.5, rather than Symfony 8.1](0005-symfony-74-lts-on-php-85.md) | accepted |
@@ -46,3 +46,4 @@ New decision? `make adr TITLE="..."`. See [../cookbook/add-adr.md](../cookbook/a
 | 0028 | [Environment via .env.example, never a committed .env](0028-environment-via-env-example-never-committed-env.md) | accepted |
 | 0029 | [MFA verify-path and JWT keypair survive env-secret rotation](0029-mfa-verify-path-and-jwt-keypair-survive-env-secret-rotation.md) | accepted |
 | 0030 | [Fixed-window auth lockout limiters report an accurate Retry-After](0030-fixed-window-auth-lockout-limiters-report-an-accurate-retry-after.md) | accepted |
+| 0031 | [Refresh cookie drops __Host- prefix to allow a scoped path](0031-refresh-cookie-drops-host-prefix-to-allow-a-scoped-path.md) | accepted |

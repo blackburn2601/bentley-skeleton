@@ -7,23 +7,30 @@ namespace App\Api\Security;
 use Symfony\Component\HttpFoundation\Cookie;
 
 /**
- * Builds and clears the authentication cookies (ADR-0002).
+ * Builds and clears the authentication cookies (ADR-0002, ADR-0031).
  *
- * The `__Host-` prefix is the important part. A browser only accepts such a cookie when it is
- * `Secure`, has `Path=/` and has **no** `Domain` attribute — which means a sibling subdomain
- * cannot set or overwrite it. That closes cookie-fixation from any other host on the parent
- * domain, and it is enforced by the browser rather than by us remembering.
+ * The `__Host-` prefix is the important part for the access and CSRF cookies. A browser only
+ * accepts such a cookie when it is `Secure`, has `Path=/` and has **no** `Domain` attribute —
+ * which means a sibling subdomain cannot set or overwrite it. That closes cookie-fixation from
+ * any other host on the parent domain, and it is enforced by the browser rather than by us
+ * remembering.
  *
- * The price is that the SPA and the API must share an origin. In development the Vite proxy
- * provides that; a genuinely separate SPA domain needs the Bearer-header mode instead.
+ * The refresh cookie does NOT carry `__Host-`. `__Host-` forbids any path other than `/`, but
+ * the refresh token is deliberately scoped to `/api/v1/auth` so the long-lived credential is
+ * absent from every ordinary request. `__Host-` and a scoped path are mutually exclusive; a
+ * `__Host-` cookie with a non-root path is silently discarded by the browser, which is exactly
+ * the bug that made refresh never work and sessions die at 10-min idle (ADR-0031). The refresh
+ * cookie keeps the other `__Host-` guarantees by construction instead — `Secure`, no `Domain`
+ * (host-only), `SameSite=Strict` — just not the prefix that would force `Path=/`.
  *
- * Paths are scoped: the refresh token is only sent to the refresh and logout endpoints, so
- * the long-lived credential is absent from every ordinary API request.
+ * The price of the single-origin approach is that the SPA and the API must share an origin.
+ * In development the Vite proxy provides that; a genuinely separate SPA domain needs the
+ * Bearer-header mode instead.
  */
 final readonly class AuthCookies
 {
     public const string ACCESS = '__Host-bentley_at';
-    public const string REFRESH = '__Host-bentley_rt';
+    public const string REFRESH = 'bentley_rt';
 
     /**
      * Readable by JavaScript on purpose — it is the double-submit CSRF value, and the SPA has
