@@ -49,6 +49,14 @@ jobs:
         working-directory: backend
         run: composer validate --strict
 
+      # ADR-0005 keeps this repo on the 7.4 LTS. The `7.4.*` pins in composer.json only
+      # cover directly required components, and Dependabot's semver-major ignore only
+      # classifies packages it set out to update — so a grouped patch PR can still
+      # resolve a transitive component to the next major. This names that directly
+      # instead of letting it surface as a fatal error in an unrelated job.
+      - name: Symfony stays on the LTS
+        run: python3 bin/check-symfony-lts
+
       - name: Check formatting
         working-directory: backend
         run: php vendor/bin/php-cs-fixer check --diff

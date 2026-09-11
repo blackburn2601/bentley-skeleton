@@ -123,6 +123,10 @@ coverage: test-db ## Run tests with coverage and enforce the floors in bin/cover
 
 lint: ## Check formatting and config validity without changing anything
 	$(RUN_BACKEND) $(COMPOSER) validate --strict
+	@# ADR-0005: composer validate checks the file is well-formed, not that the version
+	@# set is the one we chose. Transitive components carry no 7.4.* pin, so this is the
+	@# only thing standing between a grouped patch PR and a silent major upgrade.
+	python3 bin/check-symfony-lts
 	$(RUN_BACKEND) $(PHP) vendor/bin/php-cs-fixer check --diff
 	$(RUN_BACKEND) $(PHP) vendor/bin/rector process --dry-run
 	@# --parse-tags: config/services.yaml uses !tagged_iterator, and without this the
