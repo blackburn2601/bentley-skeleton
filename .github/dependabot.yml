@@ -4,6 +4,12 @@ updates:
   - package-ecosystem: composer
     directory: /backend
     schedule: { interval: weekly, day: monday }
+    # A version published minutes ago is a version nobody has looked at. The npm and PyPI
+    # compromises of recent years all had the same shape: a maintainer account is taken over,
+    # a malicious patch release goes out, and automation adopts it before anyone notices.
+    # Waiting seven days costs nothing here — updates are grouped and reviewed weekly anyway —
+    # and puts a project outside that window. Same reasoning as pinning actions by SHA below.
+    cooldown: { default-days: 7 }
     open-pull-requests-limit: 5
     groups:
       # Grouped so routine patches arrive as ONE reviewable PR. Twenty separate bumps a week
@@ -26,6 +32,7 @@ updates:
   - package-ecosystem: npm
     directory: /frontend
     schedule: { interval: weekly, day: monday }
+    cooldown: { default-days: 7 }
     open-pull-requests-limit: 5
     groups:
       frontend-minor-patch:
@@ -42,6 +49,7 @@ updates:
   - package-ecosystem: docker
     directory: /docker/frankenphp
     schedule: { interval: weekly, day: monday }
+    cooldown: { default-days: 7 }
     labels: [dependencies, no-adr-needed]
 
   # Actions are pinned by SHA, which is what makes a supply-chain attack on an action visible
@@ -49,6 +57,7 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly, day: monday }
+    cooldown: { default-days: 7 }
     groups:
       actions:
         patterns: ['*']
