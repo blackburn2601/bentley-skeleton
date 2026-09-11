@@ -53,6 +53,14 @@ jobs:
   secrets:
     name: secret scan
     runs-on: ubuntu-latest
+    # On a pull_request event the action asks the API which commits the PR contains, and the
+    # workflow-level `contents: read` does not cover that endpoint — the job died with
+    # "Resource not accessible by integration" (403 on /pulls/{n}/commits) on every PR while
+    # passing on push and schedule, which is the worst shape a secret scan can fail in: green
+    # where nothing is proposed, red where it is.
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -64,22 +72,51 @@ jobs:
         uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Read, not write: the action's other use for the token is annotating the PR with a
+          # comment per finding, and posting one would require `pull-requests: write` — a
+          # token that can write to the PR, granted for the sake of a nicer message. The job's
+          # exit code is the signal, so comments are off and the permission stays read-only.
+          GITLEAKS_ENABLE_COMMENTS: 'false'
 
   static-security:
     name: semgrep
     runs-on: ubuntu-latest
     # PHP has no CodeQL analyser, so this is the only static security analysis the backend
     # gets. It is not optional.
+    #
+    # It ran green and scanned nothing from the day it was written until 2026-09-11, here and
+    # in every project seeded from this repository. `semgrep/semgrep-action@v1` is archived
+    # upstream and ships semgrep 1.36.0 (August 2023), which predates the registry's move to
+    # the LOW/MEDIUM/HIGH severity taxonomy — so every run died with
+    # `ValueError: invalid rule severity value: MEDIUM` the moment it loaded a current rule,
+    # and the action swallowed the non-zero exit and reported success.
+    #
+    # Hence the shape below: the official image, invoked directly, so the exit code is the
+    # scan's own. A crash fails the job now, which is the property that was missing.
+    container:
+      # Pinned by digest, like every action here is pinned by SHA — the point of pinning is
+      # that a supply-chain change is a visible diff rather than a silent one. Dependabot
+      # bumps this along with the actions.
+      image: semgrep/semgrep:1.176.0@sha256:12672acdb0949e19f9f6a4c2b288edd0b404f268f0ca7738a2c06f372f50362e
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: semgrep/semgrep-action@713efdd345f3035192eaa63f56867b88e63e4e5d # v1
-        with:
-          config: >-
-            p/php
-            p/javascript
-            p/owasp-top-ten
-            p/secrets
+      - name: semgrep
+        # `scan`, not `ci`: `semgrep ci` scans the diff when it can, and a pre-existing
+        # weakness that a pull request starts depending on is exactly the finding a diff-aware
+        # scan reports once and then never again. A project this size scans fully in seconds.
+        #
+        # `--error` turns findings into a non-zero exit. Without it semgrep prints them and
+        # exits 0 — which is half of how this job came to report success while scanning
+        # nothing.
+        run: >-
+          semgrep scan
+          --config=p/php
+          --config=p/javascript
+          --config=p/owasp-top-ten
+          --config=p/secrets
+          --error
+          --metrics=off
 
   filesystem:
     name: trivy filesystem
@@ -115,6 +152,17 @@ jobs:
 
       - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
 
+      # Today's date, passed into the build below as SECURITY_REFRESH.
+      #
+      # Without it the layers that fetch fixes — `apt-get upgrade`, and the `go get @latest`
+      # that rebuilds the frankenphp binary — are served from the gha cache and re-resolve
+      # nothing, so the one job whose purpose is "what would we ship today" would keep
+      # scanning a build from whenever the cache was warmed. A date rather than the run id:
+      # PRs pushed on the same day still share the cache.
+      - name: Date stamp for the security refresh
+        id: refresh
+        run: echo "date=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+
       - name: Build the production image
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
@@ -124,6 +172,8 @@ jobs:
           push: false
           load: true
           tags: bentley-skeleton:ci
+          build-args: |
+            SECURITY_REFRESH=${{ steps.refresh.outputs.date }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -143,7 +193,7 @@ jobs:
           trivyignores: .trivyignore
 
       - name: SBOM
-        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
+        uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
         with:
           image: bentley-skeleton:ci
           format: spdx-json

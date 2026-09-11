@@ -1,0 +1,105 @@
+#!/usr/bin/env python3
+"""No Symfony component may resolve past the 7.4 LTS.
+
+ADR-0005 chose Symfony 7.4 LTS over 8.1: this repository seeds other projects, so its
+framework version becomes theirs, and 7.4 carries security fixes to November 2029 where a
+standard release carries roughly fourteen months.
+
+Two guards already exist and both have a hole. `composer.json` pins every *directly*
+required component to `7.4.*` — but a component that arrives only as a transitive
+dependency has no constraint at all. And Dependabot's `ignore` on
+`version-update:semver-major` only classifies the packages it set out to update; majors
+that composer pulls in while resolving the group ride along unclassified.
+
+That is not theoretical. A "backend-minor-patch" PR once moved fifteen components to 8.x,
+`symfony/security-core` among them, and the only symptom was a fatal error: Symfony 8 added
+a fourth parameter to `Voter::voteOnAttribute()`, so every subclass stopped matching and the
+kernel would not boot. Six CI jobs died at once and none of them said "wrong major".
+
+So this reads the lockfile and names the invariant directly. The `conflict` block in
+`backend/composer.json` is what *prevents* the resolution; this is what catches a component
+that is not in that block yet.
+"""
+
+import json
+import os
+import re
+import subprocess
+import sys
+
+# `*-contracts` (3.x) and `polyfill-*` (1.x) carry their own version lines and never track
+# the framework's major, so a bound on them would be meaningless noise.
+INDEPENDENT = ("symfony/polyfill-",)
+MAX_MAJOR = 7
+
+
+def repo_root() -> str:
+    return subprocess.check_output(
+        ["git", "rev-parse", "--show-toplevel"], text=True
+    ).strip()
+
+
+def tracks_framework_major(name: str) -> bool:
+    return (
+        name.startswith("symfony/")
+        and not name.startswith(INDEPENDENT)
+        and not name.endswith("-contracts")
+    )
+
+
+def main() -> int:
+    os.chdir(repo_root())
+
+    lock = json.load(open("backend/composer.lock"))
+    composer = json.load(open("backend/composer.json"))
+    conflict = composer.get("conflict", {})
+    pinned = set(composer.get("require", {})) | set(composer.get("require-dev", {}))
+
+    too_new = []
+    unguarded = []
+
+    for package in lock["packages"] + lock["packages-dev"]:
+        name, version = package["name"], package["version"]
+        if not tracks_framework_major(name):
+            continue
+
+        major = re.match(r"^v?(\d+)\.", version)
+        if major and int(major.group(1)) > MAX_MAJOR:
+            too_new.append((name, version))
+        elif name not in pinned and name not in conflict:
+            unguarded.append((name, version))
+
+    if too_new:
+        print("Symfony components resolved past the 7.4 LTS:\n", file=sys.stderr)
+        for name, version in too_new:
+            print(f"  {name} {version}", file=sys.stderr)
+        print(
+            "\nADR-0005 keeps this repository on 7.4. Do not widen the constraint to make a\n"
+            "dependency update pass — either the update is wrong, or 0005 is being revised\n"
+            "and needs a superseding ADR (make adr TITLE=\"...\").",
+            file=sys.stderr,
+        )
+
+    if unguarded:
+        print(
+            f"\n{len(unguarded)} transitive Symfony component(s) have no upper bound, so the\n"
+            "next resolution is free to move them to the next major:\n",
+            file=sys.stderr,
+        )
+        for name, version in unguarded:
+            print(f"  {name} {version}", file=sys.stderr)
+        print(
+            '\nAdd each to the "conflict" block in backend/composer.json as ">=8", which is\n'
+            "what stops composer resolving it rather than merely reporting it afterwards.",
+            file=sys.stderr,
+        )
+
+    if too_new or unguarded:
+        return 1
+
+    print("Symfony LTS: every component is within 7.4, every transitive one is bounded.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
