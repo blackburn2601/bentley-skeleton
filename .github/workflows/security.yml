@@ -53,6 +53,14 @@ jobs:
   secrets:
     name: secret scan
     runs-on: ubuntu-latest
+    # On a pull_request event the action asks the API which commits the PR contains, and the
+    # workflow-level `contents: read` does not cover that endpoint — the job died with
+    # "Resource not accessible by integration" (403 on /pulls/{n}/commits) on every PR while
+    # passing on push and schedule, which is the worst shape a secret scan can fail in: green
+    # where nothing is proposed, red where it is.
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -64,6 +72,11 @@ jobs:
         uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Read, not write: the action's other use for the token is annotating the PR with a
+          # comment per finding, and posting one would require `pull-requests: write` — a
+          # token that can write to the PR, granted for the sake of a nicer message. The job's
+          # exit code is the signal, so comments are off and the permission stays read-only.
+          GITLEAKS_ENABLE_COMMENTS: 'false'
 
   static-security:
     name: semgrep
@@ -139,6 +152,17 @@ jobs:
 
       - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
 
+      # Today's date, passed into the build below as SECURITY_REFRESH.
+      #
+      # Without it the layers that fetch fixes — `apt-get upgrade`, and the `go get @latest`
+      # that rebuilds the frankenphp binary — are served from the gha cache and re-resolve
+      # nothing, so the one job whose purpose is "what would we ship today" would keep
+      # scanning a build from whenever the cache was warmed. A date rather than the run id:
+      # PRs pushed on the same day still share the cache.
+      - name: Date stamp for the security refresh
+        id: refresh
+        run: echo "date=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+
       - name: Build the production image
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
@@ -148,6 +172,8 @@ jobs:
           push: false
           load: true
           tags: bentley-skeleton:ci
+          build-args: |
+            SECURITY_REFRESH=${{ steps.refresh.outputs.date }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -167,7 +193,7 @@ jobs:
           trivyignores: .trivyignore
 
       - name: SBOM
-        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
+        uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
         with:
           image: bentley-skeleton:ci
           format: spdx-json

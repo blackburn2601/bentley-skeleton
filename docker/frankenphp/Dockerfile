@@ -4,6 +4,17 @@
 # configuration and in what compose mounts over the top — not in what is built. "Works on my
 # machine" therefore means considerably more here than usual.
 
+# The FrankenPHP release this image is built from, used by BOTH frankenphp stages below.
+#
+# One variable for both on purpose. We compile our own frankenphp binary (stage 3) and run it
+# against the base image's libphp (stage 4), so the two must come from the same release — a
+# binary built against PHP 8.5.9 headers loaded against a different libphp is exactly the kind
+# of breakage that shows up as a segfault under load rather than a build error. The floating
+# `php8.5` tag would have let those drift apart silently the day upstream ships 1.13.
+#
+# Bumping this is a deliberate, verifiable act: change it, rebuild, run the suite (ADR-0032).
+ARG FRANKENPHP_VERSION=1.12.7
+
 # ---------------------------------------------------------------- 1. PHP dependencies
 FROM composer:2 AS vendor
 
@@ -44,13 +55,71 @@ RUN --mount=type=cache,target=/root/.npm npm ci
 COPY frontend/ ./
 RUN npm run build
 
-# ---------------------------------------------------------------- 3. Runtime
-FROM dunglas/frankenphp:php8.5 AS runtime
+# ---------------------------------------------------------------- 3. The frankenphp binary
+# Compile frankenphp ourselves, from the release's own source, with its vulnerable Go modules
+# upgraded first.
+#
+# Why this exists at all: everything Trivy flagged on `usr/local/bin/frankenphp` is a Go
+# module COMPILED INTO the upstream binary — six HIGH/CRITICAL findings across x/crypto, grpc
+# and kin-openapi. The `apt-get upgrade` in the next stage cannot reach them, and neither can
+# a newer tag: `php8.5`, `1.12.7-php8.5` and `1-php8.5` are one digest, and upstream ships its
+# releases against whatever modules were current when it cut them. So the choice was to accept
+# them with an expiry date forever, or to rebuild the binary. This rebuilds it (ADR-0032).
+#
+# The builder image is the upstream `builder` stage: it already carries the full frankenphp
+# source at /go/src/app, the Go toolchain, libphp, the watcher library and the CGO_* flags the
+# link needs. We change nothing about the build except the module versions — the resulting
+# binary reports the same FrankenPHP, PHP and Caddy versions and exposes an IDENTICAL Caddy
+# module set (146 modules, checksum-compared) and PHP extension list.
+FROM dunglas/frankenphp:${FRANKENPHP_VERSION}-builder-php8.5 AS frankenphp-src
+
+# Re-declared to bring the global ARG into this stage. A global ARG reaches `FROM` lines but
+# NOT the body of a stage, and the version is stamped into the binary's version string below —
+# under `set -u` an out-of-scope ARG is an unbound variable that fails the build. It picks up
+# the global default, so there is still one place to change the version.
+ARG FRANKENPHP_VERSION
+
+# The modules that keep producing advisories, floated to their newest release so a REBUILD
+# closes tomorrow's CVE without anyone editing this file. That is the point: `main` stays
+# current by building, not by somebody remembering to bump a pin.
+#
+# Only these float. The FrankenPHP, PHP and Caddy versions stay pinned by FRANKENPHP_VERSION
+# above, so what floats is transitive library code, never the server we run. When a float
+# breaks compilation the BUILD fails, which is loud and ships nothing — the failure mode we
+# want. Add a module here when Trivy names one; that is a one-line change.
+ARG GO_MODULE_UPGRADES="golang.org/x/crypto@latest google.golang.org/grpc@latest github.com/getkin/kin-openapi@latest"
+
+# Changing this re-runs the layer, so `@latest` actually re-resolves instead of being served
+# from a cached layer that pinned itself the day it was first built. CI passes the date.
+ARG SECURITY_REFRESH=0
+
+RUN set -eux; \
+    echo "security refresh: ${SECURITY_REFRESH}"; \
+    cd /go/src/app/caddy; \
+    go get ${GO_MODULE_UPGRADES}; \
+    go mod tidy; \
+    cd frankenphp; \
+    GOBIN=/usr/local/bin ../../go.sh install -buildvcs=false \
+        -ldflags "-w -s \
+        -X 'github.com/caddyserver/caddy/v2.CustomVersion=FrankenPHP v${FRANKENPHP_VERSION} PHP ${PHP_VERSION} Caddy' \
+        -X 'github.com/caddyserver/caddy/v2.CustomBinaryName=frankenphp' \
+        -X 'github.com/caddyserver/caddy/v2/modules/caddyhttp.ServerHeader=FrankenPHP Caddy'"; \
+    frankenphp version
+
+# ---------------------------------------------------------------- 4. Runtime
+FROM dunglas/frankenphp:${FRANKENPHP_VERSION}-php8.5 AS runtime
 
 # OpenTelemetry is a build-time opt-in: opentelemetry-auto-symfony hard-requires the
 # extension, so it has to exist when composer installs, regardless of the runtime env flag
 # that decides whether it actually traces (ADR-0017).
 ARG WITH_OTEL=0
+
+# Re-declared in this stage: an ARG is scoped to the stage that declares it, and without it
+# the upgrade below runs from a layer cached the day it was first built. That is how the image
+# came to ship linux-libc-dev 6.12.105-1 while 6.12.107-1 — which fixes three HIGH findings —
+# had been in the mirror for days: the layer was never re-run, so `apt-get upgrade` had
+# nothing to do. CI passes today's date; local `make up` leaves it at 0 and stays cached.
+ARG SECURITY_REFRESH=0
 
 # Patch the base image's OS packages before anything else.
 #
@@ -63,7 +132,8 @@ ARG WITH_OTEL=0
 # It does cost reproducibility: two builds of the same Dockerfile can pull different package
 # versions. That is the right trade for a security baseline — pin the base image by digest if
 # you need bit-identical rebuilds.
-RUN apt-get update \
+RUN echo "security refresh: ${SECURITY_REFRESH}" \
+    && apt-get update \
     && apt-get upgrade -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -80,6 +150,10 @@ WORKDIR /app
 
 # Non-root. FrankenPHP binds :80 and :443 inside the container, so it needs the capability
 # to bind privileged ports without being root.
+# Our binary, not the base image's. Placed here so the setcap below applies to it, and after
+# the apt/extension layers so a rebuilt binary does not invalidate them.
+COPY --from=frankenphp-src /usr/local/bin/frankenphp /usr/local/bin/frankenphp
+
 RUN groupadd -g 1000 app \
     && useradd -u 1000 -g app -m -s /bin/sh app \
     && setcap cap_net_bind_service=+ep /usr/local/bin/frankenphp \
@@ -122,7 +196,7 @@ EXPOSE 80 443 443/udp
 
 CMD ["frankenphp", "run", "--config", "/etc/frankenphp/Caddyfile"]
 
-# ---------------------------------------------------------------- 4. Development
+# ---------------------------------------------------------------- 5. Development
 # Extends the production runtime rather than diverging from it: same base, same extensions,
 # same web server, same user. What dev adds is the require-dev packages (makers, fixtures,
 # Foundry, the debug toolbar), Xdebug, and an opcache configuration that notices edits.

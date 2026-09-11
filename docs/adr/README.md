@@ -47,3 +47,4 @@ New decision? `make adr TITLE="..."`. See [../cookbook/add-adr.md](../cookbook/a
 | 0029 | [MFA verify-path and JWT keypair survive env-secret rotation](0029-mfa-verify-path-and-jwt-keypair-survive-env-secret-rotation.md) | accepted |
 | 0030 | [Fixed-window auth lockout limiters report an accurate Retry-After](0030-fixed-window-auth-lockout-limiters-report-an-accurate-retry-after.md) | accepted |
 | 0031 | [Refresh cookie drops __Host- prefix to allow a scoped path](0031-refresh-cookie-drops-host-prefix-to-allow-a-scoped-path.md) | accepted |
+| 0032 | [Compile the FrankenPHP binary in our own build so its CVEs close by rebuilding](0032-compile-the-frankenphp-binary-in-our-own-build-so-its-cves-close-by-rebuilding.md) | accepted |
