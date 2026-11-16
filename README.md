@@ -1,19 +1,61 @@
+<div align="center">
+
 # bentley-skeleton
 
-A security-hardened template for headless **Symfony 7.4 + Vue 3** applications: JWT
-authentication with rotating refresh tokens, a per-object ACL, Docker Compose for development
-and production, and a CI pipeline that enforces the architecture rather than describing it.
+**A security-hardened template for headless Symfony 7.4 + Vue 3 applications** — JWT authentication
+with rotating refresh tokens, a per-object ACL, and an architecture enforced by tooling rather than
+convention.
+
+[![ci-backend](https://github.com/blackburn2601/bentley-skeleton/actions/workflows/ci-backend.yml/badge.svg?branch=main)](https://github.com/blackburn2601/bentley-skeleton/actions/workflows/ci-backend.yml)
+[![ci-frontend](https://github.com/blackburn2601/bentley-skeleton/actions/workflows/ci-frontend.yml/badge.svg?branch=main)](https://github.com/blackburn2601/bentley-skeleton/actions/workflows/ci-frontend.yml)
+[![architecture](https://github.com/blackburn2601/bentley-skeleton/actions/workflows/architecture.yml/badge.svg?branch=main)](https://github.com/blackburn2601/bentley-skeleton/actions/workflows/architecture.yml)
+[![CodeQL](https://github.com/blackburn2601/bentley-skeleton/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/blackburn2601/bentley-skeleton/actions/workflows/codeql.yml)
+![PHP](https://img.shields.io/badge/PHP-8.5-777bb4)
+![Symfony](https://img.shields.io/badge/Symfony-7.4-000000)
+![Vue](https://img.shields.io/badge/Vue-3.5-42b883)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-336791)
+
+</div>
+
+---
+
+## About
+
+Most starter kits give you a login form and a folder structure, then leave the rules to
+convention. This one ships the rules as **failing builds**: layer boundaries, controller shape,
+service size and authorization coverage are checked on every push, and a violation names the
+invariant it broke and how to fix it.
 
 It is built to be extended by people **and by AI sessions with no prior context**. That goal
-shapes everything else: the rules are machine-enforced, the decisions are written down with
-their rejected alternatives, and the inventories that answer "does this already exist?" are
-generated from the code and checked for freshness in CI.
+shapes everything else: decisions are written down with their rejected alternatives (31 ADRs),
+and the inventories that answer "does this already exist?" — endpoints, permissions, services —
+are generated from the code and checked for freshness in CI.
 
 > **Working in this repo?** Read [`CLAUDE.md`](CLAUDE.md) first — it is the entry point for
 > humans and agents alike, and it is short.
 
----
+## Screenshots
 
+The template ships with a small admin SPA (German UI) so the security model is visible, not just
+described. Demo data comes from `make fixtures`.
+
+|  |  |
+|:--:|:--:|
+| ![Sign-in](docs/screenshots/sign-in.png) | ![Dashboard](docs/screenshots/dashboard.png) |
+| **Sign-in** — admin-issued username credentials | **Administration** — one entry per area, each naming the permission it needs |
+| ![Users](docs/screenshots/users.png) | ![User detail](docs/screenshots/user-detail.png) |
+| **Users** — list filtered by the same rules as a direct request | **User detail** — direct roles, inherited group roles, *effective permissions* |
+| ![Roles](docs/screenshots/roles.png) | ![Groups](docs/screenshots/groups.png) |
+| **Roles** — named bundles of permissions | **Groups** — one subject for "everyone on this team" |
+| ![Permissions](docs/screenshots/permissions.png) | ![Audit log](docs/screenshots/audit-log.png) |
+| **Permissions** — catalogue declared in code, synced to the database | **Audit log** — append-only, enforced by database grants, searchable |
+
+<div align="center">
+<img src="docs/screenshots/roles-dark.png" alt="Roles, dark theme" width="70%">
+<br><em>Dark theme follows the system preference</em>
+</div>
+
+---
 ## Quick start
 
 ```bash
@@ -26,9 +68,11 @@ make migrate fixtures         # schema + demo dataset
 |---|---|
 | API | <http://localhost:8080> |
 | SPA | <http://localhost:5173> |
-| API docs | <http://localhost:8080/api/doc> |
+| OpenAPI spec | <http://localhost:8080/api/doc.json> |
 
-Then `make check` to run everything CI runs.
+Sign in at <http://localhost:5173> as `admin`, `editor` or `viewer` with the demo password
+`demo-password-not-for-real-use` (demo fixtures only).
+Then `make check` runs everything CI runs.
 
 ## Starting a real project from this template
 
@@ -86,6 +130,39 @@ fastest one.
 
 ---
 
+## Tech stack
+
+| | |
+|---|---|
+| Backend | PHP 8.5 · Symfony 7.4 · Doctrine ORM · FrankenPHP |
+| Auth | `lexik/jwt-authentication-bundle` (RS256) · argon2id · opaque rotating refresh tokens · TOTP |
+| Data | PostgreSQL 18 · Redis (rate limits) |
+| Frontend | Vue 3.5 · Vite 8 · Pinia · Tailwind CSS 4 · reka-ui · TypeScript |
+| API contract | RFC 9457 `problem+json` · OpenAPI via `nelmio/api-doc-bundle` |
+| Quality gates | PHPStan (`level: max`) · deptrac · PHPMD · Rector · PHPUnit 13 · Vitest · Playwright |
+| Security CI | CodeQL · Semgrep · secret scan · `composer`/`npm audit` · Trivy image scan |
+| Ops | Docker Compose (dev + prod) · read-only rootfs · Docker secrets · Prometheus metrics · Sentry / OpenTelemetry |
+
+## Architecture at a glance
+
+```
+backend/src/
+├── Account/    authentication, provisioning, sessions, token rotation
+├── Acl/        permission model, PermissionResolver, AclCriteriaBuilder
+├── Audit/      append-only security events, entity history, GDPR export/erasure
+├── Platform/   health checks, observability, rate limiting, request ids
+├── Shared/     domain primitives (Clock, IdGenerator, value objects)
+├── Api/        ALL HTTP: controllers, request DTOs, views, voters
+└── Maker/      dev-time generators (`make endpoint`, `make service`, `make adr`)
+```
+
+Each context has `Domain/`, `Application/` and `Infrastructure/`; contexts talk to each other
+only through a `<Context>Facade`. Keeping all HTTP in `Api/` means authorization coverage can be
+reviewed in one pass. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the context map and
+the ACL decision flow.
+
+---
+
 ## Documentation
 
 | | |
@@ -107,4 +184,4 @@ Composer 2, Node 26.
 
 ## License
 
-Proprietary — adjust before publishing.
+No license has been chosen yet, so all rights are reserved. Add one before reusing this code.
